@@ -1,7 +1,7 @@
 # PostHog KMP
 
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.nicepics/posthog-kmp)](https://central.sonatype.com/artifact/io.github.nicepics/posthog-kmp)
-[![Kotlin](https://img.shields.io/badge/kotlin-2.1.0-blue.svg?logo=kotlin)](http://kotlinlang.org)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.samuolis/posthog-kmp)](https://central.sonatype.com/artifact/io.github.samuolis/posthog-kmp)
+[![Kotlin](https://img.shields.io/badge/kotlin-2.3.0-blue.svg?logo=kotlin)](http://kotlinlang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A **Kotlin Multiplatform** SDK for [PostHog](https://posthog.com) analytics, supporting Android, iOS, Web (JS/Wasm), JVM, and macOS.
@@ -23,7 +23,7 @@ A **Kotlin Multiplatform** SDK for [PostHog](https://posthog.com) analytics, sup
 |----------|--------|----------------|
 | Android | ✅ | PostHog Android SDK (native) |
 | iOS | ✅ | PostHog iOS SDK (native via SPM) |
-| macOS | ✅ | PostHog iOS/macOS SDK (native via SPM) |
+| macOS | ⚠️ | Stub (native SDK pending) |
 | JVM | ✅ | HTTP API (Ktor/OkHttp) |
 | JS (Browser) | ✅ | posthog-js (native) |
 | Wasm (Browser) | ✅ | posthog-js (native) |
@@ -37,7 +37,7 @@ A **Kotlin Multiplatform** SDK for [PostHog](https://posthog.com) analytics, sup
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation("io.github.nicepics:posthog-kmp:0.1.0")
+            implementation("io.github.samuolis:posthog-kmp:0.1.0")
         }
     }
 }
@@ -50,7 +50,7 @@ kotlin {
 posthog-kmp = "0.1.0"
 
 [libraries]
-posthog-kmp = { group = "io.github.nicepics", name = "posthog-kmp", version.ref = "posthog-kmp" }
+posthog-kmp = { group = "io.github.samuolis", name = "posthog-kmp", version.ref = "posthog-kmp" }
 ```
 
 ## Quick Start
@@ -58,37 +58,80 @@ posthog-kmp = { group = "io.github.nicepics", name = "posthog-kmp", version.ref 
 ### Initialize PostHog
 
 ```kotlin
-import io.posthog.kmp.PostHog
-import io.posthog.kmp.PostHogConfig
+import io.github.samuolis.posthog.PostHog
+import io.github.samuolis.posthog.PostHogConfig
+import io.github.samuolis.posthog.PostHogContext
 
-// Basic setup
-PostHog.setup(PostHogConfig(
-    apiKey = "phc_your_api_key"
-))
+// Setup with context (recommended)
+PostHog.setup(
+    config = PostHogConfig(
+        apiKey = "phc_your_api_key",
+        debug = true
+    ),
+    context = PostHogContext() // Platform-specific context
+)
 
 // Full configuration
-PostHog.setup(PostHogConfig(
-    apiKey = "phc_your_api_key",
-    host = PostHogConfig.HOST_EU, // or HOST_US
-    debug = BuildConfig.DEBUG,
-    captureApplicationLifecycleEvents = true,
-    captureScreenViews = false,
-    preloadFeatureFlags = true
-))
+PostHog.setup(
+    config = PostHogConfig(
+        apiKey = "phc_your_api_key",
+        host = PostHogConfig.HOST_EU, // or HOST_US (default)
+        debug = BuildConfig.DEBUG,
+        captureApplicationLifecycleEvents = true,
+        captureScreenViews = false,
+        preloadFeatureFlags = true
+    ),
+    context = PostHogContext()
+)
 ```
 
-### Android Setup
+### Platform-Specific Setup
 
-On Android, you must set the application context before calling `setup()`:
+#### Android
+
+On Android, pass the `Application` context to `PostHogContext`:
 
 ```kotlin
-class MyApplication : Application() {
-    override fun onCreate() {
-        super.onCreate()
+// In your Activity or Application
+import io.github.samuolis.posthog.PostHog
+import io.github.samuolis.posthog.PostHogConfig
+import io.github.samuolis.posthog.PostHogContext
 
-        PostHog.setApplicationContext(this)
-        PostHog.setup(PostHogConfig(apiKey = "phc_your_api_key"))
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        PostHog.setup(
+            config = PostHogConfig(apiKey = "phc_your_api_key"),
+            context = PostHogContext(application)
+        )
     }
+}
+```
+
+#### iOS / Web / JVM / macOS
+
+On non-Android platforms, use the no-argument `PostHogContext()`:
+
+```kotlin
+// iOS MainViewController.kt
+fun MainViewController() = ComposeUIViewController {
+    LaunchedEffect(Unit) {
+        PostHog.setup(
+            config = PostHogConfig(apiKey = "phc_your_api_key"),
+            context = PostHogContext()
+        )
+    }
+    App()
+}
+
+// Web main.kt
+fun main() {
+    PostHog.setup(
+        config = PostHogConfig(apiKey = "phc_your_api_key"),
+        context = PostHogContext()
+    )
+    // ...
 }
 ```
 
@@ -292,19 +335,22 @@ PostHog.close()
 
 ### Android
 - Uses official PostHog Android SDK (`posthog-android`)
+- Requires `PostHogContext(application)` with Application context
 - Supports session recording
 - Automatic lifecycle tracking
 - Deep link capture
-- Error auto-capture
 
-### iOS/macOS
-- Uses official PostHog iOS SDK via [SPM4KMP](https://github.com/AElkhami/spm-for-kmp)
+### iOS
+- Uses official PostHog iOS SDK via Swift bridge
 - Full native SDK features including:
-  - Session recording (iOS only)
+  - Session recording
   - Surveys (iOS 15+)
-  - Autocapture (iOS only)
+  - Autocapture
   - Native networking and caching
-- Swift bridge handles Kotlin/Native interop
+
+### macOS
+- Currently stub implementation
+- Native SDK support planned for future release
 
 ### JVM
 - Uses Ktor HTTP client with OkHttp engine
@@ -318,42 +364,14 @@ PostHog.close()
 - Session recording available
 - LocalStorage persistence
 
-## Publishing to Maven Central
-
-This library is configured for publishing to Maven Central using the [vanniktech gradle plugin](https://github.com/vanniktech/gradle-maven-publish-plugin).
-
-### Setup
-
-1. Create a Sonatype OSSRH account at [central.sonatype.com](https://central.sonatype.com)
-2. Create a GPG key for signing
-3. Configure your `~/.gradle/gradle.properties`:
-
-```properties
-mavenCentralUsername=your_username
-mavenCentralPassword=your_password
-signing.keyId=YOUR_KEY_ID
-signing.password=YOUR_KEY_PASSWORD
-signing.secretKeyRingFile=/path/to/.gnupg/secring.gpg
-```
-
-### Publish
-
-```bash
-# Publish to Maven Central
-./gradlew publishAllPublicationsToMavenCentralRepository
-
-# Publish snapshot
-./gradlew publishAllPublicationsToMavenCentralRepository -PVERSION_NAME=0.1.0-SNAPSHOT
-```
-
 ## Contributing
 
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details.
+Contributions are welcome!
 
 ### Development Setup
 
 ```bash
-git clone https://github.com/nicepics/posthog-kmp.git
+git clone https://github.com/samuolis/posthog-kmp.git
 cd posthog-kmp
 
 # Build all targets
@@ -361,9 +379,6 @@ cd posthog-kmp
 
 # Run tests
 ./gradlew allTests
-
-# Check code style
-./gradlew detekt
 ```
 
 ## License
@@ -371,7 +386,7 @@ cd posthog-kmp
 ```
 MIT License
 
-Copyright (c) 2025 NicePics
+Copyright (c) 2025 Lukas Samuolis
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -396,10 +411,8 @@ SOFTWARE.
 
 - [PostHog](https://posthog.com) - The open source product analytics platform
 - [Kotlin Multiplatform](https://kotlinlang.org/docs/multiplatform.html) - Cross-platform development
-- [vanniktech/gradle-maven-publish-plugin](https://github.com/vanniktech/gradle-maven-publish-plugin) - Publishing to Maven Central
 
 ## Resources
 
 - [PostHog Documentation](https://posthog.com/docs)
 - [PostHog Feature Flags](https://posthog.com/docs/feature-flags)
-- [Kotlin Multiplatform Publishing Guide](https://kotlinlang.org/docs/multiplatform/multiplatform-publish-libraries.html)
