@@ -64,24 +64,18 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Publishing version: $VERSION"
 
-      - name: Decode GPG Key
-        run: |
-          echo "${{ secrets.SIGNING_KEY }}" | base64 --decode > /tmp/signing-key.asc
-          echo "GPG key decoded successfully"
-
       - name: Publish to Maven Central
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
         run: |
-          export ORG_GRADLE_PROJECT_signingInMemoryKey="$(cat /tmp/signing-key.asc)"
           ./gradlew publishAllPublicationsToMavenCentralRepository \
             -PVERSION_NAME=${{ steps.version.outputs.version }} \
             --no-daemon \
             --no-configuration-cache
-          rm -f /tmp/signing-key.asc
 
   # Create GitHub Release artifacts
   release-artifacts:
