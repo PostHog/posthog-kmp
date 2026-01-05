@@ -136,7 +136,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.samuolis.posthog"
+    namespace = "io.github.samuolis.posthog"
     compileSdk = 35
 
     defaultConfig {
@@ -162,7 +162,7 @@ mavenPublishing {
     pom {
         name.set(project.findProperty("POM_NAME") as String? ?: "PostHog KMP")
         description.set(project.findProperty("POM_DESCRIPTION") as String? ?: "Kotlin Multiplatform PostHog SDK")
-        url.set(project.findProperty("POM_URL") as String? ?: "https://github.com/nicepics/posthog-kmp")
+        url.set(project.findProperty("POM_URL") as String? ?: "https://github.com/samuolis/posthog-kmp")
         inceptionYear.set("2025")
 
         licenses {
@@ -175,16 +175,16 @@ mavenPublishing {
 
         developers {
             developer {
-                id.set(project.findProperty("POM_DEVELOPER_ID") as String? ?: "nicepics")
-                name.set(project.findProperty("POM_DEVELOPER_NAME") as String? ?: "NicePics")
-                url.set(project.findProperty("POM_DEVELOPER_URL") as String? ?: "https://github.com/nicepics")
+                id.set(project.findProperty("POM_DEVELOPER_ID") as String? ?: "samuolis")
+                name.set(project.findProperty("POM_DEVELOPER_NAME") as String? ?: "Lukas Samuolis")
+                url.set(project.findProperty("POM_DEVELOPER_URL") as String? ?: "https://github.com/samuolis")
             }
         }
 
         scm {
-            url.set(project.findProperty("POM_SCM_URL") as String? ?: "https://github.com/nicepics/posthog-kmp")
-            connection.set(project.findProperty("POM_SCM_CONNECTION") as String? ?: "scm:git:git://github.com/nicepics/posthog-kmp.git")
-            developerConnection.set(project.findProperty("POM_SCM_DEV_CONNECTION") as String? ?: "scm:git:ssh://git@github.com/nicepics/posthog-kmp.git")
+            url.set(project.findProperty("POM_SCM_URL") as String? ?: "https://github.com/samuolis/posthog-kmp")
+            connection.set(project.findProperty("POM_SCM_CONNECTION") as String? ?: "scm:git:git://github.com/samuolis/posthog-kmp.git")
+            developerConnection.set(project.findProperty("POM_SCM_DEV_CONNECTION") as String? ?: "scm:git:ssh://git@github.com/samuolis/posthog-kmp.git")
         }
     }
 }

@@ -64,11 +64,11 @@ kotlin {
 }
 
 android {
-    namespace = "com.samuolis.posthog.sample"
+    namespace = "io.github.samuolis.posthog.sample"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.samuolis.posthog.sample"
+        applicationId = "io.github.samuolis.posthog.sample"
         minSdk = 24
         targetSdk = 35
         versionCode = 1
