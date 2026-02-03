@@ -39,7 +39,7 @@ A **Kotlin Multiplatform** SDK for [PostHog](https://posthog.com) analytics, sup
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation("io.github.samuolis:posthog-kmp:0.1.1")
+            implementation("io.github.samuolis:posthog-kmp:<version>")
         }
     }
 }
@@ -49,7 +49,7 @@ kotlin {
 
 ```toml
 [versions]
-posthog-kmp = "0.1.1"
+posthog-kmp = "<version>"
 
 [libraries]
 posthog-kmp = { group = "io.github.samuolis", name = "posthog-kmp", version.ref = "posthog-kmp" }
