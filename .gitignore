@@ -80,3 +80,4 @@ yarn-error.log*
 coverage/
 *.lcov
 /kotlin-js-store/wasm/yarn.lock
+/kotlin-js-store/

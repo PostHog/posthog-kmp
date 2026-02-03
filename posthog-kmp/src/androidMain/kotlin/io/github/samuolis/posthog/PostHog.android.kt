@@ -134,6 +134,28 @@ internal actual fun platformOverrideFeatureFlags(flags: Map<String, Any?>) {
     // Not available in PostHog Android SDK
 }
 
+internal actual fun platformGetFeatureFlagResult(key: String): FeatureFlagResult {
+    val value = postHogInstance?.getFeatureFlag(key)
+    val payload = postHogInstance?.getFeatureFlagPayload(key)
+
+    return FeatureFlagResult(
+        key = key,
+        value = value,
+        payload = payload,
+        reason = if (value != null) FeatureFlagReason.MATCHED else FeatureFlagReason.DISABLED
+    )
+}
+
+internal actual fun platformGetAnonymousId(): String? {
+    // In PostHog Android SDK, the anonymous ID is the distinct ID when not identified
+    // There's no separate getAnonymousId method, so we return the distinctId
+    return postHogInstance?.distinctId()
+}
+
+internal actual fun platformGetSessionId(): String? {
+    return postHogInstance?.getSessionId()?.toString()
+}
+
 internal actual fun platformOptOut() {
     postHogInstance?.optOut()
 }

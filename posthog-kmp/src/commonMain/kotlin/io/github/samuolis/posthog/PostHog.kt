@@ -410,6 +410,77 @@ public object PostHog {
         }
     }
 
+    /**
+     * Get detailed information about a feature flag evaluation.
+     *
+     * This method provides more information than [getFeatureFlag], including
+     * the reason for the evaluation result and any associated payload.
+     *
+     * @param key The feature flag key
+     * @return A [FeatureFlagResult] with detailed evaluation information
+     */
+    public fun getFeatureFlagResult(key: String): FeatureFlagResult {
+        if (!isInitialized) {
+            return FeatureFlagResult(
+                key = key,
+                value = null,
+                reason = FeatureFlagReason.ERROR,
+                errorCode = FeatureFlagErrorCode.INVALID_CONFIG
+            )
+        }
+
+        return try {
+            platformGetFeatureFlagResult(key)
+        } catch (e: Throwable) {
+            logError("getFeatureFlagResult", e)
+            FeatureFlagResult(
+                key = key,
+                value = null,
+                reason = FeatureFlagReason.ERROR,
+                errorCode = FeatureFlagErrorCode.UNKNOWN
+            )
+        }
+    }
+
+    // ==================== Session Management ====================
+
+    /**
+     * Get the current anonymous ID.
+     *
+     * The anonymous ID is a randomly generated identifier that persists
+     * until the user is identified or the session is reset.
+     *
+     * @return The current anonymous ID or null if not available
+     */
+    public fun getAnonymousId(): String? {
+        if (!isInitialized) return null
+
+        return try {
+            platformGetAnonymousId()
+        } catch (e: Throwable) {
+            logError("getAnonymousId", e)
+            null
+        }
+    }
+
+    /**
+     * Get the current session ID.
+     *
+     * Session IDs are used to group events that occur within a single user session.
+     *
+     * @return The current session ID or null if not available
+     */
+    public fun getSessionId(): String? {
+        if (!isInitialized) return null
+
+        return try {
+            platformGetSessionId()
+        } catch (e: Throwable) {
+            logError("getSessionId", e)
+            null
+        }
+    }
+
     // ==================== Error Tracking ====================
 
     /**
@@ -585,6 +656,12 @@ internal expect fun platformGetAllFeatureFlags(): Map<String, Any?>
 internal expect fun platformReloadFeatureFlags(callback: (() -> Unit)?)
 
 internal expect fun platformOverrideFeatureFlags(flags: Map<String, Any?>)
+
+internal expect fun platformGetFeatureFlagResult(key: String): FeatureFlagResult
+
+internal expect fun platformGetAnonymousId(): String?
+
+internal expect fun platformGetSessionId(): String?
 
 internal expect fun platformOptOut()
 

@@ -103,6 +103,23 @@ internal actual fun platformOverrideFeatureFlags(flags: Map<String, Any?>) {
     // Not implemented
 }
 
+internal actual fun platformGetFeatureFlagResult(key: String): FeatureFlagResult {
+    return FeatureFlagResult(
+        key = key,
+        value = null,
+        reason = FeatureFlagReason.ERROR,
+        errorCode = FeatureFlagErrorCode.INVALID_CONFIG
+    )
+}
+
+internal actual fun platformGetAnonymousId(): String? {
+    return null
+}
+
+internal actual fun platformGetSessionId(): String? {
+    return null
+}
+
 internal actual fun platformOptOut() {
     if (currentConfig?.debug == true) {
         println("[PostHog] macOS: optOut() - not implemented")

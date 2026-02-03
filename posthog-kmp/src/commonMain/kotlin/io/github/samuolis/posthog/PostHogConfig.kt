@@ -19,6 +19,9 @@ package io.github.samuolis.posthog
  * @property personProfiles Person profile mode for feature flag targeting
  * @property sessionRecording Enable session recording (platform dependent)
  * @property autocapture Enable automatic event capture (platform dependent)
+ * @property surveys Enable surveys functionality (platform dependent)
+ * @property enableExceptionAutocapture Automatically capture uncaught exceptions
+ * @property featureFlagRequestTimeoutMs Timeout in milliseconds for feature flag requests
  */
 public data class PostHogConfig(
     val apiKey: String,
@@ -36,7 +39,10 @@ public data class PostHogConfig(
     val optOut: Boolean = false,
     val personProfiles: PersonProfiles = PersonProfiles.IDENTIFIED_ONLY,
     val sessionRecording: SessionRecordingConfig? = null,
-    val autocapture: Boolean = false
+    val autocapture: Boolean = false,
+    val surveys: SurveysConfig? = null,
+    val enableExceptionAutocapture: Boolean = false,
+    val featureFlagRequestTimeoutMs: Int = 10000
 ) {
     public companion object {
         /** PostHog US Cloud instance */

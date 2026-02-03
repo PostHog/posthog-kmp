@@ -25,6 +25,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 private var config: PostHogConfig? = null
 private var distinctId: String? = null
 private var anonymousId: String? = null
+private var sessionId: String? = null
 private val superProperties = ConcurrentHashMap<String, Any?>()
 private val eventQueue = CopyOnWriteArrayList<PostHogJvmEvent>()
 private val featureFlags = ConcurrentHashMap<String, Any?>()
@@ -58,6 +59,7 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
 
     anonymousId = UUID.randomUUID().toString()
     distinctId = anonymousId
+    sessionId = UUID.randomUUID().toString()
 
     if (config.preloadFeatureFlags) {
         scope.launch { loadFeatureFlags() }
@@ -71,7 +73,7 @@ internal actual fun platformCapture(event: String, properties: Map<String, Any?>
 
     val eventProperties = buildMap {
         put("\$lib", "posthog-kmp")
-        put("\$lib_version", "0.1.0")
+        put("\$lib_version", "0.2.0")
         superProperties.forEach { (key, value) -> put(key, value) }
         properties?.forEach { (key, value) -> put(key, value) }
         put("distinct_id", distinctId ?: anonymousId ?: "unknown")
@@ -211,6 +213,33 @@ internal actual fun platformReloadFeatureFlags(callback: (() -> Unit)?) {
 
 internal actual fun platformOverrideFeatureFlags(flags: Map<String, Any?>) {
     featureFlagOverrides.putAll(flags)
+}
+
+internal actual fun platformGetFeatureFlagResult(key: String): FeatureFlagResult {
+    val value = featureFlagOverrides[key] ?: featureFlags[key]
+    val payload = featureFlags["${key}_payload"]
+
+    val reason = when {
+        featureFlagOverrides.containsKey(key) -> FeatureFlagReason.LOCALLY_OVERRIDDEN
+        value != null -> FeatureFlagReason.MATCHED
+        else -> FeatureFlagReason.DISABLED
+    }
+
+    return FeatureFlagResult(
+        key = key,
+        value = value,
+        payload = payload,
+        reason = reason
+    )
+}
+
+internal actual fun platformGetAnonymousId(): String? {
+    return anonymousId
+}
+
+internal actual fun platformGetSessionId(): String? {
+    // JVM doesn't have built-in session tracking, return a generated session ID
+    return sessionId
 }
 
 internal actual fun platformOptOut() {

@@ -36,6 +36,8 @@ private external object PostHogJs {
     fun opt_in_capturing()
     fun has_opted_out_capturing(): Boolean
     fun getDistinctId(): String
+    fun get_distinct_id(): String
+    fun get_session_id(): String
     fun flush()
     fun shutdown()
     fun debug(enabled: Boolean = definedExternally)
@@ -265,6 +267,60 @@ internal actual fun platformOverrideFeatureFlags(flags: Map<String, Any?>) {
         PostHogJs.overrideFeatureFlags(flags.toJsObject())
     } catch (e: Throwable) {
         logDebug("overrideFeatureFlags error: ${e.message}")
+    }
+}
+
+internal actual fun platformGetFeatureFlagResult(key: String): FeatureFlagResult {
+    if (!isPostHogInitialized) {
+        return FeatureFlagResult(
+            key = key,
+            value = null,
+            reason = FeatureFlagReason.ERROR,
+            errorCode = FeatureFlagErrorCode.INVALID_CONFIG
+        )
+    }
+
+    return try {
+        val value = PostHogJs.getFeatureFlag(key)
+        val payload = PostHogJs.getFeatureFlagPayload(key)
+
+        FeatureFlagResult(
+            key = key,
+            value = value,
+            payload = payload,
+            reason = if (value != null) FeatureFlagReason.MATCHED else FeatureFlagReason.DISABLED
+        )
+    } catch (e: Throwable) {
+        logDebug("getFeatureFlagResult error: ${e.message}")
+        FeatureFlagResult(
+            key = key,
+            value = null,
+            reason = FeatureFlagReason.ERROR,
+            errorCode = FeatureFlagErrorCode.UNKNOWN
+        )
+    }
+}
+
+internal actual fun platformGetAnonymousId(): String? {
+    if (!isPostHogInitialized) return null
+
+    return try {
+        // In posthog-js, the distinct ID is the anonymous ID before identification
+        PostHogJs.get_distinct_id()
+    } catch (e: Throwable) {
+        logDebug("getAnonymousId error: ${e.message}")
+        null
+    }
+}
+
+internal actual fun platformGetSessionId(): String? {
+    if (!isPostHogInitialized) return null
+
+    return try {
+        PostHogJs.get_session_id()
+    } catch (e: Throwable) {
+        logDebug("getSessionId error: ${e.message}")
+        null
     }
 }
 

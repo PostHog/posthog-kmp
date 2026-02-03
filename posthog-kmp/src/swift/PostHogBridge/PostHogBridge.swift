@@ -205,6 +205,18 @@ import PostHog
         return PostHogSDK.shared.isOptOut()
     }
 
+    // MARK: - Session Management
+
+    /// Get the anonymous ID
+    @objc public func getAnonymousId() -> String {
+        return PostHogSDK.shared.getAnonymousId()
+    }
+
+    /// Get the current session ID
+    @objc public func getSessionId() -> String? {
+        return PostHogSDK.shared.getSessionId()
+    }
+
     // MARK: - Flush & Close
 
     /// Flush all queued events

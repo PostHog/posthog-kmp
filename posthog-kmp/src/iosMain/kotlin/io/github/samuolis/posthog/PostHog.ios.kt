@@ -125,6 +125,26 @@ internal actual fun platformOverrideFeatureFlags(flags: Map<String, Any?>) {
     // Not available in PostHog iOS SDK
 }
 
+internal actual fun platformGetFeatureFlagResult(key: String): FeatureFlagResult {
+    val value = PostHogBridge.shared().getFeatureFlag(key)
+    val payload = PostHogBridge.shared().getFeatureFlagPayload(key)
+
+    return FeatureFlagResult(
+        key = key,
+        value = value,
+        payload = payload,
+        reason = if (value != null) FeatureFlagReason.MATCHED else FeatureFlagReason.DISABLED
+    )
+}
+
+internal actual fun platformGetAnonymousId(): String? {
+    return PostHogBridge.shared().getAnonymousId()
+}
+
+internal actual fun platformGetSessionId(): String? {
+    return PostHogBridge.shared().getSessionId()
+}
+
 internal actual fun platformOptOut() {
     PostHogBridge.shared().optOut()
 }

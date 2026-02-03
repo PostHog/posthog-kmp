@@ -1,6 +1,5 @@
 @file:OptIn(ExperimentalSpmForKmpFeature::class)
 
-import com.vanniktech.maven.publish.SonatypeHost
 import com.vanniktech.maven.publish.KotlinMultiplatform
 import com.vanniktech.maven.publish.JavadocJar
 import io.github.frankois944.spmForKmp.swiftPackageConfig
@@ -137,7 +136,7 @@ kotlin {
 
 android {
     namespace = "io.github.samuolis.posthog"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 21
@@ -151,7 +150,7 @@ android {
 
 // Maven Central Publishing Configuration
 mavenPublishing {
-    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+    publishToMavenCentral()
     signAllPublications()
 
     configure(KotlinMultiplatform(

@@ -77,6 +77,79 @@ public enum class ExceptionLevel {
 }
 
 /**
+ * Result of a feature flag evaluation with detailed information.
+ *
+ * @property key The feature flag key
+ * @property value The evaluated value (boolean, string variant, or null)
+ * @property payload Optional JSON payload associated with the flag
+ * @property reason The reason for the flag evaluation result
+ * @property errorCode Error code if evaluation failed
+ */
+public data class FeatureFlagResult(
+    val key: String,
+    val value: Any?,
+    val payload: Any? = null,
+    val reason: FeatureFlagReason = FeatureFlagReason.UNKNOWN,
+    val errorCode: FeatureFlagErrorCode? = null
+) {
+    /** Whether the flag is enabled */
+    public val isEnabled: Boolean
+        get() = when (value) {
+            is Boolean -> value
+            is String -> true
+            null -> false
+            else -> true
+        }
+}
+
+/**
+ * Reason for a feature flag evaluation result.
+ */
+public enum class FeatureFlagReason {
+    /** Flag matched targeting rules */
+    MATCHED,
+    /** Flag was locally overridden */
+    LOCALLY_OVERRIDDEN,
+    /** User not in flag population */
+    NOT_IN_POPULATION,
+    /** Flag is disabled */
+    DISABLED,
+    /** Flag evaluation failed */
+    ERROR,
+    /** Reason is unknown or not provided */
+    UNKNOWN
+}
+
+/**
+ * Error codes for feature flag evaluation failures.
+ */
+public enum class FeatureFlagErrorCode {
+    /** Network request failed */
+    NETWORK_ERROR,
+    /** Server returned an error */
+    SERVER_ERROR,
+    /** Flag not found */
+    FLAG_NOT_FOUND,
+    /** Invalid configuration */
+    INVALID_CONFIG,
+    /** Evaluation timed out */
+    TIMEOUT,
+    /** Unknown error */
+    UNKNOWN
+}
+
+/**
+ * Configuration for surveys functionality.
+ *
+ * @property enabled Whether surveys are enabled
+ * @property showAfterDelay Delay in seconds before showing surveys
+ */
+public data class SurveysConfig(
+    val enabled: Boolean = true,
+    val showAfterDelay: Int = 0
+)
+
+/**
  * Internal event types used by PostHog.
  */
 public object PostHogEvents {
@@ -90,7 +163,12 @@ public object PostHogEvents {
     public const val UNSET: String = "\$unset"
     public const val GROUP_IDENTIFY: String = "\$groupidentify"
     public const val FEATURE_FLAG_CALLED: String = "\$feature_flag_called"
+    public const val FEATURE_FLAG_ERROR: String = "\$feature_flag_error"
     public const val AUTOCAPTURE: String = "\$autocapture"
+    public const val SURVEY_SHOWN: String = "survey shown"
+    public const val SURVEY_DISMISSED: String = "survey dismissed"
+    public const val SURVEY_SENT: String = "survey sent"
+    public const val WEB_VITALS: String = "\$web_vitals"
 }
 
 /**
@@ -109,6 +187,8 @@ public object PostHogProperties {
     public const val EXCEPTION_LEVEL: String = "\$exception_level"
     public const val FEATURE_FLAG: String = "\$feature_flag"
     public const val FEATURE_FLAG_RESPONSE: String = "\$feature_flag_response"
+    public const val FEATURE_FLAG_ERROR: String = "\$feature_flag_error"
+    public const val FEATURE_FLAG_REASON: String = "\$feature_flag_reason"
     public const val GROUP_TYPE: String = "\$group_type"
     public const val GROUP_KEY: String = "\$group_key"
     public const val GROUP_SET: String = "\$group_set"
@@ -120,4 +200,10 @@ public object PostHogProperties {
     public const val LIB_VERSION: String = "\$lib_version"
     public const val REFERRER: String = "\$referrer"
     public const val REFERRING_DOMAIN: String = "\$referring_domain"
+    public const val SURVEY_ID: String = "\$survey_id"
+    public const val SURVEY_RESPONSE: String = "\$survey_response"
+    public const val EVALUATED_AT: String = "\$evaluated_at"
+    public const val WEB_VITALS_LCP: String = "\$web_vitals_LCP_value"
+    public const val WEB_VITALS_CLS: String = "\$web_vitals_CLS_value"
+    public const val WEB_VITALS_INP: String = "\$web_vitals_INP_value"
 }

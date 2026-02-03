@@ -28,6 +28,8 @@ private external interface PostHogJsApi {
     fun opt_in_capturing()
     fun has_opted_out_capturing(): Boolean
     fun getDistinctId(): String
+    fun get_distinct_id(): String
+    fun get_session_id(): String
     fun flush()
     fun shutdown()
     fun debug(enabled: Boolean = definedExternally)
@@ -279,6 +281,59 @@ internal actual fun platformOverrideFeatureFlags(flags: Map<String, Any?>) {
         PostHogWasm.overrideFeatureFlags(flags.toJsObject())
     } catch (_: Throwable) {
         // Silently ignore
+    }
+}
+
+@OptIn(ExperimentalWasmJsInterop::class)
+internal actual fun platformGetFeatureFlagResult(key: String): FeatureFlagResult {
+    if (!isPostHogInitialized) {
+        return FeatureFlagResult(
+            key = key,
+            value = null,
+            reason = FeatureFlagReason.ERROR,
+            errorCode = FeatureFlagErrorCode.INVALID_CONFIG
+        )
+    }
+
+    return try {
+        val value = PostHogWasm.getFeatureFlag(key)
+        val payload = PostHogWasm.getFeatureFlagPayload(key)
+
+        FeatureFlagResult(
+            key = key,
+            value = value,
+            payload = payload,
+            reason = if (value != null) FeatureFlagReason.MATCHED else FeatureFlagReason.DISABLED
+        )
+    } catch (_: Throwable) {
+        FeatureFlagResult(
+            key = key,
+            value = null,
+            reason = FeatureFlagReason.ERROR,
+            errorCode = FeatureFlagErrorCode.UNKNOWN
+        )
+    }
+}
+
+@OptIn(ExperimentalWasmJsInterop::class)
+internal actual fun platformGetAnonymousId(): String? {
+    if (!isPostHogInitialized) return null
+
+    return try {
+        PostHogWasm.get_distinct_id()
+    } catch (_: Throwable) {
+        null
+    }
+}
+
+@OptIn(ExperimentalWasmJsInterop::class)
+internal actual fun platformGetSessionId(): String? {
+    if (!isPostHogInitialized) return null
+
+    return try {
+        PostHogWasm.get_session_id()
+    } catch (_: Throwable) {
+        null
     }
 }
 
