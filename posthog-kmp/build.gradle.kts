@@ -4,6 +4,7 @@ import com.vanniktech.maven.publish.KotlinMultiplatform
 import com.vanniktech.maven.publish.JavadocJar
 import io.github.frankois944.spmForKmp.swiftPackageConfig
 import io.github.frankois944.spmForKmp.utils.ExperimentalSpmForKmpFeature
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -12,6 +13,16 @@ plugins {
     alias(libs.plugins.mavenPublish)
     alias(libs.plugins.spmforkmp)
 }
+
+// Load version from version.properties
+val versionProperties = Properties().apply {
+    rootProject.file("version.properties").inputStream().use { load(it) }
+}
+val versionMajor = versionProperties["VERSION_MAJOR"] as String
+val versionMinor = versionProperties["VERSION_MINOR"] as String
+val versionPatch = versionProperties["VERSION_PATCH"] as String
+version = "$versionMajor.$versionMinor.$versionPatch"
+group = "io.github.samuolis"
 
 kotlin {
     // Explicit API mode - forces visibility modifiers and return types
