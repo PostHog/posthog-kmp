@@ -30,6 +30,11 @@ import PostHog
         maxBatchSize: Int = 50,
         optOut: Bool = false,
         sessionRecordingEnabled: Bool = false,
+        sessionRecordingMaskAllTextInputs: Bool = true,
+        sessionRecordingMaskAllImages: Bool = false,
+        sessionRecordingCaptureNetworkTelemetry: Bool = true,
+        sessionRecordingCaptureLogs: Bool = true,
+        sessionRecordingScreenshotMode: Bool = false,
         autocapture: Bool = false,
         environment: String = "production"
     ) {
@@ -66,10 +71,11 @@ import PostHog
         // Session replay
         if sessionRecordingEnabled {
             config.sessionReplay = true
-            config.sessionReplayConfig.maskAllTextInputs = true
-            config.sessionReplayConfig.maskAllImages = false
-            config.sessionReplayConfig.captureNetworkTelemetry = true
-            config.sessionReplayConfig.captureLogs = true
+            config.sessionReplayConfig.maskAllTextInputs = sessionRecordingMaskAllTextInputs
+            config.sessionReplayConfig.maskAllImages = sessionRecordingMaskAllImages
+            config.sessionReplayConfig.captureNetworkTelemetry = sessionRecordingCaptureNetworkTelemetry
+            config.sessionReplayConfig.captureLogs = sessionRecordingCaptureLogs
+            config.sessionReplayConfig.screenshotMode = sessionRecordingScreenshotMode
         }
 
         // Surveys (iOS 15+)

@@ -4,6 +4,7 @@ import android.app.Application
 import com.posthog.PostHogInterface
 import com.posthog.android.PostHogAndroid
 import com.posthog.android.PostHogAndroidConfig
+import com.posthog.android.replay.PostHogSessionReplayConfig
 
 private var postHogInstance: PostHogInterface? = null
 
@@ -42,6 +43,18 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         maxBatchSize = config.maxBatchSize
 
         optOut = config.optOut
+
+        // Session replay configuration
+        config.sessionRecording?.let { sessionConfig ->
+            sessionReplay = sessionConfig.enabled
+            sessionReplayConfig = PostHogSessionReplayConfig(
+                maskAllTextInputs = sessionConfig.maskAllTextInputs,
+                maskAllImages = sessionConfig.maskAllImages,
+                captureLogcat = sessionConfig.captureLogcat,
+                screenshot = sessionConfig.screenshot,
+                debouncerDelayMs = sessionConfig.debouncerDelayMs
+            )
+        }
     }
 
     postHogInstance = PostHogAndroid.with(context.application, androidConfig)

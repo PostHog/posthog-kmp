@@ -21,6 +21,8 @@ private var currentConfig: PostHogConfig? = null
 internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext) {
     currentConfig = config
 
+    val sessionConfig = config.sessionRecording
+
     PostHogBridge.shared().setupWithApiKey(
         apiKey = config.apiKey,
         host = config.host,
@@ -34,7 +36,12 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         maxQueueSize = config.maxQueueSize.toLong(),
         maxBatchSize = config.maxBatchSize.toLong(),
         optOut = config.optOut,
-        sessionRecordingEnabled = config.sessionRecording?.enabled ?: false,
+        sessionRecordingEnabled = sessionConfig?.enabled ?: false,
+        sessionRecordingMaskAllTextInputs = sessionConfig?.maskAllTextInputs ?: true,
+        sessionRecordingMaskAllImages = sessionConfig?.maskAllImages ?: false,
+        sessionRecordingCaptureNetworkTelemetry = sessionConfig?.captureNetworkTelemetry ?: true,
+        sessionRecordingCaptureLogs = sessionConfig?.captureLogs ?: true,
+        sessionRecordingScreenshotMode = sessionConfig?.screenshot ?: false,
         autocapture = config.autocapture,
         environment = "production"
     )

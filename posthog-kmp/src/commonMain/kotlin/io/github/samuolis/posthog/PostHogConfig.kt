@@ -75,11 +75,19 @@ public enum class PersonProfiles {
  * @property maskAllImages Mask all images
  * @property captureNetworkTelemetry Include network requests in recording
  * @property captureLogs Capture console logs
+ * @property screenshot Enable screenshot mode instead of wireframe (Android/iOS experimental).
+ *                       When enabled, the SDK takes actual screenshots instead of wireframe representations.
+ *                       WARNING: Screenshots may contain sensitive information - ensure proper masking.
+ * @property captureLogcat Capture Android logcat output (Android only)
+ * @property debouncerDelayMs Delay in milliseconds for debouncing touch events (Android only)
  */
 public data class SessionRecordingConfig(
     val enabled: Boolean = true,
     val maskAllTextInputs: Boolean = true,
     val maskAllImages: Boolean = false,
     val captureNetworkTelemetry: Boolean = true,
-    val captureLogs: Boolean = true
+    val captureLogs: Boolean = true,
+    val screenshot: Boolean = false,
+    val captureLogcat: Boolean = false,
+    val debouncerDelayMs: Long = 500L
 )
