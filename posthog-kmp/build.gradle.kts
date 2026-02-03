@@ -161,7 +161,7 @@ android {
 
 // Maven Central Publishing Configuration
 mavenPublishing {
-    publishToMavenCentral()
+    publishToMavenCentral(automaticRelease = true)
     signAllPublications()
 
     configure(KotlinMultiplatform(
