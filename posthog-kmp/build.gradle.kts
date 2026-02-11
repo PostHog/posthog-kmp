@@ -22,7 +22,7 @@ val versionMajor = versionProperties["VERSION_MAJOR"] as String
 val versionMinor = versionProperties["VERSION_MINOR"] as String
 val versionPatch = versionProperties["VERSION_PATCH"] as String
 version = "$versionMajor.$versionMinor.$versionPatch"
-group = "io.github.samuolis"
+group = "com.posthog.kmp"
 
 kotlin {
     // Explicit API mode - forces visibility modifiers and return types
@@ -35,9 +35,6 @@ kotlin {
         }
         publishLibraryVariants("release")
     }
-
-    // JVM target (for server-side Kotlin usage)
-    jvm()
 
     // iOS targets with SPM4KMP for native PostHog SDK
     listOf(
@@ -59,11 +56,6 @@ kotlin {
         }
     }
 
-    // macOS targets - use JVM HTTP implementation for now
-    // Native PostHog SDK support can be added later
-    macosX64()
-    macosArm64()
-
     // JavaScript targets
     js(IR) {
         browser {
@@ -71,14 +63,6 @@ kotlin {
                 mainOutputFileName = "posthog-kmp.js"
             }
         }
-        nodejs()
-        binaries.library()
-    }
-
-    // WebAssembly JS target
-    @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
-    wasmJs {
-        browser()
         nodejs()
         binaries.library()
     }
@@ -114,39 +98,16 @@ kotlin {
         val iosArm64Main by getting { dependsOn(iosMain) }
         val iosSimulatorArm64Main by getting { dependsOn(iosMain) }
 
-        val macosMain by creating {
-            dependsOn(commonMain)
-        }
-
-        val macosX64Main by getting { dependsOn(macosMain) }
-        val macosArm64Main by getting { dependsOn(macosMain) }
-
         val jsMain by getting {
             dependencies {
                 implementation(npm("posthog-js", libs.versions.posthog.js.get()))
-            }
-        }
-
-        val wasmJsMain by getting {
-            dependencies {
-                implementation(npm("posthog-js", libs.versions.posthog.js.get()))
-            }
-        }
-
-        val jvmMain by getting {
-            dependencies {
-                // JVM uses Ktor for HTTP-based implementation
-                implementation(libs.ktor.client.core)
-                implementation(libs.ktor.client.okhttp)
-                implementation(libs.ktor.client.content.negotiation)
-                implementation(libs.ktor.serialization.kotlinx.json)
             }
         }
     }
 }
 
 android {
-    namespace = "io.github.samuolis.posthog"
+    namespace = "com.posthog.kmp"
     compileSdk = 36
 
     defaultConfig {

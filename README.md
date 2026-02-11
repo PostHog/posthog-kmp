@@ -4,7 +4,7 @@
 [![Kotlin](https://img.shields.io/badge/kotlin-2.3.0-blue.svg?logo=kotlin)](http://kotlinlang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A **Kotlin Multiplatform** SDK for [PostHog](https://posthog.com) analytics, supporting Android, iOS, Web (JS/Wasm), JVM, and macOS.
+A **Kotlin Multiplatform** SDK for [PostHog](https://posthog.com) analytics, supporting Android, iOS, Web (JS).
 
 ## Features
 
@@ -60,9 +60,9 @@ posthog-kmp = { group = "io.github.samuolis", name = "posthog-kmp", version.ref 
 ### Initialize PostHog
 
 ```kotlin
-import io.github.samuolis.posthog.PostHog
-import io.github.samuolis.posthog.PostHogConfig
-import io.github.samuolis.posthog.PostHogContext
+import com.posthog.kmp.PostHog
+import com.posthog.kmp.PostHogConfig
+import com.posthog.kmp.PostHogContext
 
 // Setup with context (recommended)
 PostHog.setup(
@@ -95,9 +95,9 @@ On Android, pass the `Application` context to `PostHogContext`:
 
 ```kotlin
 // In your Activity or Application
-import io.github.samuolis.posthog.PostHog
-import io.github.samuolis.posthog.PostHogConfig
-import io.github.samuolis.posthog.PostHogContext
+import com.posthog.kmp.PostHog
+import com.posthog.kmp.PostHogConfig
+import com.posthog.kmp.PostHogContext
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -206,17 +206,24 @@ when (variant) {
     "variant_b" -> showPremiumPricing()
 }
 
-// Get feature flag payload (JSON data)
-val payload = PostHog.getFeatureFlagPayload("config_flags")
-
 // Reload flags (after user properties change)
 PostHog.reloadFeatureFlags {
     // Flags are now updated
 }
 
-// Get detailed feature flag result (includes reason)
+// Get detailed feature flag result (includes payload)
 val result = PostHog.getFeatureFlagResult("new_feature")
-println("Value: ${result.value}, Reason: ${result.reason}")
+if (result != null) {
+    println("Enabled: ${result.enabled}")
+    println("Variant: ${result.variant}")
+    println("Value: ${result.value}") // Returns variant if present, otherwise enabled
+    
+    // You can easily cast payloads to expected types
+    val payloadDict = result.getPayloadAs<Map<String, Any>>()
+}
+
+// Get all feature flag values
+val allFlags = PostHog.getAllFeatureFlags() // Returns Map<String, Any?>
 
 // Override flags for testing
 PostHog.overrideFeatureFlags(mapOf(
@@ -282,7 +289,7 @@ try {
 Session recording is available on Android and iOS platforms.
 
 ```kotlin
-import io.github.samuolis.posthog.SessionRecordingConfig
+import com.posthog.kmp.SessionRecordingConfig
 
 // Enable session recording
 PostHog.setup(
@@ -348,12 +355,6 @@ val distinctId = PostHog.getDistinctId()
 PostHog.register("app_version", "2.0.0")
 PostHog.register("platform", "mobile")
 
-// Register multiple at once
-PostHog.registerAll(mapOf(
-    "environment" to "production",
-    "build_number" to 142
-))
-
 // Remove a super property
 PostHog.unregister("temporary_flag")
 ```
@@ -403,7 +404,6 @@ PostHog.close()
 | `personProfiles` | PersonProfiles | `IDENTIFIED_ONLY` | When to create profiles |
 | `sessionRecording` | SessionRecordingConfig? | `null` | Session recording settings |
 | `autocapture` | Boolean | `false` | Enable automatic event capture |
-| `surveys` | SurveysConfig? | `null` | Surveys configuration |
 | `enableExceptionAutocapture` | Boolean | `false` | Auto-capture uncaught exceptions |
 | `featureFlagRequestTimeoutMs` | Int | `10000` | Feature flag request timeout |
 

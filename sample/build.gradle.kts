@@ -25,13 +25,8 @@ kotlin {
         }
     }
 
-    @OptIn(ExperimentalWasmDsl::class)
-    wasmJs {
-        browser {
-            commonWebpackConfig {
-                outputFileName = "sample.js"
-            }
-        }
+    js(IR) {
+        browser()
         binaries.executable()
     }
 
@@ -60,15 +55,19 @@ kotlin {
         val iosX64Main by getting { dependsOn(iosMain) }
         val iosArm64Main by getting { dependsOn(iosMain) }
         val iosSimulatorArm64Main by getting { dependsOn(iosMain) }
+
+        val jsMain by getting {
+            dependsOn(commonMain)
+        }
     }
 }
 
 android {
-    namespace = "io.github.samuolis.posthog.sample"
+    namespace = "com.posthog.kmp.sample"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "io.github.samuolis.posthog.sample"
+        applicationId = "com.posthog.kmp.sample"
         minSdk = 24
         targetSdk = 36
         versionCode = 1

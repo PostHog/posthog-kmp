@@ -29,14 +29,14 @@ import PostHog
         maxQueueSize: Int = 1000,
         maxBatchSize: Int = 50,
         optOut: Bool = false,
+        personProfiles: String = "identifiedOnly",
         sessionRecordingEnabled: Bool = false,
         sessionRecordingMaskAllTextInputs: Bool = true,
         sessionRecordingMaskAllImages: Bool = false,
         sessionRecordingCaptureNetworkTelemetry: Bool = true,
         sessionRecordingCaptureLogs: Bool = true,
         sessionRecordingScreenshotMode: Bool = false,
-        autocapture: Bool = false,
-        environment: String = "production"
+        autocapture: Bool = false
     ) {
         let config = PostHogConfig(apiKey: apiKey, host: host)
 
@@ -60,8 +60,14 @@ import PostHog
         // Opt out
         config.optOut = optOut
 
-        // Person profiles (only identified users)
-        config.personProfiles = .identifiedOnly
+        // Person profiles
+        if personProfiles.caseInsensitiveCompare("always") == .orderedSame {
+            config.personProfiles = .always
+        } else if personProfiles.caseInsensitiveCompare("never") == .orderedSame {
+            config.personProfiles = .never
+        } else {
+            config.personProfiles = .identifiedOnly
+        }
         config.setDefaultPersonProperties = true
 
         #if os(iOS) || targetEnvironment(macCatalyst)
@@ -85,20 +91,14 @@ import PostHog
         #endif
 
         PostHogSDK.shared.setup(config)
-
-        // Register environment as a super property
-        PostHogSDK.shared.register(["environment": environment])
     }
 
     // MARK: - Event Capture
 
     /// Capture an event with optional properties
-    @objc public func capture(event: String, properties: NSDictionary?) {
-        if let props = properties as? [String: Any] {
-            PostHogSDK.shared.capture(event, properties: props)
-        } else {
-            PostHogSDK.shared.capture(event)
-        }
+    @objc public func capture(event: String, properties: NSDictionary?, timestamp: Date? = nil) {
+        let props = properties as? [String: Any]
+        PostHogSDK.shared.capture(event, properties: props, timestamp: timestamp)
     }
 
     /// Track a screen view
@@ -108,6 +108,12 @@ import PostHog
         } else {
             PostHogSDK.shared.screen(title)
         }
+    }
+
+    /// Capture an exception
+    @objc public func captureException(_ exception: NSException, properties: NSDictionary?) {
+        let props = properties as? [String: Any]
+        PostHogSDK.shared.captureException(exception, properties: props)
     }
 
     // MARK: - User Identification
@@ -142,13 +148,6 @@ import PostHog
         PostHogSDK.shared.register([key: value])
     }
 
-    /// Register multiple super properties
-    @objc public func registerAll(properties: NSDictionary) {
-        if let props = properties as? [String: Any] {
-            PostHogSDK.shared.register(props)
-        }
-    }
-
     /// Unregister a super property
     @objc public func unregister(key: String) {
         PostHogSDK.shared.unregister(key)
@@ -168,18 +167,47 @@ import PostHog
     // MARK: - Feature Flags
 
     /// Check if a feature flag is enabled
-    @objc public func isFeatureEnabled(_ key: String) -> Bool {
-        return PostHogSDK.shared.isFeatureEnabled(key)
+    @objc public func isFeatureEnabled(_ key: String, sendFeatureFlagEvent: Bool = true) -> Bool {
+        return PostHogSDK.shared.isFeatureEnabled(key, sendFeatureFlagEvent: sendFeatureFlagEvent)
     }
 
     /// Get feature flag value
-    @objc public func getFeatureFlag(_ key: String) -> Any? {
-        return PostHogSDK.shared.getFeatureFlag(key)
+    @objc public func getFeatureFlag(_ key: String, sendFeatureFlagEvent: Bool) -> Any? {
+        return PostHogSDK.shared.getFeatureFlag(key, sendFeatureFlagEvent: sendFeatureFlagEvent)
+    }
+
+    @objc public func getAllFeatureFlags() -> Any? {
+        return PostHogSDK.shared.getAllFeatureFlags()
     }
 
     /// Get feature flag payload
     @objc public func getFeatureFlagPayload(_ key: String) -> Any? {
         return PostHogSDK.shared.getFeatureFlagPayload(key)
+    }
+
+    @objc public func getFeatureFlagResult(_ key: String,  sendFeatureFlagEvent: Bool) -> NSDictionary? {
+        guard let result = PostHogSDK.shared.getFeatureFlagResult(key, sendFeatureFlagEvent: sendFeatureFlagEvent) else { return nil }
+        var dict: [String: Any] = [
+            "key": key, // Use key passed in or result.key if available
+            "enabled": false
+        ]
+        
+        // Use KVC to dynamically access properties to avoid compilation errors 
+        // if the exact swift interface differs slightly across versions.
+        if result.responds(to: NSSelectorFromString("enabled")) {
+            dict["enabled"] = result.value(forKey: "enabled") as? Bool ?? false
+        }
+        if result.responds(to: NSSelectorFromString("variant")) {
+            dict["variant"] = result.value(forKey: "variant")
+        }
+        if result.responds(to: NSSelectorFromString("payload")) {
+            dict["payload"] = result.value(forKey: "payload")
+        }
+        if result.responds(to: NSSelectorFromString("key")) {
+            dict["key"] = result.value(forKey: "key") as? String ?? key
+        }
+        
+        return dict as NSDictionary
     }
 
     /// Reload feature flags from server
@@ -240,5 +268,14 @@ import PostHog
     /// Enable or disable debug mode
     @objc public func setDebug(enabled: Bool) {
         PostHogSDK.shared.debug(enabled)
+    }
+
+    @objc public func setPersonProperties(
+        userProperties: NSDictionary?,
+        userPropertiesSetOnce: NSDictionary?
+    ) {
+        let props = userProperties as? [String: Any]
+        let propsSetOnce = userPropertiesSetOnce as? [String: Any]
+        PostHogSDK.shared.setPersonProperties(props, propsSetOnce)
     }
 }
