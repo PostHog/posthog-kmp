@@ -12,17 +12,6 @@ public data class CaptureOptions(
 )
 
 /**
- * Exception level for error tracking.
- */
-public enum class ExceptionLevel {
-    DEBUG,
-    INFO,
-    WARNING,
-    ERROR,
-    FATAL
-}
-
-/**
  * Result of a feature flag evaluation with detailed information.
  *
  * @property key the key of the feature flag
@@ -47,7 +36,12 @@ public data class FeatureFlagResult(
     /**
      * Returns the payload cast as the specified type.
      *
-     * @return the payload as type T, or null if the payload is null or cast fails
+     * This is a direct runtime cast, not a deserialization: it succeeds only when the
+     * payload is already an instance of [T] (e.g. a primitive, `String`, `Map`, or `List`).
+     * It does not deserialize a JSON payload into a custom data class — for that, decode
+     * [payload] yourself (e.g. with kotlinx.serialization).
+     *
+     * @return the payload as type [T], or null if the payload is null or is not a [T]
      */
     public inline fun <reified T> getPayloadAs(): T? {
         return payload as? T
@@ -55,60 +49,8 @@ public data class FeatureFlagResult(
 }
 
 /**
- * Internal event types used by PostHog.
- */
-public object PostHogEvents {
-    public const val EXCEPTION: String = "\$exception"
-    public const val SCREEN: String = "\$screen"
-    public const val PAGEVIEW: String = "\$pageview"
-    public const val PAGELEAVE: String = "\$pageleave"
-    public const val IDENTIFY: String = "\$identify"
-    public const val SET: String = "\$set"
-    public const val SET_ONCE: String = "\$set_once"
-    public const val UNSET: String = "\$unset"
-    public const val GROUP_IDENTIFY: String = "\$groupidentify"
-    public const val FEATURE_FLAG_CALLED: String = "\$feature_flag_called"
-    public const val FEATURE_FLAG_ERROR: String = "\$feature_flag_error"
-    public const val AUTOCAPTURE: String = "\$autocapture"
-    public const val SURVEY_SHOWN: String = "survey shown"
-    public const val SURVEY_DISMISSED: String = "survey dismissed"
-    public const val SURVEY_SENT: String = "survey sent"
-    public const val WEB_VITALS: String = "\$web_vitals"
-}
-
-/**
  * Internal property keys used by PostHog.
  */
 public object PostHogProperties {
-    public const val DISTINCT_ID: String = "\$distinct_id"
-    public const val SCREEN_NAME: String = "\$screen_name"
-    public const val SCREEN_TITLE: String = "\$screen_title"
-    public const val CURRENT_URL: String = "\$current_url"
-    public const val HOST: String = "\$host"
-    public const val PATHNAME: String = "\$pathname"
-    public const val EXCEPTION_TYPE: String = "\$exception_type"
-    public const val EXCEPTION_MESSAGE: String = "\$exception_message"
-    public const val EXCEPTION_STACKTRACE: String = "\$exception_stacktrace"
-    public const val EXCEPTION_LEVEL: String = "\$exception_level"
-    public const val FEATURE_FLAG: String = "\$feature_flag"
-    public const val FEATURE_FLAG_RESPONSE: String = "\$feature_flag_response"
-    public const val FEATURE_FLAG_ERROR: String = "\$feature_flag_error"
-    public const val FEATURE_FLAG_REASON: String = "\$feature_flag_reason"
-    public const val GROUP_TYPE: String = "\$group_type"
-    public const val GROUP_KEY: String = "\$group_key"
-    public const val GROUP_SET: String = "\$group_set"
     public const val GROUPS: String = "\$groups"
-    public const val ANON_DISTINCT_ID: String = "\$anon_distinct_id"
-    public const val DEVICE_ID: String = "\$device_id"
-    public const val SESSION_ID: String = "\$session_id"
-    public const val LIB: String = "\$lib"
-    public const val LIB_VERSION: String = "\$lib_version"
-    public const val REFERRER: String = "\$referrer"
-    public const val REFERRING_DOMAIN: String = "\$referring_domain"
-    public const val SURVEY_ID: String = "\$survey_id"
-    public const val SURVEY_RESPONSE: String = "\$survey_response"
-    public const val EVALUATED_AT: String = "\$evaluated_at"
-    public const val WEB_VITALS_LCP: String = "\$web_vitals_LCP_value"
-    public const val WEB_VITALS_CLS: String = "\$web_vitals_CLS_value"
-    public const val WEB_VITALS_INP: String = "\$web_vitals_INP_value"
 }

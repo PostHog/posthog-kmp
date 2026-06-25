@@ -1,0 +1,61 @@
+# Detekt configuration for posthog-kmp.
+# Layered on top of detekt's default rules (buildUponDefaultConfig = true).
+# Kept intentionally minimal; tighten over time. A baseline (config/detekt/baseline.xml)
+# suppresses pre-existing findings so detekt only gates NEW issues.
+
+build:
+  maxIssues: 0
+  excludeCorrectable: false
+
+config:
+  validation: true
+  warningsAsErrors: false
+  checkExhaustiveness: false
+
+complexity:
+  active: true
+  LongMethod:
+    active: true
+    threshold: 80
+  LongParameterList:
+    active: true
+    functionThreshold: 8
+    constructorThreshold: 8
+    ignoreDefaultParameters: true
+  TooManyFunctions:
+    active: false
+  CyclomaticComplexMethod:
+    active: true
+    threshold: 20
+
+style:
+  active: true
+  MaxLineLength:
+    active: true
+    maxLineLength: 160
+  MagicNumber:
+    active: false
+  ReturnCount:
+    active: true
+    max: 5
+  WildcardImport:
+    active: false
+  UnusedPrivateMember:
+    active: true
+  ForbiddenComment:
+    active: false
+
+exceptions:
+  active: true
+  TooGenericExceptionCaught:
+    # The JS bridge legitimately swallows dynamic interop errors with broad catches.
+    active: false
+  SwallowedException:
+    active: false
+
+naming:
+  active: true
+  FunctionNaming:
+    active: true
+  TopLevelPropertyNaming:
+    active: true

@@ -22,7 +22,32 @@ val versionMajor = versionProperties["VERSION_MAJOR"] as String
 val versionMinor = versionProperties["VERSION_MINOR"] as String
 val versionPatch = versionProperties["VERSION_PATCH"] as String
 version = "$versionMajor.$versionMinor.$versionPatch"
-group = "com.posthog.kmp"
+
+// Generate a common Kotlin source exposing the SDK version (single source of truth:
+// version.properties) so platform implementations can report it to PostHog.
+val generatedVersionDir = layout.buildDirectory.dir("generated/posthogVersion/kotlin")
+val generatePostHogVersion by tasks.registering {
+    val versionValue = version.toString()
+    val outputDir = generatedVersionDir
+    inputs.property("version", versionValue)
+    outputs.dir(outputDir)
+    doLast {
+        val pkgDir = outputDir.get().dir("com/posthog/kmp").asFile
+        pkgDir.mkdirs()
+        pkgDir.resolve("PostHogKmpVersion.kt").writeText(
+            """
+            |package com.posthog.kmp
+            |
+            |/** Generated from version.properties; do not edit by hand. */
+            |internal object PostHogKmpVersion {
+            |    /** Current posthog-kmp SDK version (e.g. "$versionValue"). */
+            |    const val VERSION: String = "$versionValue"
+            |}
+            |
+            """.trimMargin()
+        )
+    }
+}
 
 kotlin {
     // Explicit API mode - forces visibility modifiers and return types
@@ -70,6 +95,7 @@ kotlin {
     // Source sets configuration
     sourceSets {
         val commonMain by getting {
+            kotlin.srcDir(generatedVersionDir)
             dependencies {
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(libs.kotlinx.serialization.json)
@@ -133,7 +159,7 @@ mavenPublishing {
     pom {
         name.set(project.findProperty("POM_NAME") as String? ?: "PostHog KMP")
         description.set(project.findProperty("POM_DESCRIPTION") as String? ?: "Kotlin Multiplatform PostHog SDK")
-        url.set(project.findProperty("POM_URL") as String? ?: "https://github.com/samuolis/posthog-kmp")
+        url.set(project.findProperty("POM_URL") as String? ?: "https://github.com/PostHog/posthog-kmp")
         inceptionYear.set("2025")
 
         licenses {
@@ -144,18 +170,34 @@ mavenPublishing {
             }
         }
 
+        organization {
+            name.set("PostHog")
+            url.set("https://posthog.com")
+        }
+
         developers {
             developer {
-                id.set(project.findProperty("POM_DEVELOPER_ID") as String? ?: "samuolis")
-                name.set(project.findProperty("POM_DEVELOPER_NAME") as String? ?: "Lukas Samuolis")
-                url.set(project.findProperty("POM_DEVELOPER_URL") as String? ?: "https://github.com/samuolis")
+                id.set(project.findProperty("POM_DEVELOPER_ID") as String? ?: "posthog")
+                name.set(project.findProperty("POM_DEVELOPER_NAME") as String? ?: "PostHog")
+                email.set(project.findProperty("POM_DEVELOPER_EMAIL") as String? ?: "engineering@posthog.com")
+                url.set(project.findProperty("POM_DEVELOPER_URL") as String? ?: "https://posthog.com")
+                organization.set("PostHog")
+                organizationUrl.set("https://posthog.com")
             }
         }
 
         scm {
-            url.set(project.findProperty("POM_SCM_URL") as String? ?: "https://github.com/samuolis/posthog-kmp")
-            connection.set(project.findProperty("POM_SCM_CONNECTION") as String? ?: "scm:git:git://github.com/samuolis/posthog-kmp.git")
-            developerConnection.set(project.findProperty("POM_SCM_DEV_CONNECTION") as String? ?: "scm:git:ssh://git@github.com/samuolis/posthog-kmp.git")
+            url.set(project.findProperty("POM_SCM_URL") as String? ?: "https://github.com/PostHog/posthog-kmp")
+            connection.set(project.findProperty("POM_SCM_CONNECTION") as String? ?: "scm:git:git://github.com/PostHog/posthog-kmp.git")
+            developerConnection.set(project.findProperty("POM_SCM_DEV_CONNECTION") as String? ?: "scm:git:ssh://git@github.com/PostHog/posthog-kmp.git")
         }
     }
+}
+
+// Ensure the generated version source exists before any Kotlin compilation / source jar.
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
+    dependsOn(generatePostHogVersion)
+}
+tasks.matching { it.name.endsWith("SourcesJar") }.configureEach {
+    dependsOn(generatePostHogVersion)
 }

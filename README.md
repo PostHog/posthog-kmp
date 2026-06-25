@@ -1,6 +1,6 @@
 # PostHog KMP
 
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.samuolis/posthog-kmp)](https://central.sonatype.com/artifact/io.github.samuolis/posthog-kmp)
+[![Maven Central](https://img.shields.io/maven-central/v/com.posthog/posthog-kmp)](https://central.sonatype.com/artifact/com.posthog/posthog-kmp)
 [![Kotlin](https://img.shields.io/badge/kotlin-2.3.0-blue.svg?logo=kotlin)](http://kotlinlang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -39,7 +39,7 @@ A **Kotlin Multiplatform** SDK for [PostHog](https://posthog.com) analytics, sup
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation("io.github.samuolis:posthog-kmp:<version>")
+            implementation("com.posthog:posthog-kmp:<version>")
         }
     }
 }
@@ -52,7 +52,7 @@ kotlin {
 posthog-kmp = "<version>"
 
 [libraries]
-posthog-kmp = { group = "io.github.samuolis", name = "posthog-kmp", version.ref = "posthog-kmp" }
+posthog-kmp = { group = "com.posthog", name = "posthog-kmp", version.ref = "posthog-kmp" }
 ```
 
 ## Quick Start
@@ -463,7 +463,7 @@ Contributions are welcome!
 ### Development Setup
 
 ```bash
-git clone https://github.com/samuolis/posthog-kmp.git
+git clone https://github.com/PostHog/posthog-kmp.git
 cd posthog-kmp
 
 # Build all targets
@@ -478,7 +478,7 @@ cd posthog-kmp
 ```
 MIT License
 
-Copyright (c) 2025 Lukas Samuolis
+Copyright (c) 2025 PostHog
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

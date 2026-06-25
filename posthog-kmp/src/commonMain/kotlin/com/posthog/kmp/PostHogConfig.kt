@@ -19,7 +19,6 @@ package com.posthog.kmp
  * @property personProfiles Person profile mode for feature flag targeting
  * @property sessionRecording Enable session recording (platform dependent)
  * @property autocapture Enable automatic event capture (platform dependent)
- * @property featureFlagRequestTimeoutMs Timeout in milliseconds for feature flag requests
  */
 public data class PostHogConfig(
     val apiKey: String,
@@ -37,8 +36,7 @@ public data class PostHogConfig(
     val optOut: Boolean = false,
     val personProfiles: PersonProfiles = PersonProfiles.IDENTIFIED_ONLY,
     val sessionRecording: SessionRecordingConfig? = null,
-    val autocapture: Boolean = false,
-    val featureFlagRequestTimeoutMs: Int = 10000
+    val autocapture: Boolean = false
 ) {
     public companion object {
         /** PostHog US Cloud instance */

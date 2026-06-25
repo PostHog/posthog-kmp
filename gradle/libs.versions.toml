@@ -11,6 +11,7 @@ kotlinx-datetime = "0.7.1"
 kotlinx-serialization = "1.10.0"
 mavenPublish = "0.35.0"
 spmforkmp = "1.4.7"
+detekt = "1.23.8"
 
 # Testing
 junit = "4.13.2"
@@ -49,3 +50,4 @@ mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "mavenPublis
 spmforkmp = { id = "io.github.frankois944.spmForKmp", version.ref = "spmforkmp" }
 composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "compose-multiplatform" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }

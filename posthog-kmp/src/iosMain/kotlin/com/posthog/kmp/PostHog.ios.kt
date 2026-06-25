@@ -42,7 +42,8 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         sessionRecordingCaptureNetworkTelemetry = sessionConfig?.captureNetworkTelemetry ?: true,
         sessionRecordingCaptureLogs = sessionConfig?.captureLogs ?: true,
         sessionRecordingScreenshotMode = sessionConfig?.screenshot ?: false,
-        autocapture = config.autocapture
+        autocapture = config.autocapture,
+        sdkVersion = PostHogKmpVersion.VERSION
     )
 }
 
@@ -119,17 +120,32 @@ internal actual fun platformGroup(
 }
 
 internal actual fun platformIsFeatureEnabled(key: String, defaultValue: Boolean, sendFeatureFlagEvent: Boolean): Boolean {
-    val flagValue = PostHogBridge.shared().getFeatureFlag(key)
-    return if (flagValue != null) PostHogBridge.shared().isFeatureEnabledWithKey(key, sendFeatureFlagEvent) else defaultValue
+    val flagValue = PostHogBridge.shared().getFeatureFlag(key, sendFeatureFlagEvent = false)
+    return if (flagValue != null) {
+        PostHogBridge.shared().isFeatureEnabled(key, sendFeatureFlagEvent = sendFeatureFlagEvent)
+    } else {
+        defaultValue
+    }
 }
 
 internal actual fun platformGetFeatureFlag(key: String, sendFeatureFlagEvent: Boolean): Any? {
-    return PostHogBridge.shared().getFeatureFlagWithKey(key, sendFeatureFlagEvent)
+    return PostHogBridge.shared().getFeatureFlag(key, sendFeatureFlagEvent = sendFeatureFlagEvent)
 }
 
 internal actual fun platformGetAllFeatureFlags(): Map<String, Any?> {
-    // Not available in PostHog iOS SDK - return empty map
-    return PostHogBridge.shared().getAllFeatureFlags()
+    val results = PostHogBridge.shared().getAllFeatureFlags() ?: return emptyMap()
+    val map = mutableMapOf<String, Any?>()
+    for (entry in results) {
+        val resultDict = entry as? Map<*, *> ?: continue
+        val flagKey = resultDict["key"] as? String ?: continue
+        map[flagKey] = FeatureFlagResult(
+            key = flagKey,
+            enabled = resultDict["enabled"] as? Boolean ?: false,
+            variant = resultDict["variant"] as? String,
+            payload = resultDict["payload"]
+        )
+    }
+    return map
 }
 
 internal actual fun platformReloadFeatureFlags(callback: (() -> Unit)?) {
@@ -192,5 +208,8 @@ internal actual fun platformSetPersonProperties(
     userProperties: Map<String, Any>?,
     userPropertiesSetOnce: Map<String, Any>?
 ) {
-    PostHogBridge.shared().setPersonProperties(userProperties as? Map<Any?, *>, userPropertiesSetOnce as? Map<Any?, *>)
+    PostHogBridge.shared().setPersonPropertiesWithUserProperties(
+        userProperties as? Map<Any?, *>,
+        userPropertiesSetOnce = userPropertiesSetOnce as? Map<Any?, *>
+    )
 }

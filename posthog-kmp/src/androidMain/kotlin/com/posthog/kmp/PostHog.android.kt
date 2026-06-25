@@ -9,11 +9,16 @@ import java.util.Date
 @Volatile
 private var postHogInstance: PostHogInterface? = null
 
+private const val SDK_NAME = "posthog-kmp"
+
 internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext) {
     val androidConfig = PostHogAndroidConfig(
         apiKey = config.apiKey,
         host = config.host
     ).apply {
+        sdkName = SDK_NAME
+        sdkVersion = PostHogKmpVersion.VERSION
+
         debug = config.debug
         captureApplicationLifecycleEvents = config.captureApplicationLifecycleEvents
         captureScreenViews = config.captureScreenViews
@@ -115,13 +120,7 @@ internal actual fun platformGetFeatureFlag(key: String, sendFeatureFlagEvent: Bo
 
 internal actual fun platformGetAllFeatureFlags(): Map<String, Any?> {
     return postHogInstance?.getAllFeatureFlags()?.associate {
-        val value: Any = if (it.value is String) {
-            it.value as String
-        } else if (it.value is Boolean) {
-            it.value as Boolean
-        } else true
-
-        it.key to value
+        it.key to it.toFeatureFlagResult()
     } ?: emptyMap()
 }
 
@@ -207,8 +206,8 @@ private fun PersonProfiles.toAndroidPersonProfiles(): com.posthog.PersonProfiles
 private fun com.posthog.FeatureFlagResult.toFeatureFlagResult(): FeatureFlagResult {
     return FeatureFlagResult(
         key = key,
-        enabled = if (value is Boolean) value as Boolean else true,
-        variant = if (value is String) value as String else null,
+        enabled = enabled,
+        variant = variant,
         payload = payload
     )
 }

@@ -65,6 +65,12 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
     options["advanced_disable_feature_flags"] = !config.preloadFeatureFlags
 
     PostHogJs.init(config.apiKey, options)
+
+    val instance: dynamic = PostHogJs
+    if (instance._overrideSDKInfo != null) {
+        instance._overrideSDKInfo("posthog-kmp", PostHogKmpVersion.VERSION)
+    }
+
     if (config.optOut) {
         PostHogJs.opt_out_capturing()
     }

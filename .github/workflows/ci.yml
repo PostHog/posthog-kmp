@@ -45,7 +45,7 @@ jobs:
       - name: Run tests
         run: ./gradlew allTests --no-daemon
 
-  lint:
+  code-quality:
     name: Code Quality
     runs-on: ubuntu-latest
 
@@ -62,9 +62,11 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e
 
-      - name: Check code formatting
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Run detekt
         run: ./gradlew detekt --no-daemon
-        continue-on-error: true  # Don't fail if detekt not configured
 
   # Verify Android target builds
   android:

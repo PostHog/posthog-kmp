@@ -36,7 +36,8 @@ import PostHog
         sessionRecordingCaptureNetworkTelemetry: Bool = true,
         sessionRecordingCaptureLogs: Bool = true,
         sessionRecordingScreenshotMode: Bool = false,
-        autocapture: Bool = false
+        autocapture: Bool = false,
+        sdkVersion: String = "unknown"
     ) {
         let config = PostHogConfig(apiKey: apiKey, host: host)
 
@@ -89,6 +90,9 @@ import PostHog
             config.surveys = true
         }
         #endif
+
+        postHogSdkName = "posthog-kmp"
+        postHogVersion = sdkVersion
 
         PostHogSDK.shared.setup(config)
     }
@@ -176,13 +180,23 @@ import PostHog
         return PostHogSDK.shared.getFeatureFlag(key, sendFeatureFlagEvent: sendFeatureFlagEvent)
     }
 
-    @objc public func getAllFeatureFlags() -> Any? {
-        return PostHogSDK.shared.getAllFeatureFlags()
-    }
-
-    /// Get feature flag payload
-    @objc public func getFeatureFlagPayload(_ key: String) -> Any? {
-        return PostHogSDK.shared.getFeatureFlagPayload(key)
+    /// Get all evaluated feature flags as an array of dictionaries.
+    ///
+    /// Each dictionary mirrors the shape produced by ``getFeatureFlagResult(_:sendFeatureFlagEvent:)``
+    /// with `key`, `enabled`, `variant`, and `payload` entries.
+    ///
+    /// This is a synchronous read of the locally cached flags. It does not send a
+    /// `$feature_flag_called` event (unlike `getFeatureFlag`/`getFeatureFlagResult`).
+    @objc public func getAllFeatureFlags() -> [NSDictionary]? {
+        guard let results = PostHogSDK.shared.getAllFeatureFlags() else { return nil }
+        return results.map { r in
+            [
+                "key": r.key,
+                "enabled": r.enabled,
+                "variant": r.variant as Any,
+                "payload": r.payload as Any,
+            ] as NSDictionary
+        }
     }
 
     @objc public func getFeatureFlagResult(_ key: String,  sendFeatureFlagEvent: Bool) -> NSDictionary? {
@@ -276,6 +290,6 @@ import PostHog
     ) {
         let props = userProperties as? [String: Any]
         let propsSetOnce = userPropertiesSetOnce as? [String: Any]
-        PostHogSDK.shared.setPersonProperties(props, propsSetOnce)
+        PostHogSDK.shared.setPersonProperties(userPropertiesToSet: props, userPropertiesToSetOnce: propsSetOnce)
     }
 }
