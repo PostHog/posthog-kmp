@@ -128,10 +128,13 @@ public object PostHog {
     /**
      * Register a super property that will be sent with every event.
      *
+     * A null value is ignored (use [unregister] to remove a super property).
+     *
      * @param key The property key
      * @param value The property value
      */
     public fun register(key: String, value: Any?) {
+        value ?: return
         platformRegister(key, value)
     }
 
@@ -243,7 +246,8 @@ public object PostHog {
      * Get the current anonymous ID.
      *
      * The anonymous ID is a randomly generated identifier that persists
-     * until the user is identified or the session is reset.
+     * until the user is identified or the session is reset. On Web this is the
+     * stored device id (`$device_id`), which posthog-js does not expose directly.
      *
      * @return The current anonymous ID or null if not available
      */
@@ -357,7 +361,7 @@ internal expect fun platformReset()
 
 internal expect fun platformGetDistinctId(): String?
 
-internal expect fun platformRegister(key: String, value: Any?)
+internal expect fun platformRegister(key: String, value: Any)
 
 internal expect fun platformUnregister(key: String)
 

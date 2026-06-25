@@ -90,8 +90,8 @@ internal actual fun platformGetDistinctId(): String? {
     return postHogInstance?.distinctId()
 }
 
-internal actual fun platformRegister(key: String, value: Any?) {
-    value?.let { postHogInstance?.register(key, it) }
+internal actual fun platformRegister(key: String, value: Any) {
+    postHogInstance?.register(key, value)
 }
 
 internal actual fun platformUnregister(key: String) {

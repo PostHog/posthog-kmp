@@ -99,10 +99,8 @@ internal actual fun platformGetDistinctId(): String? {
     return PostHogBridge.shared().getDistinctId()
 }
 
-internal actual fun platformRegister(key: String, value: Any?) {
-    value?.let {
-        PostHogBridge.shared().registerWithKey(key, value = it)
-    }
+internal actual fun platformRegister(key: String, value: Any) {
+    PostHogBridge.shared().registerWithKey(key, value = value)
 }
 
 internal actual fun platformUnregister(key: String) {
@@ -119,11 +117,13 @@ internal actual fun platformGroup(
 }
 
 internal actual fun platformIsFeatureEnabled(key: String, defaultValue: Boolean, sendFeatureFlagEvent: Boolean): Boolean {
-    val flagValue = PostHogBridge.shared().getFeatureFlag(key, sendFeatureFlagEvent = false)
-    return if (flagValue != null) {
-        PostHogBridge.shared().isFeatureEnabled(key, sendFeatureFlagEvent = sendFeatureFlagEvent)
-    } else {
-        defaultValue
+    // getFeatureFlag fires $feature_flag_called even for absent flags (matching Android) and lets us
+    // honor defaultValue; the iOS SDK's isFeatureEnabled has no defaultValue parameter.
+    val flagValue = PostHogBridge.shared().getFeatureFlag(key, sendFeatureFlagEvent = sendFeatureFlagEvent)
+    return when (flagValue) {
+        null -> defaultValue
+        is String -> true
+        else -> flagValue as? Boolean ?: false
     }
 }
 

@@ -121,7 +121,7 @@ internal actual fun platformGetDistinctId(): String? {
     return PostHogJs.get_distinct_id()
 }
 
-internal actual fun platformRegister(key: String, value: Any?) {
+internal actual fun platformRegister(key: String, value: Any) {
     val props = js("{}")
     props[key] = value
     PostHogJs.register(props)
