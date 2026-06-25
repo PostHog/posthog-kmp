@@ -229,15 +229,6 @@ public object PostHog {
     }
 
     /**
-     * Override feature flags locally for testing.
-     *
-     * @param flags Map of flag keys to override values
-     */
-    public fun overrideFeatureFlags(flags: Map<String, Any?>) {
-        platformOverrideFeatureFlags(flags)
-    }
-
-    /**
      * Get detailed information about a feature flag evaluation.
      *
      * This method provides more information than [getFeatureFlag], including
@@ -387,8 +378,6 @@ internal expect fun platformGetFeatureFlag(key: String, sendFeatureFlagEvent: Bo
 internal expect fun platformGetAllFeatureFlags(): Map<String, Any?>
 
 internal expect fun platformReloadFeatureFlags(callback: (() -> Unit)?)
-
-internal expect fun platformOverrideFeatureFlags(flags: Map<String, Any?>)
 
 internal expect fun platformGetFeatureFlagResult(key: String, sendFeatureFlagEvent: Boolean): FeatureFlagResult?
 

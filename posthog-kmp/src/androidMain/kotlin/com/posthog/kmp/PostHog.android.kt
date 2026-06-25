@@ -132,10 +132,6 @@ internal actual fun platformReloadFeatureFlags(callback: (() -> Unit)?) {
     }
 }
 
-internal actual fun platformOverrideFeatureFlags(flags: Map<String, Any?>) {
-    // Not available in PostHog Android SDK
-}
-
 internal actual fun platformGetFeatureFlagResult(key: String, sendFeatureFlagEvent: Boolean): FeatureFlagResult? {
     return postHogInstance?.getFeatureFlagResult(key, sendFeatureFlagEvent)?.toFeatureFlagResult()
 }

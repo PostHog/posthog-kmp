@@ -157,10 +157,6 @@ internal actual fun platformReloadFeatureFlags(callback: (() -> Unit)?) {
     }
 }
 
-internal actual fun platformOverrideFeatureFlags(flags: Map<String, Any?>) {
-    // Not available in PostHog iOS SDK
-}
-
 internal actual fun platformGetFeatureFlagResult(key: String, sendFeatureFlagEvent: Boolean): FeatureFlagResult? {
     val resultDict = PostHogBridge.shared().getFeatureFlagResult(key, sendFeatureFlagEvent) ?: return null
     return FeatureFlagResult(

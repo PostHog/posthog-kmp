@@ -203,10 +203,6 @@ internal actual fun platformReloadFeatureFlags(callback: (() -> Unit)?) {
     PostHogJs.reloadFeatureFlags()
 }
 
-internal actual fun platformOverrideFeatureFlags(flags: Map<String, Any?>) {
-    PostHogJs.featureFlags.overrideFeatureFlags(flags.toJsObject())
-}
-
 internal actual fun platformGetFeatureFlagResult(key: String, sendFeatureFlagEvent: Boolean): FeatureFlagResult? {
     val options = js("{}")
     options["send_event"] = sendFeatureFlagEvent

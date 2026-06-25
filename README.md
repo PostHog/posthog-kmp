@@ -224,12 +224,6 @@ if (result != null) {
 
 // Get all feature flag values
 val allFlags = PostHog.getAllFeatureFlags() // Returns Map<String, Any?>
-
-// Override flags for testing
-PostHog.overrideFeatureFlags(mapOf(
-    "new_feature" to true,
-    "experiment" to "variant_b"
-))
 ```
 
 ### Group Analytics
