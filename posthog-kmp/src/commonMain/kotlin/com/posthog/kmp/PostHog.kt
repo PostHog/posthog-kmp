@@ -9,7 +9,7 @@ package com.posthog.kmp
  *
  * ```kotlin
  * // Initialize PostHog
- * PostHog.setup(PostHogConfig(apiKey = "phc_your_api_key"))
+ * PostHog.setup(PostHogConfig(apiKey = "phc_your_api_key"), PostHogContext())
  *
  * // Capture events
  * PostHog.capture("button_clicked", mapOf("button_name" to "submit"))
@@ -43,18 +43,6 @@ public object PostHog {
      */
     public fun setup(config: PostHogConfig, context: PostHogContext) {
         platformSetup(config, context)
-    }
-
-    /**
-     * Initialize the PostHog SDK with the given configuration.
-     *
-     * On Android, you should prefer [setup] with context parameter to avoid memory leaks.
-     * On other platforms, this is equivalent to calling setup(config, PostHogContext()).
-     *
-     * @param config PostHog configuration with your API key and options
-     */
-    public fun setup(config: PostHogConfig) {
-        setup(config, PostHogContext())
     }
 
     // ==================== Event Capture ====================

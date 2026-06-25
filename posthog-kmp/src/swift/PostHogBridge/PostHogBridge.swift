@@ -114,9 +114,33 @@ import PostHog
         }
     }
 
-    /// Capture an exception
-    @objc public func captureException(_ exception: NSException, properties: NSDictionary?) {
-        let props = properties as? [String: Any]
+    /// Capture an exception originating from Kotlin.
+    ///
+    /// The native iOS SDK builds `$exception_list` from native (symbolicated) stack frames and
+    /// cannot consume a Kotlin/Native textual stack as real frames. To avoid discarding the
+    /// Kotlin stack, it is forwarded verbatim as the `$exception_stack_trace_raw` property so it
+    /// lands on the `$exception` event alongside the type and message.
+    ///
+    /// - Parameters:
+    ///   - type: The Kotlin throwable's class name (used as the NSException name).
+    ///   - message: The Kotlin throwable's message, if any.
+    ///   - stackTrace: The Kotlin stack trace (`Throwable.stackTraceToString()`).
+    ///   - properties: Optional additional properties to attach to the event.
+    @objc public func captureException(
+        type: String,
+        message: String?,
+        stackTrace: String,
+        properties: NSDictionary?
+    ) {
+        let exception = NSException(
+            name: NSExceptionName(rawValue: type),
+            reason: message,
+            userInfo: nil
+        )
+
+        var props = properties as? [String: Any] ?? [:]
+        props["$exception_stack_trace_raw"] = stackTrace
+
         PostHogSDK.shared.captureException(exception, properties: props)
     }
 

@@ -65,14 +65,13 @@ internal actual fun platformCaptureException(
     throwable: Throwable,
     additionalProperties: Map<String, Any?>?
 ) {
-    val nsException = platform.Foundation.NSException(
-        name = throwable::class.simpleName ?: "Exception",
-        reason = throwable.message,
-        userInfo = null
-    )
-    
     @Suppress("UNCHECKED_CAST")
-    PostHogBridge.shared().captureException(nsException, properties = additionalProperties as? Map<Any?, *>)
+    PostHogBridge.shared().captureExceptionWithType(
+        type = throwable::class.simpleName ?: "Exception",
+        message = throwable.message,
+        stackTrace = throwable.stackTraceToString(),
+        properties = additionalProperties as? Map<Any?, *>
+    )
 }
 
 internal actual fun platformIdentify(
