@@ -8,7 +8,6 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.androidLibrary)
     alias(libs.plugins.mavenPublish)
     alias(libs.plugins.spmforkmp)
@@ -96,17 +95,11 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             kotlin.srcDir(generatedVersionDir)
-            dependencies {
-                implementation(libs.kotlinx.coroutines.core)
-                implementation(libs.kotlinx.serialization.json)
-                implementation(libs.kotlinx.datetime)
-            }
         }
 
         val commonTest by getting {
             dependencies {
                 implementation(libs.kotlin.test)
-                implementation(libs.kotlinx.coroutines.test)
             }
         }
 

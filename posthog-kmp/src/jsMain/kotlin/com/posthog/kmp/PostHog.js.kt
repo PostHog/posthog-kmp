@@ -238,6 +238,7 @@ internal actual fun platformGetSessionId(): String? {
     return try {
         PostHogJs.get_session_id()
     } catch (e: Throwable) {
+        logError("getSessionId", e)
         null
     }
 }
@@ -246,6 +247,7 @@ internal actual fun platformOptOut() {
     try {
         PostHogJs.opt_out_capturing()
     } catch (e: Throwable) {
+        logError("optOut", e)
     }
 }
 
@@ -253,6 +255,7 @@ internal actual fun platformOptIn() {
     try {
         PostHogJs.opt_in_capturing()
     } catch (e: Throwable) {
+        logError("optIn", e)
     }
 }
 
@@ -260,6 +263,7 @@ internal actual fun platformIsOptedOut(): Boolean {
     return try {
         PostHogJs.has_opted_out_capturing()
     } catch (e: Throwable) {
+        logError("isOptedOut", e)
         false
     }
 }
@@ -268,6 +272,7 @@ internal actual fun platformFlush() {
     try {
         PostHogJs.flush()
     } catch (e: Throwable) {
+        logError("flush", e)
     }
 }
 
@@ -275,6 +280,7 @@ internal actual fun platformClose() {
     try {
         PostHogJs.shutdown()
     } catch (e: Throwable) {
+        logError("close", e)
     }
 }
 
@@ -282,10 +288,15 @@ internal actual fun platformSetDebug(enabled: Boolean) {
     try {
         PostHogJs.debug(enabled)
     } catch (e: Throwable) {
+        logError("setDebug", e)
     }
 }
 
 // ==================== Helper Functions ====================
+
+private fun logError(operation: String, error: Throwable) {
+    console.error("[PostHog] $operation failed", error)
+}
 
 private fun Map<String, Any?>.toJsObject(): dynamic {
     val obj = js("{}")

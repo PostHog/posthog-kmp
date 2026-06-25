@@ -118,8 +118,8 @@ import PostHog
     ///
     /// The native iOS SDK builds `$exception_list` from native (symbolicated) stack frames and
     /// cannot consume a Kotlin/Native textual stack as real frames. To avoid discarding the
-    /// Kotlin stack, it is forwarded verbatim as the `$exception_stack_trace_raw` property so it
-    /// lands on the `$exception` event alongside the type and message.
+    /// Kotlin stack, it is forwarded as the `$exception_stack_trace_raw` property so it lands on
+    /// the `$exception` event alongside the type and message.
     ///
     /// - Parameters:
     ///   - type: The Kotlin throwable's class name (used as the NSException name).

@@ -26,10 +26,6 @@ package com.posthog.kmp
  * @see PostHogConfig for configuration options
  */
 public object PostHog {
-
-
-
-
     /**
      * Initialize the PostHog SDK with the given configuration and platform context.
      *

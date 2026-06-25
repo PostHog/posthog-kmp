@@ -25,10 +25,7 @@ A **Kotlin Multiplatform** SDK for [PostHog](https://posthog.com) analytics, sup
 |----------|--------|----------------|
 | Android | ✅ | PostHog Android SDK (native) |
 | iOS | ✅ | PostHog iOS SDK (native via SPM) |
-| macOS | ⚠️ | Stub (native SDK pending) |
-| JVM | ✅ | HTTP API (Ktor/OkHttp) |
 | JS (Browser) | ✅ | posthog-js (native) |
-| Wasm (Browser) | ✅ | posthog-js (native) |
 
 ## Installation
 
@@ -111,7 +108,7 @@ class MainActivity : ComponentActivity() {
 }
 ```
 
-#### iOS / Web / JVM / macOS
+#### iOS / Web
 
 On non-Android platforms, use the no-argument `PostHogContext()`:
 
@@ -269,7 +266,6 @@ try {
 } catch (e: Exception) {
     PostHog.captureException(
         throwable = e,
-        level = ExceptionLevel.ERROR,
         additionalProperties = mapOf(
             "context" to "checkout_flow",
             "user_action" to "submit_payment"
@@ -398,8 +394,6 @@ PostHog.close()
 | `personProfiles` | PersonProfiles | `IDENTIFIED_ONLY` | When to create profiles |
 | `sessionRecording` | SessionRecordingConfig? | `null` | Session recording settings |
 | `autocapture` | Boolean | `false` | Enable automatic event capture |
-| `enableExceptionAutocapture` | Boolean | `false` | Auto-capture uncaught exceptions |
-| `featureFlagRequestTimeoutMs` | Int | `10000` | Feature flag request timeout |
 
 ### Session Recording Options
 
@@ -433,17 +427,7 @@ PostHog.close()
   - Native networking and caching
   - Network telemetry capture
 
-### macOS
-- Currently stub implementation
-- Native SDK support planned for future release
-
-### JVM
-- Uses Ktor HTTP client with OkHttp engine
-- Suitable for server-side Kotlin applications
-- Coroutine-based async operations
-- Periodic flush with configurable intervals
-
-### JS/Wasm
+### JS
 - Wraps official posthog-js library (1.328.0+)
 - Full browser feature support
 - Session recording available
