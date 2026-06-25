@@ -115,7 +115,7 @@ internal actual fun platformIsFeatureEnabled(key: String, defaultValue: Boolean,
 }
 
 internal actual fun platformGetFeatureFlag(key: String, sendFeatureFlagEvent: Boolean): Any? {
-    return postHogInstance?.getFeatureFlag(key, sendFeatureFlagEvent)
+    return postHogInstance?.getFeatureFlag(key, sendFeatureFlagEvent = sendFeatureFlagEvent)
 }
 
 internal actual fun platformGetAllFeatureFlags(): Map<String, Any?> {

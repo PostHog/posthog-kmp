@@ -11,7 +11,6 @@ import androidx.compose.ui.unit.dp
 import com.posthog.kmp.PostHog
 import com.posthog.kmp.PostHogConfig
 import com.posthog.kmp.PostHogContext
-import com.posthog.kmp.ExceptionLevel
 
 /**
  * Sample app demonstrating PostHog KMP usage.

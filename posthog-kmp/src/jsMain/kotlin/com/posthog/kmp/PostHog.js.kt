@@ -168,7 +168,7 @@ internal actual fun platformGetAllFeatureFlags(): Map<String, Any?> {
             if (detail != null && detail != undefined) {
                 val isEnabled = detail.enabled as? Boolean ?: false
                 val variant = detail.variant as? String
-                val payload = detail.payload
+                val payload = detail.metadata?.payload
                 
                 map[key] = FeatureFlagResult(
                     key = key,
