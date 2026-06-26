@@ -151,26 +151,21 @@ internal actual fun platformGetFeatureFlag(key: String, sendFeatureFlagEvent: Bo
 
 internal actual fun platformGetAllFeatureFlags(): Map<String, Any?> {
     return try {
-        val flagsDynamic = PostHogJs.featureFlags.getFlagsWithDetails()
-        if (flagsDynamic == null || flagsDynamic == undefined) {
+        val flags = PostHogJs.getAllFeatureFlags()
+        if (flags == null || flags == undefined) {
             return emptyMap()
         }
-        val keys = js("Object.keys")(flagsDynamic) as Array<String>
         val map = mutableMapOf<String, Any?>()
-        for (key in keys) {
-            val detail = flagsDynamic[key]
-            if (detail != null && detail != undefined) {
-                val isEnabled = detail.enabled as? Boolean ?: false
-                val variant = detail.variant as? String
-                val payload = detail.metadata?.payload
-                
-                map[key] = FeatureFlagResult(
-                    key = key,
-                    enabled = isEnabled,
-                    variant = variant,
-                    payload = payload
-                )
-            }
+        val length = flags.length as Int
+        for (i in 0 until length) {
+            val result = flags[i]
+            val key = result.key as? String ?: continue
+            map[key] = FeatureFlagResult(
+                key = key,
+                enabled = result.enabled as? Boolean ?: false,
+                variant = result.variant as? String,
+                payload = result.payload
+            )
         }
         map
     } catch (e: Throwable) {
