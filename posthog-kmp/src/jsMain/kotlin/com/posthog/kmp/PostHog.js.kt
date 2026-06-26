@@ -10,7 +10,6 @@ package com.posthog.kmp
  * and all web-specific features.
  */
 
-// External declarations for posthog-js
 @JsModule("posthog-js")
 @JsNonModule
 private external object PostHogJsModule
@@ -45,10 +44,6 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         PersonProfiles.NEVER -> "never"
     }
     
-    // Note: sendFeatureFlagEvent has no direct per-call posthog-js equivalent but
-    // "capture_performance" and per-call options exist
-
-    // Session recording config
     config.sessionRecording?.let { sessionConfig ->
         if (sessionConfig.enabled) {
             options["session_recording"] = js("{}")
@@ -61,7 +56,6 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         }
     }
 
-    // Feature flags config
     options["advanced_disable_feature_flags"] = !config.preloadFeatureFlags
 
     PostHogJs.init(config.apiKey, options)

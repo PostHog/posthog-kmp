@@ -35,7 +35,6 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
 
         personProfiles = config.personProfiles.toAndroidPersonProfiles()
 
-        // Session replay configuration
         config.sessionRecording?.let { sessionConfig ->
             sessionReplay = sessionConfig.enabled
             sessionReplayConfig = PostHogSessionReplayConfig(
@@ -186,7 +185,6 @@ internal actual fun platformSetPersonProperties(
     postHogInstance?.setPersonProperties(userProperties, userPropertiesSetOnce)
 }
 
-// Helper to convert nullable values to non-null map expected by PostHog
 private fun Map<String, Any?>.toPostHogProperties(): Map<String, Any> {
     return this.filterValues { it != null }.mapValues { it.value!! }
 }
