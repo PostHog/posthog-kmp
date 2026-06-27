@@ -3,7 +3,7 @@ package com.posthog.kmp
 /**
  * PostHog Kotlin Multiplatform SDK
  *
- * A cross-platform analytics SDK for PostHog that works on Android, iOS, Web (JS/Wasm), and JVM.
+ * A cross-platform analytics SDK for PostHog that works on Android, iOS, and Web (JS).
  *
  * ## Basic Usage
  *
@@ -208,8 +208,11 @@ public object PostHog {
 
     /**
      * Get all feature flags for the current user.
-     * Note: Android and iOS just returns empty map, will be supported in the next version.
-     * @return Map of flag keys to their values
+     *
+     * This is a synchronous read of the locally cached flags and does not send a
+     * `$feature_flag_called` event. Values are [FeatureFlagResult] instances keyed by flag key.
+     *
+     * @return Map of flag keys to their [FeatureFlagResult]
      */
     public fun getAllFeatureFlags(): Map<String, Any?> {
         return platformGetAllFeatureFlags()
