@@ -149,13 +149,13 @@ internal actual fun platformGetFeatureFlag(key: String, sendFeatureFlagEvent: Bo
     return PostHogJs.getFeatureFlag(key, options)
 }
 
-internal actual fun platformGetAllFeatureFlags(): Map<String, Any?> {
+internal actual fun platformGetAllFeatureFlags(): Map<String, FeatureFlagResult> {
     return try {
         val flags = PostHogJs.getAllFeatureFlags()
         if (flags == null || flags == undefined) {
             return emptyMap()
         }
-        val map = mutableMapOf<String, Any?>()
+        val map = mutableMapOf<String, FeatureFlagResult>()
         val length = flags.length as Int
         for (i in 0 until length) {
             val result = flags[i]

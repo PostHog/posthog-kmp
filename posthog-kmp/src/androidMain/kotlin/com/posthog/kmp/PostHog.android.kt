@@ -117,7 +117,7 @@ internal actual fun platformGetFeatureFlag(key: String, sendFeatureFlagEvent: Bo
     return postHogInstance?.getFeatureFlag(key, sendFeatureFlagEvent = sendFeatureFlagEvent)
 }
 
-internal actual fun platformGetAllFeatureFlags(): Map<String, Any?> {
+internal actual fun platformGetAllFeatureFlags(): Map<String, FeatureFlagResult> {
     return postHogInstance?.getAllFeatureFlags()?.associate {
         it.key to it.toFeatureFlagResult()
     } ?: emptyMap()

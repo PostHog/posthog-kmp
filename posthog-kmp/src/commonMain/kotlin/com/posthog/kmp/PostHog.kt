@@ -214,7 +214,7 @@ public object PostHog {
      *
      * @return Map of flag keys to their [FeatureFlagResult]
      */
-    public fun getAllFeatureFlags(): Map<String, Any?> {
+    public fun getAllFeatureFlags(): Map<String, FeatureFlagResult> {
         return platformGetAllFeatureFlags()
     }
 
@@ -378,7 +378,7 @@ internal expect fun platformIsFeatureEnabled(key: String, defaultValue: Boolean,
 
 internal expect fun platformGetFeatureFlag(key: String, sendFeatureFlagEvent: Boolean): Any?
 
-internal expect fun platformGetAllFeatureFlags(): Map<String, Any?>
+internal expect fun platformGetAllFeatureFlags(): Map<String, FeatureFlagResult>
 
 internal expect fun platformReloadFeatureFlags(callback: (() -> Unit)?)
 

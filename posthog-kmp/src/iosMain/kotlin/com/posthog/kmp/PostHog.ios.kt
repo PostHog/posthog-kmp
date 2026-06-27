@@ -131,9 +131,9 @@ internal actual fun platformGetFeatureFlag(key: String, sendFeatureFlagEvent: Bo
     return PostHogBridge.shared().getFeatureFlag(key, sendFeatureFlagEvent = sendFeatureFlagEvent)
 }
 
-internal actual fun platformGetAllFeatureFlags(): Map<String, Any?> {
+internal actual fun platformGetAllFeatureFlags(): Map<String, FeatureFlagResult> {
     val results = PostHogBridge.shared().getAllFeatureFlags() ?: return emptyMap()
-    val map = mutableMapOf<String, Any?>()
+    val map = mutableMapOf<String, FeatureFlagResult>()
     for (entry in results) {
         val resultDict = entry as? Map<*, *> ?: continue
         val flagKey = resultDict["key"] as? String ?: continue
