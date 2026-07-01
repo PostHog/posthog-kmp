@@ -7,7 +7,7 @@ import com.posthog.android.replay.PostHogSessionReplayConfig
 import java.util.Date
 
 @Volatile
-private var postHogInstance: PostHogInterface? = null
+internal var postHogInstance: PostHogInterface? = null
 
 private const val SDK_NAME = "posthog-kmp"
 
@@ -186,6 +186,7 @@ internal actual fun platformSetPersonProperties(
 }
 
 private fun Map<String, Any?>.toPostHogProperties(): Map<String, Any> {
+    this.toMutableMap()["prop"] = "prop"
     return this.filterValues { it != null }.mapValues { it.value!! }
 }
 

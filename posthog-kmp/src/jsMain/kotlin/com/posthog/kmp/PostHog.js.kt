@@ -14,8 +14,11 @@ package com.posthog.kmp
 @JsNonModule
 private external object PostHogJsModule
 
+internal var mockPostHogJs: dynamic = null
+
 private val PostHogJs: dynamic
     get() {
+        if (mockPostHogJs != null) return mockPostHogJs
         val raw: dynamic = PostHogJsModule
         return when {
             raw?.init != null -> raw
