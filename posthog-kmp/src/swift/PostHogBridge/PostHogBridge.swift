@@ -41,27 +41,21 @@ import PostHog
     ) {
         let config = PostHogConfig(apiKey: apiKey, host: host)
 
-        // Debug mode
         config.debug = debug
 
-        // Lifecycle and screen tracking
         config.captureApplicationLifecycleEvents = captureApplicationLifecycleEvents
         config.captureScreenViews = captureScreenViews
 
-        // Feature flags
         config.sendFeatureFlagEvent = sendFeatureFlagEvent
         config.preloadFeatureFlags = preloadFeatureFlags
 
-        // Batch settings
         config.flushAt = flushAt
         config.flushIntervalSeconds = flushIntervalSeconds
         config.maxQueueSize = maxQueueSize
         config.maxBatchSize = maxBatchSize
 
-        // Opt out
         config.optOut = optOut
 
-        // Person profiles
         if personProfiles.caseInsensitiveCompare("always") == .orderedSame {
             config.personProfiles = .always
         } else if personProfiles.caseInsensitiveCompare("never") == .orderedSame {
@@ -72,10 +66,8 @@ import PostHog
         config.setDefaultPersonProperties = true
 
         #if os(iOS) || targetEnvironment(macCatalyst)
-        // Element interaction tracking (autocapture)
         config.captureElementInteractions = autocapture
 
-        // Session replay
         if sessionRecordingEnabled {
             config.sessionReplay = true
             config.sessionReplayConfig.maskAllTextInputs = sessionRecordingMaskAllTextInputs
@@ -85,10 +77,6 @@ import PostHog
             config.sessionReplayConfig.screenshotMode = sessionRecordingScreenshotMode
         }
 
-        // Surveys (iOS 15+)
-        if #available(iOS 15.0, *) {
-            config.surveys = true
-        }
         #endif
 
         postHogSdkName = "posthog-kmp"
@@ -99,10 +87,19 @@ import PostHog
 
     // MARK: - Event Capture
 
-    /// Capture an event with optional properties
-    @objc public func capture(event: String, properties: NSDictionary?, timestamp: Date? = nil) {
+    /// Capture an event with optional properties and per-event groups
+    @objc public func capture(event: String, properties: NSDictionary?, groups: NSDictionary?, timestamp: Date? = nil) {
         let props = properties as? [String: Any]
-        PostHogSDK.shared.capture(event, properties: props, timestamp: timestamp)
+        let grps = groups as? [String: String]
+        PostHogSDK.shared.capture(
+            event,
+            distinctId: nil,
+            properties: props,
+            userProperties: nil,
+            userPropertiesSetOnce: nil,
+            groups: grps,
+            timestamp: timestamp
+        )
     }
 
     /// Track a screen view
@@ -223,29 +220,14 @@ import PostHog
         }
     }
 
-    @objc public func getFeatureFlagResult(_ key: String,  sendFeatureFlagEvent: Bool) -> NSDictionary? {
+    @objc public func getFeatureFlagResult(_ key: String, sendFeatureFlagEvent: Bool) -> NSDictionary? {
         guard let result = PostHogSDK.shared.getFeatureFlagResult(key, sendFeatureFlagEvent: sendFeatureFlagEvent) else { return nil }
-        var dict: [String: Any] = [
-            "key": key, // Use key passed in or result.key if available
-            "enabled": false
-        ]
-        
-        // Use KVC to dynamically access properties to avoid compilation errors 
-        // if the exact swift interface differs slightly across versions.
-        if result.responds(to: NSSelectorFromString("enabled")) {
-            dict["enabled"] = result.value(forKey: "enabled") as? Bool ?? false
-        }
-        if result.responds(to: NSSelectorFromString("variant")) {
-            dict["variant"] = result.value(forKey: "variant")
-        }
-        if result.responds(to: NSSelectorFromString("payload")) {
-            dict["payload"] = result.value(forKey: "payload")
-        }
-        if result.responds(to: NSSelectorFromString("key")) {
-            dict["key"] = result.value(forKey: "key") as? String ?? key
-        }
-        
-        return dict as NSDictionary
+        return [
+            "key": result.key,
+            "enabled": result.enabled,
+            "variant": result.variant as Any,
+            "payload": result.payload as Any,
+        ] as NSDictionary
     }
 
     /// Reload feature flags from server

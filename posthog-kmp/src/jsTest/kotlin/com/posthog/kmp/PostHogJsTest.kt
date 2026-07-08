@@ -2,19 +2,22 @@ package com.posthog.kmp
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.test.BeforeTest
 
 class PostHogJsTest {
 
     private val calledMethods = mutableListOf<Pair<String, Array<dynamic>>>()
+    private var fakeJs: dynamic = null
 
     @BeforeTest
     fun setup() {
         calledMethods.clear()
+        currentConfig = null
 
-        val fakeJs = js("{}")
-        
+        fakeJs = js("{}")
+
         setupCoreMethods(fakeJs)
         setupFeatureFlagMethods(fakeJs)
         setupMiscMethods(fakeJs)
@@ -32,8 +35,8 @@ class PostHogJsTest {
         fakeJs.alias = { alias: String ->
             calledMethods.add("alias" to arrayOf<dynamic>(alias))
         }
-        fakeJs.reset = { clear: Boolean ->
-            calledMethods.add("reset" to arrayOf<dynamic>(clear))
+        fakeJs.reset = { resetDeviceId: dynamic ->
+            calledMethods.add("reset" to arrayOf<dynamic>(resetDeviceId))
         }
         fakeJs.get_distinct_id = {
             calledMethods.add("get_distinct_id" to arrayOf<dynamic>())
@@ -99,9 +102,16 @@ class PostHogJsTest {
             calledMethods.add("has_opted_out_capturing" to arrayOf<dynamic>())
             false
         }
-        fakeJs.flush = {
-            calledMethods.add("flush" to arrayOf<dynamic>())
+        val requestQueue = js("{}")
+        requestQueue.unload = {
+            calledMethods.add("requestQueue.unload" to arrayOf<dynamic>())
         }
+        fakeJs._requestQueue = requestQueue
+        val retryQueue = js("{}")
+        retryQueue.unload = {
+            calledMethods.add("retryQueue.unload" to arrayOf<dynamic>())
+        }
+        fakeJs._retryQueue = retryQueue
         fakeJs.shutdown = {
             calledMethods.add("shutdown" to arrayOf<dynamic>())
         }
@@ -125,6 +135,26 @@ class PostHogJsTest {
         val call = getCall("capture")
         assertEquals("test_event", call[0] as String)
         assertEquals("value", call[1]["prop"] as String)
+    }
+
+    @Test
+    fun testCaptureMergesGroupsIntoProperties() {
+        PostHog.capture(
+            "test_event",
+            mapOf("prop" to "value"),
+            CaptureOptions(groups = mapOf("company" to "acme"))
+        )
+        val call = getCall("capture")
+        assertEquals("value", call[1]["prop"] as String)
+        assertEquals("acme", call[1]["\$groups"]["company"] as String)
+    }
+
+    @Test
+    fun testCaptureDropsNullPropertyValues() {
+        PostHog.capture("test_event", mapOf("keep" to 1, "drop" to null))
+        val call = getCall("capture")
+        assertEquals(1, call[1]["keep"] as Int)
+        assertTrue(call[1]["drop"] == null, "null-valued properties must be dropped")
     }
 
     @Test
@@ -162,10 +192,10 @@ class PostHogJsTest {
     }
 
     @Test
-    fun testResetRoutesCorrectly() {
+    fun testResetDoesNotRotateDeviceId() {
         PostHog.reset()
         val call = getCall("reset")
-        assertEquals(true, call[0] as Boolean)
+        assertNull(call[0], "reset() must not pass reset_device_id=true")
     }
 
     @Test
@@ -214,6 +244,54 @@ class PostHogJsTest {
     }
 
     @Test
+    fun testReloadFeatureFlagsCallbackIgnoresStaleImmediateFire() {
+        var handler: (() -> Unit)? = null
+        fakeJs.onFeatureFlags = { cb: () -> Unit ->
+            handler = cb
+            cb()
+            val unSub: () -> Unit = { handler = null }
+            unSub
+        }
+
+        var callbackCount = 0
+        PostHog.reloadFeatureFlags { callbackCount++ }
+        getCall("reloadFeatureFlags")
+        assertEquals(0, callbackCount, "callback must not fire with pre-reload flags")
+
+        handler?.invoke()
+        assertEquals(1, callbackCount)
+
+        handler?.invoke()
+        assertEquals(1, callbackCount, "callback must fire at most once and unsubscribe")
+    }
+
+    @Test
+    fun testSendFeatureFlagEventFallsBackToConfig() {
+        currentConfig = PostHogConfig(apiKey = "key", sendFeatureFlagEvent = false)
+
+        PostHog.getFeatureFlag("test_flag")
+        val call = getCall("getFeatureFlag")
+        assertEquals(false, call[1]["send_event"] as Boolean)
+
+        PostHog.getFeatureFlag("test_flag", sendFeatureFlagEvent = true)
+        val overrideCall = calledMethods.last { it.first == "getFeatureFlag" }.second
+        assertEquals(true, overrideCall[1]["send_event"] as Boolean)
+    }
+
+    @Test
+    fun testSetupMapsPreloadFlagsToFirstLoadOption() {
+        fakeJs.init = { apiKey: String, options: dynamic ->
+            calledMethods.add("init" to arrayOf<dynamic>(apiKey, options))
+        }
+        PostHog.setup(PostHogConfig(apiKey = "key", preloadFeatureFlags = false), PostHogContext())
+
+        val call = getCall("init")
+        assertEquals("key", call[0] as String)
+        assertEquals(true, call[1]["advanced_disable_feature_flags_on_first_load"] as Boolean)
+        assertNull(call[1]["advanced_disable_feature_flags"], "flag evaluation must not be disabled permanently")
+    }
+
+    @Test
     fun testGetFeatureFlagResultRoutesCorrectly() {
         PostHog.getFeatureFlagResult("test_flag")
         val call = getCall("getFeatureFlagResult")
@@ -256,9 +334,10 @@ class PostHogJsTest {
     }
 
     @Test
-    fun testFlushRoutesCorrectly() {
+    fun testFlushDrainsRequestQueues() {
         PostHog.flush()
-        getCall("flush")
+        getCall("requestQueue.unload")
+        getCall("retryQueue.unload")
     }
 
     @Test

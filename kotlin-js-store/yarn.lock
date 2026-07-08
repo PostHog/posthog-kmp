@@ -233,14 +233,14 @@
   resolved "https://registry.yarnpkg.com/@pkgjs/parseargs/-/parseargs-0.11.0.tgz#a77ea742fab25775145434eb1d2328cf5013ac33"
   integrity sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==
 
-"@posthog/core@^1.38.0":
+"@posthog/core@^1.38.0", "@posthog/core@^1.39.6":
   version "1.39.6"
   resolved "https://registry.yarnpkg.com/@posthog/core/-/core-1.39.6.tgz#31110701f2d2cbe33a15967d5d2f57680126e5e8"
   integrity sha512-o6ajIwN5zXoNP0D4H/QPmOyibNTUkSyOR6ya7AG5U2ywXx4awo72L2KnCoiZPQM5x/bXv6jPBdimH8M18Ax0aw==
   dependencies:
     "@posthog/types" "^1.392.0"
 
-"@posthog/types@^1.391.1", "@posthog/types@^1.392.0":
+"@posthog/types@^1.391.1", "@posthog/types@^1.392.0", "@posthog/types@^1.392.1":
   version "1.392.1"
   resolved "https://registry.yarnpkg.com/@posthog/types/-/types-1.392.1.tgz#f0d0df161ba5903ee479a1c2253c69f444df3aa0"
   integrity sha512-Qg6Gl7/1vlr8+gPtBi5gwnLgAgiyFoKOVmTvTtDcvya9cpTwZfna7rQmkGQ4B63CunUYNNbOlqcwiUwUDyTK6w==
@@ -972,7 +972,7 @@ cookie@~0.7.1, cookie@~0.7.2:
   resolved "https://registry.yarnpkg.com/cookie/-/cookie-0.7.2.tgz#556369c472a2ba910f2979891b526b3436237ed7"
   integrity sha512-yki5XnKuf750l50uGTllt6kKILY4nQ1eNIQatoXEByZ5dWgnKqbnqmTrBE5B4N7lrMJKQ2ytWMiTO2o0v6Ew/w==
 
-core-js@^3.38.1:
+core-js@^3.38.1, core-js@^3.49.0:
   version "3.49.0"
   resolved "https://registry.yarnpkg.com/core-js/-/core-js-3.49.0.tgz#8b4d520ac034311fa21aa616f017ada0e0dbbddd"
   integrity sha512-es1U2+YTtzpwkxVLwAFdSpaIMyQaq0PBgm3YD1W3Qpsn1NAmO3KSgZfu+oGSWVu6NvLHoHCV/aYcsE5wiB7ALg==
@@ -2321,10 +2321,29 @@ posthog-js@1.395.0:
     query-selector-shadow-dom "^1.0.1"
     web-vitals "^5.3.0"
 
+posthog-js@1.398.7:
+  version "1.398.7"
+  resolved "https://registry.yarnpkg.com/posthog-js/-/posthog-js-1.398.7.tgz#a46db749f0d31c17768686d8b7b7357a902cd833"
+  integrity sha512-hZR59/JhUZnXdNvarOCdZZDYKvvHITa2xSRX9DGk4hQJuRjccnlaATQBLh4F5GilCHP1aI9y/PJjXtOGqtqsnw==
+  dependencies:
+    "@posthog/core" "^1.39.6"
+    "@posthog/types" "^1.392.1"
+    core-js "^3.49.0"
+    dompurify "^3.3.2"
+    fflate "^0.4.8"
+    preact "^10.29.3"
+    query-selector-shadow-dom "^1.0.1"
+    web-vitals "^5.3.0"
+
 preact@^10.29.2:
   version "10.29.4"
   resolved "https://registry.yarnpkg.com/preact/-/preact-10.29.4.tgz#186cd3ce0fea34e5d1930881238c16e1fb902253"
   integrity sha512-GMpwh9+NJ8tSmqwIaVyFRQkiKfBEzQ+k7r7tle4W+kaJ+7wJiB9hFz9BixAomMtenPPSBfM4bZhXozGxhf0uFQ==
+
+preact@^10.29.3:
+  version "10.29.7"
+  resolved "https://registry.yarnpkg.com/preact/-/preact-10.29.7.tgz#b70df2eb06e982c7ac65b6df1541e5846ac0f6ba"
+  integrity sha512-DCHYrK/B10yUD3ZjLfhZ3WIE/9Vf9VFUODcRE2dRomTYDpJk6z6L9wecSfhfE6M9ZTHUdyQkoC46arIDhEV84Q==
 
 process-nextick-args@~2.0.0:
   version "2.0.1"

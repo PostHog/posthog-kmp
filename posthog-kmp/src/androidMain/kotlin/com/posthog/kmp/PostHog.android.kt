@@ -50,30 +50,36 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
     postHogInstance = PostHogAndroid.with(context.application, androidConfig)
 }
 
-internal actual fun platformCapture(event: String, properties: Map<String, Any?>?, timestamp: Long?) {
+internal actual fun platformCapture(
+    event: String,
+    properties: Map<String, Any>?,
+    groups: Map<String, String>?,
+    timestamp: Long?
+) {
     postHogInstance?.capture(
         event = event,
-        properties = properties?.toPostHogProperties(),
+        properties = properties,
+        groups = groups,
         timestamp = timestamp?.let { Date(it) }
     )
 }
 
-internal actual fun platformScreen(screenName: String, properties: Map<String, Any?>?) {
+internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?) {
     postHogInstance?.screen(
         screenTitle = screenName,
-        properties = properties?.toPostHogProperties()
+        properties = properties
     )
 }
 
 internal actual fun platformIdentify(
     distinctId: String,
-    userProperties: Map<String, Any?>?,
-    userPropertiesSetOnce: Map<String, Any?>?
+    userProperties: Map<String, Any>?,
+    userPropertiesSetOnce: Map<String, Any>?
 ) {
     postHogInstance?.identify(
         distinctId = distinctId,
-        userProperties = userProperties?.toPostHogProperties(),
-        userPropertiesSetOnce = userPropertiesSetOnce?.toPostHogProperties()
+        userProperties = userProperties,
+        userPropertiesSetOnce = userPropertiesSetOnce
     )
 }
 
@@ -100,12 +106,12 @@ internal actual fun platformUnregister(key: String) {
 internal actual fun platformGroup(
     type: String,
     key: String,
-    groupProperties: Map<String, Any?>?
+    groupProperties: Map<String, Any>?
 ) {
     postHogInstance?.group(
         type = type,
         key = key,
-        groupProperties = groupProperties?.toPostHogProperties()
+        groupProperties = groupProperties
     )
 }
 
@@ -137,11 +143,11 @@ internal actual fun platformGetFeatureFlagResult(key: String, sendFeatureFlagEve
 
 internal actual fun platformCaptureException(
     throwable: Throwable,
-    additionalProperties: Map<String, Any?>?
+    additionalProperties: Map<String, Any>?
 ) {
     postHogInstance?.captureException(
         throwable = throwable,
-        properties = additionalProperties?.toPostHogProperties()
+        properties = additionalProperties
     )
 }
 
@@ -185,12 +191,7 @@ internal actual fun platformSetPersonProperties(
     postHogInstance?.setPersonProperties(userProperties, userPropertiesSetOnce)
 }
 
-private fun Map<String, Any?>.toPostHogProperties(): Map<String, Any> {
-    this.toMutableMap()["prop"] = "prop"
-    return this.filterValues { it != null }.mapValues { it.value!! }
-}
-
-private fun PersonProfiles.toAndroidPersonProfiles(): com.posthog.PersonProfiles{
+private fun PersonProfiles.toAndroidPersonProfiles(): com.posthog.PersonProfiles {
     return when (this) {
         PersonProfiles.ALWAYS -> com.posthog.PersonProfiles.ALWAYS
         PersonProfiles.IDENTIFIED_ONLY -> com.posthog.PersonProfiles.IDENTIFIED_ONLY

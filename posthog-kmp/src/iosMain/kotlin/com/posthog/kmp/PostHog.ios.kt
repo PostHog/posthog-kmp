@@ -12,7 +12,6 @@ import platform.Foundation.dateWithTimeIntervalSince1970
  *
  * This implementation provides full access to native PostHog features including:
  * - Session recording
- * - Surveys
  * - Autocapture
  * - Native networking and caching
  */
@@ -47,23 +46,29 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
     )
 }
 
-internal actual fun platformCapture(event: String, properties: Map<String, Any?>?, timestamp: Long?) {
+internal actual fun platformCapture(
+    event: String,
+    properties: Map<String, Any>?,
+    groups: Map<String, String>?,
+    timestamp: Long?
+) {
     @Suppress("UNCHECKED_CAST")
     PostHogBridge.shared().captureWithEvent(
         event,
         properties = properties as? Map<Any?, *>,
+        groups = groups as? Map<Any?, *>,
         timestamp = timestamp?.let { NSDate.dateWithTimeIntervalSince1970(it.toDouble() / 1000.0) }
     )
 }
 
-internal actual fun platformScreen(screenName: String, properties: Map<String, Any?>?) {
+internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?) {
     @Suppress("UNCHECKED_CAST")
     PostHogBridge.shared().screenWithTitle(screenName, properties = properties as? Map<Any?, *>)
 }
 
 internal actual fun platformCaptureException(
     throwable: Throwable,
-    additionalProperties: Map<String, Any?>?
+    additionalProperties: Map<String, Any>?
 ) {
     @Suppress("UNCHECKED_CAST")
     PostHogBridge.shared().captureExceptionWithType(
@@ -76,8 +81,8 @@ internal actual fun platformCaptureException(
 
 internal actual fun platformIdentify(
     distinctId: String,
-    userProperties: Map<String, Any?>?,
-    userPropertiesSetOnce: Map<String, Any?>?
+    userProperties: Map<String, Any>?,
+    userPropertiesSetOnce: Map<String, Any>?
 ) {
     @Suppress("UNCHECKED_CAST")
     PostHogBridge.shared().identifyWithDistinctId(
@@ -110,7 +115,7 @@ internal actual fun platformUnregister(key: String) {
 internal actual fun platformGroup(
     type: String,
     key: String,
-    groupProperties: Map<String, Any?>?
+    groupProperties: Map<String, Any>?
 ) {
     @Suppress("UNCHECKED_CAST")
     PostHogBridge.shared().groupWithType(type, key = key, groupProperties = groupProperties as? Map<Any?, *>)

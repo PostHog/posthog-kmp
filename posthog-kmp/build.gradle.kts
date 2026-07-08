@@ -13,7 +13,6 @@ plugins {
     alias(libs.plugins.spmforkmp)
 }
 
-// Load version from version.properties
 val versionProperties = Properties().apply {
     rootProject.file("version.properties").inputStream().use { load(it) }
 }
@@ -49,10 +48,8 @@ val generatePostHogVersion by tasks.registering {
 }
 
 kotlin {
-    // Explicit API mode - forces visibility modifiers and return types
     explicitApi()
 
-    // Android target
     androidTarget {
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
@@ -60,7 +57,6 @@ kotlin {
         publishLibraryVariants("release")
     }
 
-    // iOS targets with SPM4KMP for native PostHog SDK
     listOf(
         iosX64(),
         iosArm64(),
@@ -80,7 +76,6 @@ kotlin {
         }
     }
 
-    // JavaScript targets
     js(IR) {
         browser {
             webpackTask {
@@ -91,7 +86,6 @@ kotlin {
         binaries.library()
     }
 
-    // Source sets configuration
     sourceSets {
         val commonMain by getting {
             kotlin.srcDir(generatedVersionDir)
@@ -108,7 +102,6 @@ kotlin {
                 implementation(libs.posthog.android)
             }
         }
-
 
         val iosMain by creating {
             dependsOn(commonMain)
@@ -140,10 +133,14 @@ android {
     }
 }
 
-// Maven Central Publishing Configuration
 mavenPublishing {
     publishToMavenCentral(automaticRelease = true)
-    signAllPublications()
+
+    // Sign only when a key is configured (CI provides ORG_GRADLE_PROJECT_signingInMemoryKey),
+    // so publishToMavenLocal works on dev machines without one.
+    if (providers.gradleProperty("signingInMemoryKey").isPresent) {
+        signAllPublications()
+    }
 
     configure(KotlinMultiplatform(
         javadocJar = JavadocJar.Empty(),
@@ -192,6 +189,6 @@ mavenPublishing {
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().configureEach {
     dependsOn(generatePostHogVersion)
 }
-tasks.matching { it.name.endsWith("SourcesJar") }.configureEach {
+tasks.matching { it.name.endsWith("sourcesJar", ignoreCase = true) }.configureEach {
     dependsOn(generatePostHogVersion)
 }

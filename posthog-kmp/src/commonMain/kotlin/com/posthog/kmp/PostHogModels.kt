@@ -51,6 +51,6 @@ public data class FeatureFlagResult(
 /**
  * Internal property keys used by PostHog.
  */
-public object PostHogProperties {
-    public const val GROUPS: String = "\$groups"
+internal object PostHogProperties {
+    internal const val GROUPS: String = "\$groups"
 }

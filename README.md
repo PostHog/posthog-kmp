@@ -422,7 +422,6 @@ PostHog.close()
 - Uses official PostHog iOS SDK (3.38.0+) via Swift bridge
 - Full native SDK features including:
   - Session recording (wireframe or screenshot mode)
-  - Surveys (iOS 15+)
   - Autocapture
   - Native networking and caching
   - Network telemetry capture

@@ -1,5 +1,7 @@
 package com.posthog.kmp
 
+import kotlin.concurrent.Volatile
+
 /**
  * PostHog Kotlin Multiplatform SDK
  *
@@ -38,6 +40,7 @@ public object PostHog {
      * @param context Platform-specific context (Application on Android, empty on other platforms)
      */
     public fun setup(config: PostHogConfig, context: PostHogContext) {
+        currentConfig = config
         platformSetup(config, context)
     }
 
@@ -45,6 +48,10 @@ public object PostHog {
 
     /**
      * Capture an event with optional properties.
+     *
+     * Properties with null values are dropped so all platforms send the same event shape.
+     * Groups from [CaptureOptions.groups] are merged with groups registered via [group]
+     * (they do not replace them).
      *
      * @param event The event name (e.g., "button_clicked", "purchase_completed")
      * @param properties Optional properties to include with the event
@@ -55,22 +62,19 @@ public object PostHog {
         properties: Map<String, Any?>? = null,
         options: CaptureOptions? = null
     ) {
-        val mergedProperties = buildMap {
-            properties?.forEach { (key, value) -> put(key, value) }
-            options?.groups?.let { put(PostHogProperties.GROUPS, it) }
-        }.ifEmpty { null }
-
-        platformCapture(event, mergedProperties, options?.timestamp)
+        platformCapture(event, properties?.dropNullValues(), options?.groups, options?.timestamp)
     }
 
     /**
      * Capture a screen/page view event.
      *
+     * Properties with null values are dropped so all platforms send the same event shape.
+     *
      * @param screenName The name of the screen or page
      * @param properties Optional additional properties
      */
     public fun screen(screenName: String, properties: Map<String, Any?>? = null) {
-        platformScreen(screenName, properties)
+        platformScreen(screenName, properties?.dropNullValues())
     }
 
     // ==================== User Identification ====================
@@ -89,7 +93,7 @@ public object PostHog {
         userProperties: Map<String, Any?>? = null,
         userPropertiesSetOnce: Map<String, Any?>? = null
     ) {
-        platformIdentify(distinctId, userProperties, userPropertiesSetOnce)
+        platformIdentify(distinctId, userProperties?.dropNullValues(), userPropertiesSetOnce?.dropNullValues())
     }
 
     /**
@@ -178,7 +182,7 @@ public object PostHog {
         key: String,
         groupProperties: Map<String, Any?>? = null
     ) {
-        platformGroup(type, key, groupProperties)
+        platformGroup(type, key, groupProperties?.dropNullValues())
     }
 
     // ==================== Feature Flags ====================
@@ -188,10 +192,12 @@ public object PostHog {
      *
      * @param key The feature flag key
      * @param defaultValue Value to return if the flag is not found (defaults to false)
+     * @param sendFeatureFlagEvent Whether to send a `$feature_flag_called` event for this
+     *   lookup; null (the default) falls back to [PostHogConfig.sendFeatureFlagEvent]
      * @return true if the flag is enabled, defaultValue otherwise
      */
-    public fun isFeatureEnabled(key: String, defaultValue: Boolean = false, sendFeatureFlagEvent: Boolean = true): Boolean {
-        return platformIsFeatureEnabled(key, defaultValue, sendFeatureFlagEvent)
+    public fun isFeatureEnabled(key: String, defaultValue: Boolean = false, sendFeatureFlagEvent: Boolean? = null): Boolean {
+        return platformIsFeatureEnabled(key, defaultValue, resolveSendFeatureFlagEvent(sendFeatureFlagEvent))
     }
 
     /**
@@ -200,10 +206,12 @@ public object PostHog {
      * Feature flags can return boolean, string variants, or JSON payloads.
      *
      * @param key The feature flag key
+     * @param sendFeatureFlagEvent Whether to send a `$feature_flag_called` event for this
+     *   lookup; null (the default) falls back to [PostHogConfig.sendFeatureFlagEvent]
      * @return The flag value or null if not found
      */
-    public fun getFeatureFlag(key: String, sendFeatureFlagEvent: Boolean  = true): Any? {
-        return platformGetFeatureFlag(key, sendFeatureFlagEvent)
+    public fun getFeatureFlag(key: String, sendFeatureFlagEvent: Boolean? = null): Any? {
+        return platformGetFeatureFlag(key, resolveSendFeatureFlagEvent(sendFeatureFlagEvent))
     }
 
     /**
@@ -237,10 +245,12 @@ public object PostHog {
      * the reason for the evaluation result and any associated payload.
      *
      * @param key The feature flag key
+     * @param sendFeatureFlagEvent Whether to send a `$feature_flag_called` event for this
+     *   lookup; null (the default) falls back to [PostHogConfig.sendFeatureFlagEvent]
      * @return A [FeatureFlagResult] with detailed evaluation information
      */
-    public fun getFeatureFlagResult(key: String, sendFeatureFlagEvent: Boolean = true): FeatureFlagResult? {
-        return platformGetFeatureFlagResult(key, sendFeatureFlagEvent)
+    public fun getFeatureFlagResult(key: String, sendFeatureFlagEvent: Boolean? = null): FeatureFlagResult? {
+        return platformGetFeatureFlagResult(key, resolveSendFeatureFlagEvent(sendFeatureFlagEvent))
     }
 
     // ==================== Session Management ====================
@@ -281,7 +291,7 @@ public object PostHog {
         throwable: Throwable,
         additionalProperties: Map<String, Any?>? = null
     ) {
-        platformCaptureException(throwable, additionalProperties)
+        platformCaptureException(throwable, additionalProperties?.dropNullValues())
     }
 
     // ==================== Opt In/Out ====================
@@ -344,18 +354,40 @@ public object PostHog {
     }
 }
 
+/**
+ * The configuration passed to [PostHog.setup]. Kept so per-call feature-flag
+ * options can fall back to their configured values.
+ */
+@Volatile
+internal var currentConfig: PostHogConfig? = null
+
+private fun resolveSendFeatureFlagEvent(override: Boolean?): Boolean {
+    return override ?: currentConfig?.sendFeatureFlagEvent ?: true
+}
+
+private fun Map<String, Any?>.dropNullValues(): Map<String, Any>? {
+    return buildMap {
+        this@dropNullValues.forEach { (key, value) -> if (value != null) put(key, value) }
+    }.ifEmpty { null }
+}
+
 // ==================== Platform Expect Functions ====================
 
 internal expect fun platformSetup(config: PostHogConfig, context: PostHogContext)
 
-internal expect fun platformCapture(event: String, properties: Map<String, Any?>?, timestamp: Long?)
+internal expect fun platformCapture(
+    event: String,
+    properties: Map<String, Any>?,
+    groups: Map<String, String>?,
+    timestamp: Long?
+)
 
-internal expect fun platformScreen(screenName: String, properties: Map<String, Any?>?)
+internal expect fun platformScreen(screenName: String, properties: Map<String, Any>?)
 
 internal expect fun platformIdentify(
     distinctId: String,
-    userProperties: Map<String, Any?>?,
-    userPropertiesSetOnce: Map<String, Any?>?
+    userProperties: Map<String, Any>?,
+    userPropertiesSetOnce: Map<String, Any>?
 )
 
 internal expect fun platformAlias(alias: String)
@@ -371,7 +403,7 @@ internal expect fun platformUnregister(key: String)
 internal expect fun platformGroup(
     type: String,
     key: String,
-    groupProperties: Map<String, Any?>?
+    groupProperties: Map<String, Any>?
 )
 
 internal expect fun platformIsFeatureEnabled(key: String, defaultValue: Boolean, sendFeatureFlagEvent: Boolean): Boolean
@@ -386,7 +418,7 @@ internal expect fun platformGetFeatureFlagResult(key: String, sendFeatureFlagEve
 
 internal expect fun platformCaptureException(
     throwable: Throwable,
-    additionalProperties: Map<String, Any?>?
+    additionalProperties: Map<String, Any>?
 )
 
 internal expect fun platformGetAnonymousId(): String?

@@ -13,6 +13,7 @@ class PostHogAndroidTest {
     fun setup() {
         fakeInterface = FakePostHogInterface()
         postHogInstance = fakeInterface.proxy
+        currentConfig = null
     }
 
     private fun assertMethodCalled(methodName: String, vararg args: Any?) {
@@ -30,6 +31,31 @@ class PostHogAndroidTest {
     fun testCaptureRoutesCorrectly() {
         PostHog.capture("test_event", mapOf("prop" to "value"))
         assertMethodCalled("capture", "test_event", null, mapOf("prop" to "value"))
+    }
+
+    @Test
+    fun testCapturePassesGroupsToNativeParameter() {
+        PostHog.capture(
+            "test_event",
+            mapOf("prop" to "value"),
+            CaptureOptions(groups = mapOf("company" to "acme"))
+        )
+        // capture(event, distinctId, properties, userProperties, userPropertiesSetOnce, groups, timestamp)
+        assertMethodCalled(
+            "capture",
+            "test_event",
+            null,
+            mapOf("prop" to "value"),
+            null,
+            null,
+            mapOf("company" to "acme")
+        )
+    }
+
+    @Test
+    fun testCaptureDropsNullPropertyValues() {
+        PostHog.capture("test_event", mapOf("keep" to 1, "drop" to null))
+        assertMethodCalled("capture", "test_event", null, mapOf("keep" to 1))
     }
 
     @Test
@@ -89,7 +115,19 @@ class PostHogAndroidTest {
     @Test
     fun testIsFeatureEnabledRoutesCorrectly() {
         PostHog.isFeatureEnabled("test_flag", defaultValue = true)
-        assertMethodCalled("isFeatureEnabled", "test_flag", true)
+        assertMethodCalled("isFeatureEnabled", "test_flag", true, true)
+    }
+
+    @Test
+    fun testSendFeatureFlagEventFallsBackToConfig() {
+        currentConfig = PostHogConfig(apiKey = "key", sendFeatureFlagEvent = false)
+
+        PostHog.isFeatureEnabled("test_flag")
+        assertMethodCalled("isFeatureEnabled", "test_flag", false, false)
+
+        PostHog.isFeatureEnabled("test_flag", sendFeatureFlagEvent = true)
+        val overrideCall = fakeInterface.calledMethods.last { it.first == "isFeatureEnabled" }
+        assertEquals(true, overrideCall.second[2])
     }
 
     @Test

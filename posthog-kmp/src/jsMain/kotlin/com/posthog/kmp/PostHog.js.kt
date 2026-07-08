@@ -59,7 +59,8 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         }
     }
 
-    options["advanced_disable_feature_flags"] = !config.preloadFeatureFlags
+    // advanced_disable_feature_flags (without _on_first_load) would disable flag evaluation permanently
+    options["advanced_disable_feature_flags_on_first_load"] = !config.preloadFeatureFlags
 
     PostHogJs.init(config.apiKey, options)
 
@@ -73,20 +74,31 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
     }
 }
 
-internal actual fun platformCapture(event: String, properties: Map<String, Any?>?, timestamp: Long?) {
+internal actual fun platformCapture(
+    event: String,
+    properties: Map<String, Any>?,
+    groups: Map<String, String>?,
+    timestamp: Long?
+) {
     val options = js("{}")
     if (timestamp != null) {
         options["timestamp"] = kotlin.js.Date(timestamp.toDouble())
     }
 
-    if (properties != null) {
-        PostHogJs.capture(event, properties.toJsObject(), options)
+    // posthog-js has no per-capture groups option; $groups as an event property merges at ingestion
+    val mergedProperties = if (properties == null && groups == null) {
+        null
     } else {
-        PostHogJs.capture(event, null, options)
+        buildMap<String, Any?> {
+            properties?.let { putAll(it) }
+            groups?.let { put(PostHogProperties.GROUPS, it) }
+        }.toJsObject()
     }
+
+    PostHogJs.capture(event, mergedProperties, options)
 }
 
-internal actual fun platformScreen(screenName: String, properties: Map<String, Any?>?) {
+internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?) {
     val screenProperties = buildMap {
         put("\$screen_name", screenName)
         properties?.forEach { (key, value) -> put(key, value) }
@@ -96,8 +108,8 @@ internal actual fun platformScreen(screenName: String, properties: Map<String, A
 
 internal actual fun platformIdentify(
     distinctId: String,
-    userProperties: Map<String, Any?>?,
-    userPropertiesSetOnce: Map<String, Any?>?
+    userProperties: Map<String, Any>?,
+    userPropertiesSetOnce: Map<String, Any>?
 ) {
     PostHogJs.identify(
         distinctId,
@@ -111,7 +123,8 @@ internal actual fun platformAlias(alias: String) {
 }
 
 internal actual fun platformReset() {
-    PostHogJs.reset(true)
+    // reset(true) would also rotate $device_id, breaking device-level continuity
+    PostHogJs.reset()
 }
 
 internal actual fun platformGetDistinctId(): String? {
@@ -131,7 +144,7 @@ internal actual fun platformUnregister(key: String) {
 internal actual fun platformGroup(
     type: String,
     key: String,
-    groupProperties: Map<String, Any?>?
+    groupProperties: Map<String, Any>?
 ) {
     if (groupProperties != null) {
         PostHogJs.group(type, key, groupProperties.toJsObject())
@@ -177,21 +190,24 @@ internal actual fun platformGetAllFeatureFlags(): Map<String, FeatureFlagResult>
 }
 
 internal actual fun platformReloadFeatureFlags(callback: (() -> Unit)?) {
-    if (callback != null) {
-        var unSub: dynamic = null
-        var invokeUnSub = false
-        unSub = PostHogJs.onFeatureFlags {
+    if (callback == null) {
+        PostHogJs.reloadFeatureFlags()
+        return
+    }
+
+    // onFeatureFlags fires synchronously at registration when flags are already loaded;
+    // that fire carries pre-reload values and must not reach the callback
+    var registered = false
+    var done = false
+    var unSub: dynamic = null
+    unSub = PostHogJs.onFeatureFlags {
+        if (registered && !done) {
+            done = true
             callback()
-            if (unSub != null) {
-                unSub()
-            } else {
-                invokeUnSub = true
-            }
-        }
-        if (unSub != null && invokeUnSub) {
             unSub()
         }
     }
+    registered = true
     PostHogJs.reloadFeatureFlags()
 }
 
@@ -217,7 +233,7 @@ internal actual fun platformGetFeatureFlagResult(key: String, sendFeatureFlagEve
 
 internal actual fun platformCaptureException(
     throwable: Throwable,
-    additionalProperties: Map<String, Any?>?
+    additionalProperties: Map<String, Any>?
 ) {
     PostHogJs.captureException(throwable, additionalProperties?.toJsObject())
 }
@@ -262,7 +278,10 @@ internal actual fun platformIsOptedOut(): Boolean {
 
 internal actual fun platformFlush() {
     try {
-        PostHogJs.flush()
+        // posthog-js has no public flush(); drain its queues the way its own
+        // pagehide handler (_handle_unload) does
+        PostHogJs._requestQueue?.unload()
+        PostHogJs._retryQueue?.unload()
     } catch (e: Throwable) {
         logError("flush", e)
     }
