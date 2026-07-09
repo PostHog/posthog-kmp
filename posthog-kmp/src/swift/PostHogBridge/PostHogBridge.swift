@@ -32,9 +32,9 @@ import PostHog
         personProfiles: String = "identifiedOnly",
         sessionRecordingEnabled: Bool = false,
         sessionRecordingMaskAllTextInputs: Bool = true,
-        sessionRecordingMaskAllImages: Bool = false,
+        sessionRecordingMaskAllImages: Bool = true,
         sessionRecordingCaptureNetworkTelemetry: Bool = true,
-        sessionRecordingCaptureLogs: Bool = true,
+        sessionRecordingCaptureLogs: Bool = false,
         sessionRecordingScreenshotMode: Bool = false,
         autocapture: Bool = false,
         sdkVersion: String = "unknown"

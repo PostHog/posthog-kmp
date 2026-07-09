@@ -37,9 +37,9 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         personProfiles = config.personProfiles.name,
         sessionRecordingEnabled = sessionConfig?.enabled ?: false,
         sessionRecordingMaskAllTextInputs = sessionConfig?.maskAllTextInputs ?: true,
-        sessionRecordingMaskAllImages = sessionConfig?.maskAllImages ?: false,
+        sessionRecordingMaskAllImages = sessionConfig?.maskAllImages ?: true,
         sessionRecordingCaptureNetworkTelemetry = sessionConfig?.captureNetworkTelemetry ?: true,
-        sessionRecordingCaptureLogs = sessionConfig?.captureLogs ?: true,
+        sessionRecordingCaptureLogs = sessionConfig?.captureLogs ?: false,
         sessionRecordingScreenshotMode = sessionConfig?.screenshot ?: false,
         autocapture = config.autocapture,
         sdkVersion = PostHogKmpVersion.VERSION

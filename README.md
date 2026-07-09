@@ -287,10 +287,9 @@ PostHog.setup(
         apiKey = "phc_your_api_key",
         sessionRecording = SessionRecordingConfig(
             enabled = true,
-            maskAllTextInputs = true,  // Mask sensitive text
-            maskAllImages = false,
-            captureNetworkTelemetry = true,
-            captureLogs = true
+            maskAllTextInputs = true,  // Mask sensitive text (default)
+            maskAllImages = true,      // Mask images (default)
+            captureNetworkTelemetry = true
         )
     ),
     context = PostHogContext()
@@ -317,8 +316,8 @@ PostHog.setup(
         apiKey = "phc_your_api_key",
         sessionRecording = SessionRecordingConfig(
             enabled = true,
-            captureLogcat = true,      // Capture Android logcat
-            debouncerDelayMs = 500L    // Touch event debounce delay
+            captureLogcat = true,      // Capture Android logcat (default)
+            debouncerDelayMs = 1000L   // Touch event debounce delay (default)
         )
     ),
     context = PostHogContext()

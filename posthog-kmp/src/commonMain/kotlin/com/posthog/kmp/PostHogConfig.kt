@@ -64,11 +64,13 @@ public enum class PersonProfiles {
 /**
  * Session recording configuration options.
  *
+ * Defaults match the native Android and iOS SDK defaults so wrapping adds no drift.
+ *
  * @property enabled Enable session recording
  * @property maskAllTextInputs Mask all text input values
  * @property maskAllImages Mask all images
  * @property captureNetworkTelemetry Include network requests in recording
- * @property captureLogs Capture console logs
+ * @property captureLogs Capture console logs (iOS/Web)
  * @property screenshot Enable screenshot mode instead of wireframe (Android/iOS experimental).
  *                       When enabled, the SDK takes actual screenshots instead of wireframe representations.
  *                       WARNING: Screenshots may contain sensitive information - ensure proper masking.
@@ -78,10 +80,10 @@ public enum class PersonProfiles {
 public data class SessionRecordingConfig(
     val enabled: Boolean = true,
     val maskAllTextInputs: Boolean = true,
-    val maskAllImages: Boolean = false,
+    val maskAllImages: Boolean = true,
     val captureNetworkTelemetry: Boolean = true,
-    val captureLogs: Boolean = true,
+    val captureLogs: Boolean = false,
     val screenshot: Boolean = false,
-    val captureLogcat: Boolean = false,
-    val debouncerDelayMs: Long = 500L
+    val captureLogcat: Boolean = true,
+    val debouncerDelayMs: Long = 1000L
 )
