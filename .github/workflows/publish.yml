@@ -1,0 +1,101 @@
+name: Publish to Maven Central
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish to Maven Central
+    runs-on: macos-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e
+
+      - name: Cache Kotlin Native
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae
+        with:
+          path: ~/.konan
+          key: ${{ runner.os }}-konan-${{ hashFiles('**/*.gradle.kts') }}
+          restore-keys: |
+            ${{ runner.os }}-konan-
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: '20'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build all targets
+        run: ./gradlew build --no-daemon
+
+      - name: Run tests
+        run: ./gradlew allTests --no-daemon
+
+      - name: Compute next version
+        id: version
+        run: |
+          # Read current version
+          MAJOR=$(grep "^VERSION_MAJOR=" version.properties | cut -d'=' -f2)
+          MINOR=$(grep "^VERSION_MINOR=" version.properties | cut -d'=' -f2)
+          PATCH=$(grep "^VERSION_PATCH=" version.properties | cut -d'=' -f2)
+
+          echo "Current version: $MAJOR.$MINOR.$PATCH"
+
+          # Bump patch version
+          PATCH=$((PATCH + 1))
+
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          echo "New version: $NEW_VERSION"
+
+          cat > version.properties << EOF
+          VERSION_MAJOR=$MAJOR
+          VERSION_MINOR=$MINOR
+          VERSION_PATCH=$PATCH
+          EOF
+
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Publish to Maven Central
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          ./gradlew publishAllPublicationsToMavenCentralRepository \
+            --no-daemon \
+            --no-configuration-cache
+
+      - name: Commit version bump and tag release
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add version.properties
+          git commit -m "Bump version to $VERSION"
+          git tag "v$VERSION"
+          git push
+          git push origin "v$VERSION"

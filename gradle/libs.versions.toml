@@ -1,0 +1,39 @@
+[versions]
+kotlin = "2.3.0"
+agp = "8.13.0"
+compose-multiplatform = "1.10.0"
+androidx-activity-compose = "1.12.3"
+posthog-android = "3.53.3"
+posthog-ios = "3.64.1"
+posthog-js = "1.398.7"
+mavenPublish = "0.35.0"
+spmforkmp = "1.4.7"
+detekt = "1.23.8"
+
+# Testing
+junit = "4.13.2"
+kotlin-test = "2.3.0"
+
+[libraries]
+# AndroidX
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity-compose" }
+# Kotlin
+kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", version.ref = "kotlin" }
+
+# PostHog SDKs
+posthog-android = { group = "com.posthog", name = "posthog-android", version.ref = "posthog-android" }
+
+
+# Testing
+kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test", version.ref = "kotlin-test" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+
+[plugins]
+kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+androidLibrary = { id = "com.android.library", version.ref = "agp" }
+androidApplication = { id = "com.android.application", version.ref = "agp" }
+mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "mavenPublish" }
+spmforkmp = { id = "io.github.frankois944.spmForKmp", version.ref = "spmforkmp" }
+composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "compose-multiplatform" }
+composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
