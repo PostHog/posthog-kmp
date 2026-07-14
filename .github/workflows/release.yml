@@ -165,16 +165,49 @@ jobs:
             echo "committed=true" >> "$GITHUB_OUTPUT"
           fi
 
+      # Commit via the GraphQL createCommitOnBranch API so the commit is signed
+      # by GitHub (satisfies the signed-commits ruleset). ghcommit-action wraps
+      # the same API but is a container action, which macOS runners can't run.
       - name: Commit version bump
         id: commit-version-bump
         if: steps.check-changes.outputs.committed == 'true'
-        uses: planetscale/ghcommit-action@a6b150b81dca5dd027baa898604418eec9e11465 # v0.2.22
-        with:
-          commit_message: "chore: release ${{ steps.apply-changesets.outputs.new-version }} [version bump] [skip ci]"
-          repo: ${{ github.repository }}
-          branch: main
         env:
-          GITHUB_TOKEN: ${{ steps.releaser.outputs.token }}
+          GH_TOKEN: ${{ steps.releaser.outputs.token }}
+          COMMIT_MESSAGE: "chore: release ${{ steps.apply-changesets.outputs.new-version }} [version bump] [skip ci]"
+        run: |
+          set -euo pipefail
+          additions='[]'
+          deletions='[]'
+          while IFS= read -r line; do
+            status="${line:0:2}"
+            path="${line:3}"
+            if [[ "$status" == *D* ]]; then
+              deletions=$(jq -c --arg p "$path" '. + [{path: $p}]' <<<"$deletions")
+            else
+              contents=$(base64 < "$path" | tr -d '\n')
+              additions=$(jq -c --arg p "$path" --arg c "$contents" '. + [{path: $p, contents: $c}]' <<<"$additions")
+            fi
+          done < <(git status --porcelain)
+          input=$(jq -nc \
+            --arg repo "${GITHUB_REPOSITORY}" \
+            --arg oid "$(git rev-parse HEAD)" \
+            --arg msg "$COMMIT_MESSAGE" \
+            --argjson additions "$additions" \
+            --argjson deletions "$deletions" \
+            '{branch: {repositoryNameWithOwner: $repo, branchName: "main"},
+              message: {headline: $msg},
+              expectedHeadOid: $oid,
+              fileChanges: {additions: $additions, deletions: $deletions}}')
+          body=$(jq -nc --argjson input "$input" \
+            '{query: "mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }",
+              variables: {input: $input}}')
+          response=$(curl -sSf -H "Authorization: bearer $GH_TOKEN" -d "$body" https://api.github.com/graphql)
+          commit_hash=$(jq -re '.data.createCommitOnBranch.commit.oid' <<<"$response") || {
+            echo "createCommitOnBranch failed: $response" >&2
+            exit 1
+          }
+          echo "commit-hash=$commit_hash" >> "$GITHUB_OUTPUT"
+          echo "Created commit $commit_hash on main"
 
       - name: Sync checkout to release commit
         if: steps.commit-version-bump.outputs.commit-hash != ''
@@ -218,28 +251,6 @@ jobs:
             --title "v$NEW_VERSION" \
             --notes "$LAST_CHANGELOG_ENTRY"
 
-      - name: Send failure event to PostHog
-        if: ${{ failure() }}
-        continue-on-error: true
-        uses: PostHog/posthog-github-action@9a6a19d360820ab4d95ecc4a5a7564062c895f84 # v1.3.0
-        with:
-          posthog-token: "${{ secrets.POSTHOG_PROJECT_API_KEY }}"
-          event: "posthog-sdk-github-release-workflow-failure"
-          properties: >-
-            {
-              "commitSha": "${{ github.sha }}",
-              "jobStatus": "${{ job.status }}",
-              "ref": "${{ github.ref }}",
-              "repository": "${{ github.repository }}",
-              "sdk": "posthog-kmp",
-              "jobName": "release",
-              "packageName": "posthog-kmp",
-              "packageVersion": "${{ steps.apply-changesets.outputs.new-version || 'unknown' }}",
-              "actionUrl": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-              "alertText": ":rotating_light: Failed to release posthog-kmp@${{ steps.apply-changesets.outputs.new-version }} :rotating_light:",
-              "alertContext": "The release workflow failed before completion."
-            }
-
       - name: Notify Slack - Failed
         continue-on-error: true
         if: ${{ failure() && needs.notify-approval-needed.outputs.slack_ts != '' }}
@@ -250,6 +261,35 @@ jobs:
           thread_ts: ${{ needs.notify-approval-needed.outputs.slack_ts }}
           message: "❌ Failed to release `posthog-kmp@${{ steps.apply-changesets.outputs.new-version }}`! <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View logs>"
           emoji_reaction: "x"
+
+  # Runs on ubuntu because posthog-github-action is a container action, which
+  # the macOS release job can't execute.
+  report-failure:
+    name: Send failure event to PostHog
+    needs: [check-changesets, release]
+    runs-on: ubuntu-latest
+    if: always() && needs.release.result == 'failure'
+    steps:
+      - name: Send failure event to PostHog
+        continue-on-error: true
+        uses: PostHog/posthog-github-action@9a6a19d360820ab4d95ecc4a5a7564062c895f84 # v1.3.0
+        with:
+          posthog-token: "${{ secrets.POSTHOG_PROJECT_API_KEY }}"
+          event: "posthog-sdk-github-release-workflow-failure"
+          properties: >-
+            {
+              "commitSha": "${{ github.sha }}",
+              "jobStatus": "failure",
+              "ref": "${{ github.ref }}",
+              "repository": "${{ github.repository }}",
+              "sdk": "posthog-kmp",
+              "jobName": "release",
+              "packageName": "posthog-kmp",
+              "packageVersion": "${{ needs.release.outputs.new-version || 'unknown' }}",
+              "actionUrl": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+              "alertText": ":rotating_light: Failed to release posthog-kmp@${{ needs.release.outputs.new-version || 'unknown' }} :rotating_light:",
+              "alertContext": "The release workflow failed before completion."
+            }
 
   notify-rejected:
     name: Notify Slack - Rejected
