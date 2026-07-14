@@ -81,19 +81,11 @@ jobs:
           message: "✅ Release approved! Version bump in progress..."
           emoji_reaction: "white_check_mark"
 
-      - name: Get GitHub App token
-        id: releaser
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
-        with:
-          client-id: ${{ secrets.GH_APP_POSTHOG_KMP_RELEASER_APP_ID }}
-          private-key: ${{ secrets.GH_APP_POSTHOG_KMP_RELEASER_PRIVATE_KEY }}
-
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: main
           fetch-depth: 0
-          token: ${{ steps.releaser.outputs.token }}
 
       - name: Configure Git
         run: |
@@ -137,7 +129,7 @@ jobs:
       - name: Apply changesets and update version
         id: apply-changesets
         env:
-          GITHUB_TOKEN: ${{ steps.releaser.outputs.token }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           sampo release
           NEW_VERSION=$(grep -m1 '"version"' package.json | sed -E 's/.*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')
@@ -164,6 +156,17 @@ jobs:
           else
             echo "committed=true" >> "$GITHUB_OUTPUT"
           fi
+
+      # Minted here rather than at job start: installation tokens live 60 minutes,
+      # and the build above can consume most of that. From here to the end of the
+      # job is only a few minutes.
+      - name: Get GitHub App token
+        id: releaser
+        if: steps.check-changes.outputs.committed == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.GH_APP_POSTHOG_KMP_RELEASER_APP_ID }}
+          private-key: ${{ secrets.GH_APP_POSTHOG_KMP_RELEASER_PRIVATE_KEY }}
 
       # Commit via the GraphQL createCommitOnBranch API so the commit is signed
       # by GitHub (satisfies the signed-commits ruleset). ghcommit-action wraps
@@ -234,9 +237,10 @@ jobs:
         if: steps.commit-version-bump.outputs.commit-hash != ''
         env:
           NEW_VERSION: ${{ steps.apply-changesets.outputs.new-version }}
+          GH_APP_TOKEN: ${{ steps.releaser.outputs.token }}
         run: |
           git tag -a "v$NEW_VERSION" -m "v$NEW_VERSION"
-          git push origin "v$NEW_VERSION"
+          git push "https://x-access-token:${GH_APP_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "v$NEW_VERSION"
 
       - name: Create GitHub Release
         if: steps.commit-version-bump.outputs.commit-hash != ''
@@ -245,7 +249,8 @@ jobs:
           NEW_VERSION: ${{ steps.apply-changesets.outputs.new-version }}
         run: |
           # Extract the latest changelog entry (content between the first and second ## header)
-          LAST_CHANGELOG_ENTRY=$(awk -v defText="see CHANGELOG.md" '/^## /{if (flag) exit; flag=1; next} flag; END{if (!flag) print defText}' CHANGELOG.md | sed '/[^[:space:]]/,$!d' | tac | sed '/[^[:space:]]/,$!d' | tac)
+          LAST_CHANGELOG_ENTRY=$(awk '/^## /{if (flag) exit; flag=1; next} flag' CHANGELOG.md | awk 'NF{f=1} f{l[++n]=$0; if(NF) last=n} END{for(i=1;i<=last;i++) print l[i]}')
+          LAST_CHANGELOG_ENTRY=${LAST_CHANGELOG_ENTRY:-"see CHANGELOG.md"}
           gh release create "v$NEW_VERSION" \
             --target main \
             --title "v$NEW_VERSION" \
