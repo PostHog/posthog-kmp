@@ -5,6 +5,8 @@ android-compileSdk = "36"
 compose-multiplatform = "1.10.0"
 androidx-activity-compose = "1.12.3"
 posthog-android = "3.53.3"
+# Pure-JVM core that posthog-android is built on (versioned independently of posthog-android)
+posthog-core = "6.24.0"
 posthog-ios = "3.64.1"
 posthog-js = "1.398.7"
 mavenPublish = "0.35.0"
@@ -23,6 +25,7 @@ kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", versio
 
 # PostHog SDKs
 posthog-android = { group = "com.posthog", name = "posthog-android", version.ref = "posthog-android" }
+posthog-core = { group = "com.posthog", name = "posthog", version.ref = "posthog-core" }
 
 
 # Testing

@@ -15,6 +15,7 @@
     <ID>UnusedPrivateProperty:build.gradle.kts$val iosX64Main by getting { dependsOn(iosMain) }</ID>
     <ID>UnusedPrivateProperty:build.gradle.kts$val jsMain by getting { dependencies { implementation(npm("posthog-js", libs.versions.posthog.js.get())) } }</ID>
     <ID>UnusedPrivateProperty:build.gradle.kts$val jsMain by getting { dependsOn(commonMain) }</ID>
+    <ID>UnusedPrivateProperty:build.gradle.kts$val jvmMain by getting { dependencies { implementation(libs.posthog.core) } }</ID>
     <ID>UseCheckOrError:PostHogContext.android.kt$throw IllegalStateException( "Android requires Application context. Use PostHogContext(application) instead." )</ID>
   </CurrentIssues>
 </SmellBaseline>

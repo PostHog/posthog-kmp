@@ -91,6 +91,12 @@ kotlin {
         binaries.library()
     }
 
+    jvm {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
+    }
+
     sourceSets {
         val commonMain by getting {
             kotlin.srcDir(generatedVersionDir)
@@ -119,6 +125,12 @@ kotlin {
         val jsMain by getting {
             dependencies {
                 implementation(npm("posthog-js", libs.versions.posthog.js.get()))
+            }
+        }
+
+        val jvmMain by getting {
+            dependencies {
+                implementation(libs.posthog.core)
             }
         }
     }

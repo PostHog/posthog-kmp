@@ -4,7 +4,7 @@
 [![Kotlin](https://img.shields.io/badge/kotlin-2.3.0-blue.svg?logo=kotlin)](http://kotlinlang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A **Kotlin Multiplatform** SDK for [PostHog](https://posthog.com) analytics, supporting Android, iOS, Web (JS).
+A **Kotlin Multiplatform** SDK for [PostHog](https://posthog.com) analytics, supporting Android, iOS, Web (JS), and JVM (desktop).
 
 ## Features
 
@@ -26,6 +26,7 @@ A **Kotlin Multiplatform** SDK for [PostHog](https://posthog.com) analytics, sup
 | Android | ✅ | PostHog Android SDK (native) |
 | iOS | ✅ | PostHog iOS SDK (native via SPM) |
 | JS (Browser) | ✅ | posthog-js (native) |
+| JVM (Desktop) | ✅ | PostHog core library (`com.posthog:posthog`) |
 
 ## Installation
 
@@ -108,7 +109,7 @@ class MainActivity : ComponentActivity() {
 }
 ```
 
-#### iOS / Web
+#### iOS / Web / JVM (Desktop)
 
 On non-Android platforms, use the no-argument `PostHogContext()`:
 
@@ -132,7 +133,19 @@ fun main() {
     )
     // ...
 }
+
+// Desktop (Compose Multiplatform) main.kt
+fun main() = application {
+    PostHog.setup(
+        config = PostHogConfig(apiKey = "phc_your_api_key"),
+        context = PostHogContext()
+    )
+    Window(onCloseRequest = ::exitApplication) { App() }
+}
 ```
+
+On the JVM, the SDK persists its offline event queue and identity cache under
+`~/.posthog-kmp`.
 
 ### Capture Events
 
@@ -431,6 +444,13 @@ PostHog.close()
 - Session recording available
 - LocalStorage persistence
 - Autocapture support
+
+### JVM (Desktop)
+- Wraps `com.posthog:posthog`, the pure-JVM core library the Android SDK is built on
+- Event capture, identification, feature flags, groups, error tracking and super properties all supported
+- Offline event queue and identity persisted to disk under `~/.posthog-kmp`
+- No session recording, lifecycle events, screen-view autocapture or deep links (mobile/browser-only concepts); those config options are ignored
+- Useful for Compose Multiplatform desktop apps, including during development with Compose Hot Reload
 
 ## Contributing
 
