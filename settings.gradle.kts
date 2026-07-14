@@ -17,3 +17,4 @@ rootProject.name = "posthog-kmp"
 
 include(":posthog-kmp")
 include(":sample")
+include(":sample:androidApp")

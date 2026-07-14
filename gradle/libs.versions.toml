@@ -1,6 +1,7 @@
 [versions]
 kotlin = "2.3.0"
 agp = "8.13.0"
+android-compileSdk = "36"
 compose-multiplatform = "1.10.0"
 androidx-activity-compose = "1.12.3"
 posthog-android = "3.53.3"
@@ -30,7 +31,8 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
-androidLibrary = { id = "com.android.library", version.ref = "agp" }
+kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+androidKmpLibrary = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "mavenPublish" }
 spmforkmp = { id = "io.github.frankois944.spmForKmp", version.ref = "spmforkmp" }

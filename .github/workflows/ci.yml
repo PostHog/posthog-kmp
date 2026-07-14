@@ -49,7 +49,7 @@ jobs:
         uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e
 
       - name: Run common unit tests
-        run: ./gradlew :posthog-kmp:testDebugUnitTest --no-daemon
+        run: ./gradlew :posthog-kmp:testAndroid --no-daemon
 
   android:
     name: Android Build
@@ -69,7 +69,7 @@ jobs:
         uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e
 
       - name: Build Android library and sample
-        run: ./gradlew :posthog-kmp:compileReleaseKotlinAndroid :sample:compileDebugKotlinAndroid --no-daemon
+        run: ./gradlew :posthog-kmp:compileAndroidMain :sample:androidApp:assembleDebug --no-daemon
 
   js:
     name: JS Build
