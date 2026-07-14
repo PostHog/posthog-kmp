@@ -1,0 +1,308 @@
+name: "Release"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.sampo/changesets/*.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Concurrency control: only one release process can run at a time
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  check-changesets:
+    name: Check for changesets
+    runs-on: ubuntu-latest
+    outputs:
+      has-changesets: ${{ steps.check.outputs.has-changesets }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Check for changesets
+        id: check
+        run: |
+          changeset_count=$(find .sampo/changesets -name '*.md' 2>/dev/null | wc -l)
+          if [ "$changeset_count" -gt 0 ]; then
+            echo "✓ Found $changeset_count changeset(s), ready to release"
+            echo "has-changesets=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "❌ No changesets found. Cannot proceed with release."
+            echo "Please ensure your PR includes a changeset file in .sampo/changesets/."
+            echo "has-changesets=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  notify-approval-needed:
+    name: Notify Slack - Approval Needed
+    needs: check-changesets
+    if: needs.check-changesets.outputs.has-changesets == 'true'
+    uses: PostHog/.github/.github/workflows/notify-approval-needed.yml@5fc4680761e8ac29a61b212756230eba0e276d8c
+    with:
+      slack_channel_id: ${{ vars.SLACK_APPROVALS_CLIENT_LIBRARIES_CHANNEL_ID }}
+      slack_user_group_id: ${{ vars.GROUP_CLIENT_LIBRARIES_SLACK_GROUP_ID }}
+    secrets:
+      slack_bot_token: ${{ secrets.SLACK_CLIENT_LIBRARIES_BOT_TOKEN }}
+      posthog_project_api_key: ${{ secrets.POSTHOG_PROJECT_API_KEY }}
+
+  release:
+    name: Release and publish
+    needs: [check-changesets, notify-approval-needed]
+    # macos-latest is required: publishing builds the iOS Kotlin/Native klibs,
+    # which only compile on the Apple toolchain.
+    runs-on: macos-latest
+    # Use `always()` so the job still runs if the Slack notification fails, while
+    # keeping the dependency so we can reference notify-approval-needed outputs.
+    if: always() && needs.check-changesets.outputs.has-changesets == 'true'
+    environment: "Release" # Requires approval from a maintainer, notified in Slack above
+    permissions:
+      contents: write
+      actions: write
+    outputs:
+      committed: ${{ steps.commit-version-bump.outputs.commit-hash != '' }}
+      new-version: ${{ steps.apply-changesets.outputs.new-version }}
+    steps:
+      - name: Notify Slack - Approved
+        continue-on-error: true
+        if: needs.notify-approval-needed.outputs.slack_ts != ''
+        uses: PostHog/.github/.github/actions/slack-thread-reply@cb0979b67dcd585828b61ac45927eef4da8f6287 # main
+        with:
+          slack_bot_token: ${{ secrets.SLACK_CLIENT_LIBRARIES_BOT_TOKEN }}
+          slack_channel_id: ${{ vars.SLACK_APPROVALS_CLIENT_LIBRARIES_CHANNEL_ID }}
+          thread_ts: ${{ needs.notify-approval-needed.outputs.slack_ts }}
+          message: "✅ Release approved! Version bump in progress..."
+          emoji_reaction: "white_check_mark"
+
+      - name: Get GitHub App token
+        id: releaser
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.GH_APP_POSTHOG_KMP_RELEASER_APP_ID }}
+          private-key: ${{ secrets.GH_APP_POSTHOG_KMP_RELEASER_PRIVATE_KEY }}
+
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ steps.releaser.outputs.token }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v4.7.1
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v4.4.4
+
+      - name: Cache Kotlin Native
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4.2.4
+        with:
+          path: ~/.konan
+          key: ${{ runner.os }}-konan-${{ hashFiles('**/*.gradle.kts') }}
+          restore-keys: |
+            ${{ runner.os }}-konan-
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # v1.93.1
+        with:
+          toolchain: stable
+          components: cargo
+
+      - name: Cache Sampo CLI
+        id: cache-sampo
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4.2.4
+        with:
+          path: ~/.cargo/bin/sampo
+          key: sampo-${{ runner.os }}-${{ runner.arch }}
+
+      - name: Install Sampo CLI
+        if: steps.cache-sampo.outputs.cache-hit != 'true'
+        run: cargo install sampo
+
+      - name: Apply changesets and update version
+        id: apply-changesets
+        env:
+          GITHUB_TOKEN: ${{ steps.releaser.outputs.token }}
+        run: |
+          sampo release
+          NEW_VERSION=$(grep -m1 '"version"' package.json | sed -E 's/.*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')
+          echo "new-version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "New version: $NEW_VERSION"
+
+      - name: Sync version to version.properties
+        env:
+          NEW_VERSION: ${{ steps.apply-changesets.outputs.new-version }}
+        run: ./scripts/bump-version.sh "$NEW_VERSION"
+
+      - name: Build all targets
+        run: ./gradlew build --no-daemon
+
+      - name: Run tests
+        run: ./gradlew allTests --no-daemon
+
+      - name: Check for release changes
+        id: check-changes
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No changes to commit"
+            echo "committed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "committed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit version bump
+        id: commit-version-bump
+        if: steps.check-changes.outputs.committed == 'true'
+        uses: planetscale/ghcommit-action@a6b150b81dca5dd027baa898604418eec9e11465 # v0.2.22
+        with:
+          commit_message: "chore: release ${{ steps.apply-changesets.outputs.new-version }} [version bump] [skip ci]"
+          repo: ${{ github.repository }}
+          branch: main
+        env:
+          GITHUB_TOKEN: ${{ steps.releaser.outputs.token }}
+
+      - name: Sync checkout to release commit
+        if: steps.commit-version-bump.outputs.commit-hash != ''
+        env:
+          COMMIT_HASH: ${{ steps.commit-version-bump.outputs.commit-hash }}
+        run: |
+          git fetch origin main
+          git reset --hard "$COMMIT_HASH"
+
+      # Publish before tagging so a failed publish does not leave a dangling tag.
+      - name: Publish to Maven Central
+        if: steps.commit-version-bump.outputs.commit-hash != ''
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          ./gradlew publishAllPublicationsToMavenCentralRepository \
+            --no-daemon \
+            --no-configuration-cache
+
+      - name: Tag and push
+        if: steps.commit-version-bump.outputs.commit-hash != ''
+        env:
+          NEW_VERSION: ${{ steps.apply-changesets.outputs.new-version }}
+        run: |
+          git tag -a "v$NEW_VERSION" -m "v$NEW_VERSION"
+          git push origin "v$NEW_VERSION"
+
+      - name: Create GitHub Release
+        if: steps.commit-version-bump.outputs.commit-hash != ''
+        env:
+          GH_TOKEN: ${{ steps.releaser.outputs.token }}
+          NEW_VERSION: ${{ steps.apply-changesets.outputs.new-version }}
+        run: |
+          # Extract the latest changelog entry (content between the first and second ## header)
+          LAST_CHANGELOG_ENTRY=$(awk -v defText="see CHANGELOG.md" '/^## /{if (flag) exit; flag=1; next} flag; END{if (!flag) print defText}' CHANGELOG.md | sed '/[^[:space:]]/,$!d' | tac | sed '/[^[:space:]]/,$!d' | tac)
+          gh release create "v$NEW_VERSION" \
+            --target main \
+            --title "v$NEW_VERSION" \
+            --notes "$LAST_CHANGELOG_ENTRY"
+
+      - name: Send failure event to PostHog
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: PostHog/posthog-github-action@9a6a19d360820ab4d95ecc4a5a7564062c895f84 # v1.3.0
+        with:
+          posthog-token: "${{ secrets.POSTHOG_PROJECT_API_KEY }}"
+          event: "posthog-sdk-github-release-workflow-failure"
+          properties: >-
+            {
+              "commitSha": "${{ github.sha }}",
+              "jobStatus": "${{ job.status }}",
+              "ref": "${{ github.ref }}",
+              "repository": "${{ github.repository }}",
+              "sdk": "posthog-kmp",
+              "jobName": "release",
+              "packageName": "posthog-kmp",
+              "packageVersion": "${{ steps.apply-changesets.outputs.new-version || 'unknown' }}",
+              "actionUrl": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+              "alertText": ":rotating_light: Failed to release posthog-kmp@${{ steps.apply-changesets.outputs.new-version }} :rotating_light:",
+              "alertContext": "The release workflow failed before completion."
+            }
+
+      - name: Notify Slack - Failed
+        continue-on-error: true
+        if: ${{ failure() && needs.notify-approval-needed.outputs.slack_ts != '' }}
+        uses: PostHog/.github/.github/actions/slack-thread-reply@cb0979b67dcd585828b61ac45927eef4da8f6287 # main
+        with:
+          slack_bot_token: ${{ secrets.SLACK_CLIENT_LIBRARIES_BOT_TOKEN }}
+          slack_channel_id: ${{ vars.SLACK_APPROVALS_CLIENT_LIBRARIES_CHANNEL_ID }}
+          thread_ts: ${{ needs.notify-approval-needed.outputs.slack_ts }}
+          message: "❌ Failed to release `posthog-kmp@${{ steps.apply-changesets.outputs.new-version }}`! <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View logs>"
+          emoji_reaction: "x"
+
+  notify-rejected:
+    name: Notify Slack - Rejected
+    needs: [release, notify-approval-needed]
+    runs-on: ubuntu-latest
+    if: always() && needs.release.result == 'failure' && needs.notify-approval-needed.outputs.slack_ts != ''
+    steps:
+      - name: Check for rejection
+        id: check-rejection
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RESPONSE=$(gh api /repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/approvals)
+          REJECTED=$(echo "$RESPONSE" | jq '[.[] | select(.state == "rejected")] | length')
+          if [ "$REJECTED" -gt 0 ]; then
+            echo "was_rejected=true" >> "$GITHUB_OUTPUT"
+            COMMENT=$(echo "$RESPONSE" | jq -r '.[] | select(.state == "rejected") | .comment // empty' | head -1)
+            if [ -n "$COMMENT" ]; then
+              {
+                echo 'message<<EOF'
+                echo "🚫 Release was rejected: $COMMENT"
+                echo 'EOF'
+              } >> "$GITHUB_OUTPUT"
+            else
+              echo "message=🚫 Release was rejected." >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "was_rejected=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Notify Slack - Rejected
+        if: steps.check-rejection.outputs.was_rejected == 'true'
+        continue-on-error: true
+        uses: PostHog/.github/.github/actions/slack-thread-reply@cb0979b67dcd585828b61ac45927eef4da8f6287 # main
+        with:
+          slack_bot_token: ${{ secrets.SLACK_CLIENT_LIBRARIES_BOT_TOKEN }}
+          slack_channel_id: ${{ vars.SLACK_APPROVALS_CLIENT_LIBRARIES_CHANNEL_ID }}
+          thread_ts: ${{ needs.notify-approval-needed.outputs.slack_ts }}
+          message: "${{ steps.check-rejection.outputs.message }}"
+          emoji_reaction: "no_entry_sign"
+
+  notify-released:
+    name: Notify Slack - Released
+    needs: [check-changesets, notify-approval-needed, release]
+    runs-on: ubuntu-latest
+    if: always() && needs.release.result == 'success' && needs.notify-approval-needed.outputs.slack_ts != ''
+    steps:
+      - name: Notify Slack - Released
+        uses: PostHog/.github/.github/actions/slack-thread-reply@cb0979b67dcd585828b61ac45927eef4da8f6287 # main
+        with:
+          slack_bot_token: ${{ secrets.SLACK_CLIENT_LIBRARIES_BOT_TOKEN }}
+          slack_channel_id: ${{ vars.SLACK_APPROVALS_CLIENT_LIBRARIES_CHANNEL_ID }}
+          thread_ts: ${{ needs.notify-approval-needed.outputs.slack_ts }}
+          message: "🚀 posthog-kmp released successfully!"
+          emoji_reaction: "rocket"
