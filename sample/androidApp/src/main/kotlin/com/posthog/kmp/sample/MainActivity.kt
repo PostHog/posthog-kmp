@@ -12,7 +12,6 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            // Pass the Android Application context to PostHog
             App(postHogContext = PostHogContext(application))
         }
     }

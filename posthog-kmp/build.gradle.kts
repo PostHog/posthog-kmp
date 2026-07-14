@@ -8,7 +8,7 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.androidLibrary)
+    alias(libs.plugins.androidKmpLibrary)
     alias(libs.plugins.mavenPublish)
     alias(libs.plugins.spmforkmp)
 }
@@ -50,11 +50,16 @@ val generatePostHogVersion by tasks.registering {
 kotlin {
     explicitApi()
 
-    androidTarget {
+    androidLibrary {
+        namespace = "com.posthog.kmp"
+        compileSdk = libs.versions.android.compileSdk.get().toInt()
+        minSdk = 21
+
+        withHostTestBuilder {}
+
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
         }
-        publishLibraryVariants("release")
     }
 
     listOf(
@@ -116,20 +121,6 @@ kotlin {
                 implementation(npm("posthog-js", libs.versions.posthog.js.get()))
             }
         }
-    }
-}
-
-android {
-    namespace = "com.posthog.kmp"
-    compileSdk = 36
-
-    defaultConfig {
-        minSdk = 21
-    }
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
     }
 }
 
