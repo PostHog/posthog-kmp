@@ -94,7 +94,7 @@ jobs:
         uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e
 
       - name: Build JS
-        run: ./gradlew :posthog-kmp:compileKotlinJs --no-daemon
+        run: ./gradlew :posthog-kmp:compileKotlinJs kotlinStoreYarnLock --no-daemon
 
   ios:
     name: iOS Build
