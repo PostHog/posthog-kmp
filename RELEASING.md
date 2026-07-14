@@ -50,9 +50,9 @@ Every release requires approval from the Client Libraries team via the `Release`
 The `Release` workflow depends on the following being set up (see the [handbook](https://posthog.com/handbook/engineering/sdks/releases)):
 
 - **`Release` GitHub environment** with required reviewers and the `GH_APP_POSTHOG_KMP_RELEASER_APP_ID` / `GH_APP_POSTHOG_KMP_RELEASER_PRIVATE_KEY` secrets (a dedicated `Releaser (posthog-kmp)` GitHub App).
-- **Maven Central publishing secrets**: `SONATYPE_USERNAME`, `SONATYPE_PASSWORD`, and the GPG signing key as `SIGNING_KEY`, `SIGNING_KEY_ID`, `SIGNING_PASSWORD` (vanniktech in-memory format).
+- **Maven Central publishing secrets**: `SONATYPE_USERNAME`, `SONATYPE_PASSWORD`, and the GPG signing key as `GPG_PRIVATE_KEY`, `GPG_PASSPHRASE` (same names as posthog-android).
 - **Org secrets/vars** scoped to the repo: `SLACK_CLIENT_LIBRARIES_BOT_TOKEN`, `POSTHOG_PROJECT_API_KEY`, `SLACK_APPROVALS_CLIENT_LIBRARIES_CHANNEL_ID`, `GROUP_CLIENT_LIBRARIES_SLACK_GROUP_ID`.
 
 ## Rotating Sonatype / GPG credentials
 
-See [posthog-android's RELEASING.md](https://github.com/PostHog/posthog-android/blob/main/RELEASING.md#rotating-sonatype-user-token) — the Sonatype user token and GPG key are shared PostHog credentials and rotate the same way. Note that this repo consumes the GPG key under the vanniktech names (`SIGNING_KEY`/`SIGNING_KEY_ID`/`SIGNING_PASSWORD`) rather than `GPG_PRIVATE_KEY`/`GPG_PASSPHRASE`.
+See [posthog-android's RELEASING.md](https://github.com/PostHog/posthog-android/blob/main/RELEASING.md#rotating-sonatype-user-token) — the Sonatype user token and GPG key are shared PostHog credentials and rotate the same way, under the same secret names.
