@@ -12,11 +12,15 @@ internal class PostHogJvmContext(
 ) : com.posthog.internal.PostHogContext {
     private val cacheStaticContext by lazy {
         buildMap<String, Any> {
-            System.getProperty("os.name")?.let { put("\$os_name", it) }
+            System.getProperty("os.name")?.let { put("\$os_name", normalizeOsName(it)) }
             System.getProperty("os.version")?.let { put("\$os_version", it) }
             put("\$device_type", "Desktop")
         }
     }
+
+    // os.name on Windows includes the release ("Windows 11"); flags target plain "Windows"
+    private fun normalizeOsName(raw: String): String =
+        if (raw.startsWith("Windows")) "Windows" else raw
 
     private val cacheSdkInfo by lazy {
         mapOf<String, Any>(

@@ -448,8 +448,9 @@ PostHog.close()
 ### JVM (Desktop)
 - Wraps `com.posthog:posthog`, the pure-JVM core library the Android SDK is built on
 - Event capture, identification, feature flags, groups, error tracking and super properties all supported
-- Offline event queue and identity persisted to disk under `~/.posthog-kmp`
+- Offline event queue and identity persisted to disk under `~/.posthog-kmp` (falls back to the temp dir with a warning when `user.home` is unset, e.g. some containers)
 - No session recording, lifecycle events, screen-view autocapture or deep links (mobile/browser-only concepts); those config options are ignored
+- No `$app_version`/`$app_build`/`$app_namespace` person properties (the JVM has no standard app-manifest source) — feature flags targeting those won't match desktop users
 - Useful for Compose Multiplatform desktop apps, including during development with Compose Hot Reload
 
 ## Contributing
