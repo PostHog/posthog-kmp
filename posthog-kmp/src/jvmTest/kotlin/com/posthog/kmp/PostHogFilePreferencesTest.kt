@@ -37,6 +37,7 @@ class PostHogFilePreferencesTest {
         prefs.setValue("double", 1.5)
         prefs.setValue(GROUPS, mapOf("company" to "posthog"))
         prefs.setValue("list", listOf("a", "b"))
+        prefs.awaitPendingWrites()
 
         val reloaded = PostHogFilePreferences(file, config)
         assertEquals("anon-123", reloaded.getValue(ANONYMOUS_ID))
@@ -53,6 +54,7 @@ class PostHogFilePreferencesTest {
         val prefs = PostHogFilePreferences(file, config)
         prefs.setValue("key", "value")
         prefs.remove("key")
+        prefs.awaitPendingWrites()
 
         assertNull(prefs.getValue("key"))
         assertNull(PostHogFilePreferences(file, config).getValue("key"))
@@ -66,6 +68,7 @@ class PostHogFilePreferencesTest {
         prefs.setValue("other", "value")
 
         prefs.clear(except = listOf(ANONYMOUS_ID))
+        prefs.awaitPendingWrites()
 
         assertEquals("anon-123", prefs.getValue(ANONYMOUS_ID))
         assertNull(prefs.getValue("other"))
@@ -95,6 +98,7 @@ class PostHogFilePreferencesTest {
         val prefs = PostHogFilePreferences(file, config)
         assertNull(prefs.getValue("key"))
         prefs.setValue("key", "value")
+        prefs.awaitPendingWrites()
         assertEquals("value", PostHogFilePreferences(file, config).getValue("key"))
         assertTrue(file.exists())
     }
