@@ -108,7 +108,16 @@ kotlin {
             }
         }
 
+        // shared delegation to the core PostHogInterface for the two JVM-backed targets
+        val jvmCommonMain by creating {
+            dependsOn(commonMain)
+            dependencies {
+                implementation(libs.posthog.core)
+            }
+        }
+
         val androidMain by getting {
+            dependsOn(jvmCommonMain)
             dependencies {
                 implementation(libs.posthog.android)
             }
@@ -129,9 +138,7 @@ kotlin {
         }
 
         val jvmMain by getting {
-            dependencies {
-                implementation(libs.posthog.core)
-            }
+            dependsOn(jvmCommonMain)
         }
     }
 }

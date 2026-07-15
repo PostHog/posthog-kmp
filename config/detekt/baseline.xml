@@ -8,14 +8,14 @@
     <ID>LongMethod:App.kt$@Composable fun App(postHogContext: PostHogContext)</ID>
     <ID>LoopWithTooManyJumpStatements:PostHog.ios.kt$for</ID>
     <ID>UnusedPrivateProperty:build.gradle.kts$val androidMain by getting { dependencies { implementation(libs.androidx.activity.compose) } }</ID>
-    <ID>UnusedPrivateProperty:build.gradle.kts$val androidMain by getting { dependencies { implementation(libs.posthog.android) } }</ID>
+    <ID>UnusedPrivateProperty:build.gradle.kts$val androidMain by getting { dependsOn(jvmCommonMain) dependencies { implementation(libs.posthog.android) } }</ID>
     <ID>UnusedPrivateProperty:build.gradle.kts$val commonTest by getting { dependencies { implementation(libs.kotlin.test) } }</ID>
     <ID>UnusedPrivateProperty:build.gradle.kts$val iosArm64Main by getting { dependsOn(iosMain) }</ID>
     <ID>UnusedPrivateProperty:build.gradle.kts$val iosSimulatorArm64Main by getting { dependsOn(iosMain) }</ID>
     <ID>UnusedPrivateProperty:build.gradle.kts$val iosX64Main by getting { dependsOn(iosMain) }</ID>
     <ID>UnusedPrivateProperty:build.gradle.kts$val jsMain by getting { dependencies { implementation(npm("posthog-js", libs.versions.posthog.js.get())) } }</ID>
     <ID>UnusedPrivateProperty:build.gradle.kts$val jsMain by getting { dependsOn(commonMain) }</ID>
-    <ID>UnusedPrivateProperty:build.gradle.kts$val jvmMain by getting { dependencies { implementation(libs.posthog.core) } }</ID>
+    <ID>UnusedPrivateProperty:build.gradle.kts$val jvmMain by getting { dependsOn(jvmCommonMain) }</ID>
     <ID>UseCheckOrError:PostHogContext.android.kt$throw IllegalStateException( "Android requires Application context. Use PostHogContext(application) instead." )</ID>
   </CurrentIssues>
 </SmellBaseline>
