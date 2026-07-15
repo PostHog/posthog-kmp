@@ -9,9 +9,19 @@ body:
     attributes:
       label: Version
       description: SDK Version
-      placeholder: 3.0.0 ← should look like this
+      placeholder: 0.1.0 ← should look like this
     validations:
       required: true
+
+  - type: checkboxes
+    id: platforms
+    attributes:
+      label: Platform(s) affected
+      description: Which platforms are experiencing this issue?
+      options:
+        - label: Android
+        - label: iOS
+        - label: JS
 
   - type: textarea
     id: repro
