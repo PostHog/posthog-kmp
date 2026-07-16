@@ -3,6 +3,12 @@
 All notable changes to `posthog-kmp` are documented here. This file is maintained
 by [Sampo](https://github.com/PostHog/sampo) from changesets in `.sampo/changesets/`.
 
+## 0.1.0 — 2026-07-16
+
+### Minor changes
+
+- [8bac955](https://github.com/posthog/posthog-kmp/commit/8bac9551fc7aa9c519ddd6159e29034fe9a7346c) Add a JVM (desktop) target backed by `com.posthog:posthog`, the pure-JVM core library the Android SDK is built on. Event capture, identification, feature flags, groups, error tracking and super properties are fully supported; the offline event queue and identity cache persist under `~/.posthog-kmp`. Mobile/browser-only options (session recording, lifecycle events, screen-view autocapture, deep links) are ignored on the JVM. — Thanks @turnipdabeets!
+
 ## 0.0.2 — 2026-07-14
 
 ### Patch changes
