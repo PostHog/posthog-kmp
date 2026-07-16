@@ -91,6 +91,12 @@ kotlin {
         binaries.library()
     }
 
+    jvm {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
+    }
+
     sourceSets {
         val commonMain by getting {
             kotlin.srcDir(generatedVersionDir)
@@ -102,7 +108,16 @@ kotlin {
             }
         }
 
+        // shared delegation to the core PostHogInterface for the two JVM-backed targets
+        val jvmCommonMain by creating {
+            dependsOn(commonMain)
+            dependencies {
+                implementation(libs.posthog.core)
+            }
+        }
+
         val androidMain by getting {
+            dependsOn(jvmCommonMain)
             dependencies {
                 implementation(libs.posthog.android)
             }
@@ -120,6 +135,10 @@ kotlin {
             dependencies {
                 implementation(npm("posthog-js", libs.versions.posthog.js.get()))
             }
+        }
+
+        val jvmMain by getting {
+            dependsOn(jvmCommonMain)
         }
     }
 }
