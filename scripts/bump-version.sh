@@ -3,13 +3,16 @@
 # ./scripts/bump-version.sh [new version]
 # eg ./scripts/bump-version.sh "0.1.0"
 #
-# Syncs the version from the root package.json (managed by sampo) into
+# Syncs the version from the root package.json (managed by changesets) into
 # version.properties, the source of truth the Gradle build reads. If no
 # argument is given, the version is read from package.json.
 #
-# sampo bumps package.json (its only supported ecosystem here); this script
-# mirrors that version into version.properties so the published Maven artifacts
-# carry the right version.
+# `changeset version` bumps package.json (its only supported ecosystem here);
+# this script mirrors that version into version.properties so the published
+# Maven artifacts carry the right version.
+#
+# The release workflow pins this script's sha256 (EXPECTED_BUMP_SCRIPT_SHA256
+# in .github/workflows/release.yml); update it there when changing this file.
 
 set -euo pipefail
 

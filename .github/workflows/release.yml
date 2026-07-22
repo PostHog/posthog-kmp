@@ -4,13 +4,14 @@ on:
   push:
     branches: [main]
     paths:
-      - '.sampo/changesets/*.md'
+      - '.changeset/*.md'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 # Concurrency control: only one release process can run at a time
+# This prevents race conditions if multiple releasable changesets merge simultaneously
 concurrency:
   group: release
   cancel-in-progress: false
@@ -25,26 +26,192 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: main
+          ref: ${{ github.sha }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Check for changesets
         id: check
         run: |
-          changeset_count=$(find .sampo/changesets -name '*.md' 2>/dev/null | wc -l)
+          changeset_count=$(find .changeset -name '*.md' ! -name 'README.md' 2>/dev/null | wc -l)
           if [ "$changeset_count" -gt 0 ]; then
-            echo "✓ Found $changeset_count changeset(s), ready to release"
             echo "has-changesets=true" >> "$GITHUB_OUTPUT"
+            echo "Found $changeset_count changeset(s), ready to release"
           else
-            echo "❌ No changesets found. Cannot proceed with release."
-            echo "Please ensure your PR includes a changeset file in .sampo/changesets/."
             echo "has-changesets=false" >> "$GITHUB_OUTPUT"
+            echo "No changesets to release"
           fi
+
+  prepare-release-candidate:
+    name: Prepare release candidate
+    needs: check-changesets
+    runs-on: ubuntu-latest
+    if: needs.check-changesets.outputs.has-changesets == 'true'
+    permissions:
+      contents: read
+    outputs:
+      new-version: ${{ steps.candidate.outputs.new-version }}
+      patch-sha256: ${{ steps.candidate.outputs.patch-sha256 }}
+      source-sha: ${{ steps.candidate.outputs.source-sha }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup pnpm and Node.js
+        uses: pnpm/setup@5d160c5bc68a09337ad0d5654e237e03253b5879 # v1.0.0
+        with:
+          # pnpm/setup installs runtimes via pnpm runtime, which requires pnpm >=11.1.0.
+          version: 11.7.0
+          runtime: node@24
+          cache: true
+          install: false
+
+      - name: Install release tooling dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Apply changesets and update version
+        id: candidate
+        env:
+          # changelog-github resolves each changeset's PR and author via the API
+          GITHUB_TOKEN: ${{ github.token }}
+          # If scripts/bump-version.sh changes, recompute this with:
+          # sha256sum scripts/bump-version.sh
+          # Then update EXPECTED_BUMP_SCRIPT_SHA256 in this workflow in the same PR.
+          EXPECTED_BUMP_SCRIPT_SHA256: 8f6efec41e552a9aeb9ba4016b482a25ffac4b7eca08f68f385b50621352260b
+        run: |
+          set -euo pipefail
+
+          source_sha=$(git rev-parse HEAD)
+          pnpm exec changeset version
+          new_version=$(node -p "require('./package.json').version")
+
+          actual_bump_script_sha256=$(sha256sum scripts/bump-version.sh | awk '{print $1}')
+          if [ "$actual_bump_script_sha256" != "$EXPECTED_BUMP_SCRIPT_SHA256" ]; then
+            echo "scripts/bump-version.sh sha256 mismatch: expected $EXPECTED_BUMP_SCRIPT_SHA256, got $actual_bump_script_sha256" >&2
+            exit 1
+          fi
+
+          ./scripts/bump-version.sh "$new_version"
+
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No release candidate changes were generated" >&2
+            exit 1
+          fi
+
+          changed_files=$(git diff --name-only)
+          while IFS= read -r file; do
+            case "$file" in
+              CHANGELOG.md|package.json|version.properties|.changeset/*.md) ;;
+              *)
+                echo "Unexpected release candidate change: $file" >&2
+                exit 1
+                ;;
+            esac
+          done <<< "$changed_files"
+
+          properties_version="$(sed -n 's/^VERSION_MAJOR=//p' version.properties).$(sed -n 's/^VERSION_MINOR=//p' version.properties).$(sed -n 's/^VERSION_PATCH=//p' version.properties)"
+          if [ "$new_version" != "$properties_version" ]; then
+            echo "Version mismatch: package.json=$new_version version.properties=$properties_version" >&2
+            exit 1
+          fi
+
+          git diff --binary > release.patch
+          patch_sha256=$(sha256sum release.patch | awk '{print $1}')
+
+          {
+            echo "source-sha=$source_sha"
+            echo "new-version=$new_version"
+            echo "patch-sha256=$patch_sha256"
+          } >> "$GITHUB_OUTPUT"
+          echo "Release candidate $new_version prepared from $source_sha with patch sha256 $patch_sha256"
+
+      - name: Upload release candidate patch
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-candidate-${{ steps.candidate.outputs.source-sha }}
+          path: release.patch
+          if-no-files-found: error
+          retention-days: 5
+          # Allow "Re-run all jobs" on a failed run to upload again
+          overwrite: true
+
+  verify-release-candidate:
+    name: Verify release candidate
+    needs: [check-changesets, prepare-release-candidate]
+    runs-on: ubuntu-latest
+    if: needs.check-changesets.outputs.has-changesets == 'true'
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ needs.prepare-release-candidate.outputs.source-sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download release candidate patch
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-candidate-${{ needs.prepare-release-candidate.outputs.source-sha }}
+          path: release-candidate
+
+      - name: Apply and validate release candidate patch
+        env:
+          EXPECTED_VERSION: ${{ needs.prepare-release-candidate.outputs.new-version }}
+        run: |
+          set -euo pipefail
+
+          git apply --index release-candidate/release.patch
+
+          package_version=$(perl -0ne 'print $1 if /"version"\s*:\s*"([^"]+)"/' package.json)
+          properties_version="$(sed -n 's/^VERSION_MAJOR=//p' version.properties).$(sed -n 's/^VERSION_MINOR=//p' version.properties).$(sed -n 's/^VERSION_PATCH=//p' version.properties)"
+          if [ "$EXPECTED_VERSION" != "$package_version" ] || [ "$EXPECTED_VERSION" != "$properties_version" ]; then
+            echo "Version mismatch: expected=$EXPECTED_VERSION package.json=$package_version version.properties=$properties_version" >&2
+            exit 1
+          fi
+
+      - name: Check tag and release do not already exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_VERSION: ${{ needs.prepare-release-candidate.outputs.new-version }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          check_missing() {
+            local description="$1"
+            shift
+            local output
+            local status
+
+            if output=$("$@" 2>&1); then
+              echo "$description already exists for $EXPECTED_VERSION" >&2
+              exit 1
+            else
+              status=$?
+            fi
+
+            if grep -q "HTTP 404" <<< "$output" || grep -q "Not Found" <<< "$output"; then
+              return 0
+            fi
+
+            echo "Could not check whether $description exists: $output" >&2
+            exit "$status"
+          }
+
+          check_missing "GitHub release" gh api "repos/$REPOSITORY/releases/tags/$EXPECTED_VERSION"
+          check_missing "git tag" gh api "repos/$REPOSITORY/git/ref/tags/$EXPECTED_VERSION"
 
   notify-approval-needed:
     name: Notify Slack - Approval Needed
-    needs: check-changesets
-    if: needs.check-changesets.outputs.has-changesets == 'true'
+    needs: [check-changesets, prepare-release-candidate, verify-release-candidate]
+    if: needs.check-changesets.outputs.has-changesets == 'true' && needs.prepare-release-candidate.result == 'success' && needs.verify-release-candidate.result == 'success'
     uses: PostHog/.github/.github/workflows/notify-approval-needed.yml@5fc4680761e8ac29a61b212756230eba0e276d8c
     with:
       slack_channel_id: ${{ vars.SLACK_APPROVALS_CLIENT_LIBRARIES_CHANNEL_ID }}
@@ -55,20 +222,17 @@ jobs:
 
   release:
     name: Release and publish
-    needs: [check-changesets, notify-approval-needed]
+    needs: [check-changesets, prepare-release-candidate, verify-release-candidate, notify-approval-needed]
     # macos-latest is required: publishing builds the iOS Kotlin/Native klibs,
     # which only compile on the Apple toolchain.
     runs-on: macos-latest
     # Use `always()` so the job still runs if the Slack notification fails, while
     # keeping the dependency so we can reference notify-approval-needed outputs.
-    if: always() && needs.check-changesets.outputs.has-changesets == 'true'
+    if: always() && needs.check-changesets.outputs.has-changesets == 'true' && needs.verify-release-candidate.result == 'success'
     environment: "Release" # Requires approval from a maintainer, notified in Slack above
     permissions:
-      contents: write
-      actions: write
-    outputs:
-      committed: ${{ steps.commit-version-bump.outputs.commit-hash != '' }}
-      new-version: ${{ steps.apply-changesets.outputs.new-version }}
+      actions: read
+      contents: read
     steps:
       - name: Notify Slack - Approved
         continue-on-error: true
@@ -81,16 +245,55 @@ jobs:
           message: "✅ Release approved! Version bump in progress..."
           emoji_reaction: "white_check_mark"
 
-      - name: Checkout repository
+      - name: Checkout approved source revision
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: main
+          ref: ${{ needs.prepare-release-candidate.outputs.source-sha }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Download verified release candidate patch
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-candidate-${{ needs.prepare-release-candidate.outputs.source-sha }}
+          path: release-candidate
+
+      - name: Apply verified release candidate patch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_PATCH_SHA256: ${{ needs.prepare-release-candidate.outputs.patch-sha256 }}
+          EXPECTED_SOURCE_SHA: ${{ needs.prepare-release-candidate.outputs.source-sha }}
+          EXPECTED_VERSION: ${{ needs.prepare-release-candidate.outputs.new-version }}
+        run: |
+          set -euo pipefail
+
+          current_main_sha=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')
+          if [ "$current_main_sha" != "$EXPECTED_SOURCE_SHA" ]; then
+            echo "main moved since the release candidate was prepared: expected $EXPECTED_SOURCE_SHA, got $current_main_sha" >&2
+            exit 1
+          fi
+
+          actual_patch_sha256=$(shasum -a 256 release-candidate/release.patch | awk '{print $1}')
+          if [ "$actual_patch_sha256" != "$EXPECTED_PATCH_SHA256" ]; then
+            echo "Release candidate patch sha256 mismatch: expected $EXPECTED_PATCH_SHA256, got $actual_patch_sha256" >&2
+            exit 1
+          fi
+
+          git apply --index release-candidate/release.patch
+
+          package_version=$(perl -0ne 'print $1 if /"version"\s*:\s*"([^"]+)"/' package.json)
+          properties_version="$(sed -n 's/^VERSION_MAJOR=//p' version.properties).$(sed -n 's/^VERSION_MINOR=//p' version.properties).$(sed -n 's/^VERSION_PATCH=//p' version.properties)"
+          if [ "$EXPECTED_VERSION" != "$package_version" ] || [ "$EXPECTED_VERSION" != "$properties_version" ]; then
+            echo "Version mismatch: expected=$EXPECTED_VERSION package.json=$package_version version.properties=$properties_version" >&2
+            exit 1
+          fi
+
+          rm -rf release-candidate
 
       - name: Set up JDK 17
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v4.7.1
@@ -109,60 +312,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-konan-
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # v1.93.1
-        with:
-          toolchain: stable
-          components: cargo
-
-      - name: Cache Sampo CLI
-        id: cache-sampo
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4.2.4
-        with:
-          path: ~/.cargo/bin/sampo
-          key: sampo-${{ runner.os }}-${{ runner.arch }}
-
-      - name: Install Sampo CLI
-        if: steps.cache-sampo.outputs.cache-hit != 'true'
-        run: cargo install sampo
-
-      - name: Apply changesets and update version
-        id: apply-changesets
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          sampo release
-          NEW_VERSION=$(grep -m1 '"version"' package.json | sed -E 's/.*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')
-          echo "new-version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
-          echo "New version: $NEW_VERSION"
-
-      - name: Sync version to version.properties
-        env:
-          NEW_VERSION: ${{ steps.apply-changesets.outputs.new-version }}
-        run: ./scripts/bump-version.sh "$NEW_VERSION"
-
-      - name: Build all targets
-        run: ./gradlew build --no-daemon
-
-      - name: Run tests
-        run: ./gradlew allTests --no-daemon
-
-      - name: Check for release changes
-        id: check-changes
-        run: |
-          if [ -z "$(git status --porcelain)" ]; then
-            echo "No changes to commit"
-            echo "committed=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "committed=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      # Minted here rather than at job start: installation tokens live 60 minutes,
-      # and the build above can consume most of that. From here to the end of the
-      # job is only a few minutes.
+      # Installation tokens live 60 minutes; everything from here on (commit,
+      # publish, tag, release) must fit inside that window.
       - name: Get GitHub App token
         id: releaser
-        if: steps.check-changes.outputs.committed == 'true'
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           client-id: ${{ secrets.GH_APP_POSTHOG_KMP_RELEASER_APP_ID }}
@@ -173,10 +326,9 @@ jobs:
       # the same API but is a container action, which macOS runners can't run.
       - name: Commit version bump
         id: commit-version-bump
-        if: steps.check-changes.outputs.committed == 'true'
         env:
           GH_TOKEN: ${{ steps.releaser.outputs.token }}
-          COMMIT_MESSAGE: "chore: release ${{ steps.apply-changesets.outputs.new-version }} [version bump] [skip ci]"
+          COMMIT_MESSAGE: "chore: release ${{ needs.prepare-release-candidate.outputs.new-version }} [version bump] [skip ci]"
         run: |
           set -euo pipefail
           additions='[]'
@@ -236,7 +388,7 @@ jobs:
       - name: Tag and push
         if: steps.commit-version-bump.outputs.commit-hash != ''
         env:
-          NEW_VERSION: ${{ steps.apply-changesets.outputs.new-version }}
+          NEW_VERSION: ${{ needs.prepare-release-candidate.outputs.new-version }}
           GH_APP_TOKEN: ${{ steps.releaser.outputs.token }}
         run: |
           git tag -a "$NEW_VERSION" -m "$NEW_VERSION"
@@ -246,13 +398,14 @@ jobs:
         if: steps.commit-version-bump.outputs.commit-hash != ''
         env:
           GH_TOKEN: ${{ steps.releaser.outputs.token }}
-          NEW_VERSION: ${{ steps.apply-changesets.outputs.new-version }}
+          NEW_VERSION: ${{ needs.prepare-release-candidate.outputs.new-version }}
+          COMMIT_SHA: ${{ steps.commit-version-bump.outputs.commit-hash }}
         run: |
           # Extract the latest changelog entry (content between the first and second ## header)
           LAST_CHANGELOG_ENTRY=$(awk '/^## /{if (flag) exit; flag=1; next} flag' CHANGELOG.md | awk 'NF{f=1} f{l[++n]=$0; if(NF) last=n} END{for(i=1;i<=last;i++) print l[i]}')
           LAST_CHANGELOG_ENTRY=${LAST_CHANGELOG_ENTRY:-"see CHANGELOG.md"}
           gh release create "$NEW_VERSION" \
-            --target main \
+            --target "$COMMIT_SHA" \
             --title "$NEW_VERSION" \
             --notes "$LAST_CHANGELOG_ENTRY"
 
@@ -264,16 +417,16 @@ jobs:
           slack_bot_token: ${{ secrets.SLACK_CLIENT_LIBRARIES_BOT_TOKEN }}
           slack_channel_id: ${{ vars.SLACK_APPROVALS_CLIENT_LIBRARIES_CHANNEL_ID }}
           thread_ts: ${{ needs.notify-approval-needed.outputs.slack_ts }}
-          message: "❌ Failed to release `posthog-kmp@${{ steps.apply-changesets.outputs.new-version }}`! <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View logs>"
+          message: "❌ Failed to release `posthog-kmp@${{ needs.prepare-release-candidate.outputs.new-version }}`! <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View logs>"
           emoji_reaction: "x"
 
   # Runs on ubuntu because posthog-github-action is a container action, which
   # the macOS release job can't execute.
   report-failure:
     name: Send failure event to PostHog
-    needs: [check-changesets, release]
+    needs: [check-changesets, prepare-release-candidate, verify-release-candidate, release]
     runs-on: ubuntu-latest
-    if: always() && needs.release.result == 'failure'
+    if: always() && (needs.prepare-release-candidate.result == 'failure' || needs.verify-release-candidate.result == 'failure' || needs.release.result == 'failure')
     steps:
       - name: Send failure event to PostHog
         continue-on-error: true
@@ -288,11 +441,11 @@ jobs:
               "ref": "${{ github.ref }}",
               "repository": "${{ github.repository }}",
               "sdk": "posthog-kmp",
-              "jobName": "release",
+              "jobName": "${{ needs.release.result == 'failure' && 'release' || needs.verify-release-candidate.result == 'failure' && 'verify-release-candidate' || 'prepare-release-candidate' }}",
               "packageName": "posthog-kmp",
-              "packageVersion": "${{ needs.release.outputs.new-version || 'unknown' }}",
+              "packageVersion": "${{ needs.prepare-release-candidate.outputs.new-version || 'unknown' }}",
               "actionUrl": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-              "alertText": ":rotating_light: Failed to release posthog-kmp@${{ needs.release.outputs.new-version || 'unknown' }} :rotating_light:",
+              "alertText": ":rotating_light: Failed to release posthog-kmp@${{ needs.prepare-release-candidate.outputs.new-version || 'unknown' }} :rotating_light:",
               "alertContext": "The release workflow failed before completion."
             }
 
@@ -301,6 +454,9 @@ jobs:
     needs: [release, notify-approval-needed]
     runs-on: ubuntu-latest
     if: always() && needs.release.result == 'failure' && needs.notify-approval-needed.outputs.slack_ts != ''
+    permissions:
+      actions: read
+      contents: read
     steps:
       - name: Check for rejection
         id: check-rejection

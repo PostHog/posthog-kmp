@@ -16,7 +16,7 @@ import com.posthog.kmp.PostHogContext
  * Sample app demonstrating PostHog KMP usage.
  *
  * @param postHogContext Platform-specific context passed from the platform entry point.
- *                       On Android: PostHogContext(application)
+ *                       On Android: PostHogContext(application), owned by the Application class
  *                       On iOS/Web: PostHogContext()
  */
 @Composable

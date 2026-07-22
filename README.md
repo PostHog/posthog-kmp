@@ -92,21 +92,29 @@ PostHog.setup(
 On Android, pass the `Application` context to `PostHogContext`:
 
 ```kotlin
-// In your Activity or Application
+// In your Application class (not an Activity — setup must run once per process,
+// and an Activity's onCreate re-runs on every recreation, e.g. rotation)
+import android.app.Application
 import com.posthog.kmp.PostHog
 import com.posthog.kmp.PostHogConfig
 import com.posthog.kmp.PostHogContext
 
-class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+class MyApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
 
         PostHog.setup(
             config = PostHogConfig(apiKey = "phc_your_api_key"),
-            context = PostHogContext(application)
+            context = PostHogContext(this)
         )
     }
 }
+```
+
+Register the class in your `AndroidManifest.xml`:
+
+```xml
+<application android:name=".MyApplication" ...>
 ```
 
 #### iOS / Web / JVM (Desktop)
