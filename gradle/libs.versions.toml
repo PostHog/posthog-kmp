@@ -10,7 +10,7 @@ posthog-core = "6.24.0"
 posthog-ios = "3.64.1"
 posthog-js = "1.398.7"
 mavenPublish = "0.37.0"
-spmforkmp = "1.4.7"
+spmforkmp = "1.9.4"
 detekt = "1.23.8"
 
 # Testing
