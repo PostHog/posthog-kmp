@@ -136,6 +136,8 @@ jobs:
           path: release.patch
           if-no-files-found: error
           retention-days: 5
+          # Allow "Re-run all jobs" on a failed run to upload again
+          overwrite: true
 
   verify-release-candidate:
     name: Verify release candidate

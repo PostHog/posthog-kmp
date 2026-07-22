@@ -1,0 +1,137 @@
+name: "Republish Release"
+
+# Recovery tool for a release that failed AFTER the version-bump commit landed
+# on main (changesets already consumed, so re-running Release finds nothing).
+# Publishes the committed version and creates the tag and GitHub release,
+# skipping any of those that already exist. See RELEASING.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Ref to publish (the version-bump commit, or main)"
+        required: false
+        default: "main"
+      skip_publish:
+        description: "Skip Maven Central publish (artifacts already published; only tag/release are missing)"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+# Shares the release concurrency group so it cannot race a normal release
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  republish:
+    name: Republish
+    # macos-latest is required: publishing builds the iOS Kotlin/Native klibs,
+    # which only compile on the Apple toolchain.
+    runs-on: macos-latest
+    environment: "Release" # Same approval gate as a normal release
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Determine and validate version
+        id: version
+        run: |
+          set -euo pipefail
+
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "Refusing to republish: $(git rev-parse HEAD) is not on main" >&2
+            exit 1
+          fi
+
+          new_version="$(sed -n 's/^VERSION_MAJOR=//p' version.properties).$(sed -n 's/^VERSION_MINOR=//p' version.properties).$(sed -n 's/^VERSION_PATCH=//p' version.properties)"
+          package_version=$(perl -0ne 'print $1 if /"version"\s*:\s*"([^"]+)"/' package.json)
+          if [ "$new_version" != "$package_version" ]; then
+            echo "Version mismatch: version.properties=$new_version package.json=$package_version" >&2
+            exit 1
+          fi
+
+          echo "new-version=$new_version" >> "$GITHUB_OUTPUT"
+          echo "Republishing $new_version from $(git rev-parse HEAD)"
+
+      - name: Set up JDK 17
+        if: ${{ !inputs.skip_publish }}
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v4.7.1
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Gradle
+        if: ${{ !inputs.skip_publish }}
+        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v4.4.4
+
+      - name: Cache Kotlin Native
+        if: ${{ !inputs.skip_publish }}
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v4.2.4
+        with:
+          path: ~/.konan
+          key: ${{ runner.os }}-konan-${{ hashFiles('**/*.gradle.kts') }}
+          restore-keys: |
+            ${{ runner.os }}-konan-
+
+      - name: Publish to Maven Central
+        if: ${{ !inputs.skip_publish }}
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          ./gradlew publishAllPublicationsToMavenCentralRepository \
+            --no-daemon \
+            --no-configuration-cache
+
+      - name: Get GitHub App token
+        id: releaser
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.GH_APP_POSTHOG_KMP_RELEASER_APP_ID }}
+          private-key: ${{ secrets.GH_APP_POSTHOG_KMP_RELEASER_PRIVATE_KEY }}
+
+      - name: Tag and push (if missing)
+        env:
+          NEW_VERSION: ${{ steps.version.outputs.new-version }}
+          GH_APP_TOKEN: ${{ steps.releaser.outputs.token }}
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code origin "refs/tags/$NEW_VERSION" >/dev/null 2>&1; then
+            echo "Tag $NEW_VERSION already exists, skipping"
+          else
+            git tag -a "$NEW_VERSION" -m "$NEW_VERSION"
+            git push "https://x-access-token:${GH_APP_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$NEW_VERSION"
+          fi
+
+      - name: Create GitHub Release (if missing)
+        env:
+          GH_TOKEN: ${{ steps.releaser.outputs.token }}
+          NEW_VERSION: ${{ steps.version.outputs.new-version }}
+        run: |
+          set -euo pipefail
+          if gh release view "$NEW_VERSION" >/dev/null 2>&1; then
+            echo "Release $NEW_VERSION already exists, skipping"
+            exit 0
+          fi
+          # Extract the latest changelog entry (content between the first and second ## header)
+          LAST_CHANGELOG_ENTRY=$(awk '/^## /{if (flag) exit; flag=1; next} flag' CHANGELOG.md | awk 'NF{f=1} f{l[++n]=$0; if(NF) last=n} END{for(i=1;i<=last;i++) print l[i]}')
+          LAST_CHANGELOG_ENTRY=${LAST_CHANGELOG_ENTRY:-"see CHANGELOG.md"}
+          gh release create "$NEW_VERSION" \
+            --target "$(git rev-parse HEAD)" \
+            --title "$NEW_VERSION" \
+            --notes "$LAST_CHANGELOG_ENTRY"

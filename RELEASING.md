@@ -49,6 +49,20 @@ On merge, the `Release` workflow runs:
 Build and tests are intentionally **not** re-run during release — CI already
 gates every PR and push to `main`; the release publishes the approved commit.
 
+## If a release fails
+
+- **Before the version-bump commit lands on `main`** (prepare, verify, or the
+  patch/publish steps up to the commit): nothing was mutated and the changesets
+  are untouched. Fix the cause and use **Re-run all jobs**, or dispatch the
+  `Release` workflow again.
+- **After the version-bump commit** (publish, tag, or GitHub release failed):
+  the changesets are consumed, so re-running `Release` finds nothing. Run the
+  **Republish Release** workflow instead (Actions → Republish Release). It
+  publishes the version already committed on `main` and creates the tag and
+  GitHub release, skipping whatever already exists. Tick `skip_publish` if the
+  artifacts already made it to Maven Central. It requires the same `Release`
+  environment approval.
+
 ## Release approval
 
 Every release requires approval from the Client Libraries team via the `Release` GitHub environment. The request is posted to `#approvals-client-libraries` on Slack.
