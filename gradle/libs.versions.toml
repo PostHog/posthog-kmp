@@ -15,7 +15,7 @@ detekt = "1.23.8"
 
 # Testing
 junit = "4.13.2"
-kotlin-test = "2.3.0"
+kotlin-test = "2.4.10"
 
 [libraries]
 # AndroidX
