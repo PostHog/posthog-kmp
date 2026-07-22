@@ -12,6 +12,23 @@ plugins {
     alias(libs.plugins.detekt)
 }
 
+// Force patched versions of vulnerable JS build-toolchain transitives; the
+// generated kotlin-js-store/yarn.lock is out of dependabot's reach. Remove an
+// override once the Kotlin plugin's own pin catches up.
+plugins.withType<org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin> {
+    the<org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootExtension>().versions.apply {
+        webpack.version = "5.104.1"
+        webpackDevServer.version = "5.2.6"
+    }
+}
+plugins.withType<org.jetbrains.kotlin.gradle.targets.js.yarn.YarnPlugin> {
+    the<org.jetbrains.kotlin.gradle.targets.js.yarn.YarnRootExtension>().apply {
+        resolution("serialize-javascript", "7.0.5")
+        resolution("uuid", "11.1.1")
+        resolution("diff", "8.0.3")
+    }
+}
+
 detekt {
     buildUponDefaultConfig = true
     allRules = false
