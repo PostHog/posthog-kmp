@@ -239,8 +239,8 @@ jobs:
           NEW_VERSION: ${{ steps.apply-changesets.outputs.new-version }}
           GH_APP_TOKEN: ${{ steps.releaser.outputs.token }}
         run: |
-          git tag -a "v$NEW_VERSION" -m "v$NEW_VERSION"
-          git push "https://x-access-token:${GH_APP_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "v$NEW_VERSION"
+          git tag -a "$NEW_VERSION" -m "$NEW_VERSION"
+          git push "https://x-access-token:${GH_APP_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$NEW_VERSION"
 
       - name: Create GitHub Release
         if: steps.commit-version-bump.outputs.commit-hash != ''
@@ -251,9 +251,9 @@ jobs:
           # Extract the latest changelog entry (content between the first and second ## header)
           LAST_CHANGELOG_ENTRY=$(awk '/^## /{if (flag) exit; flag=1; next} flag' CHANGELOG.md | awk 'NF{f=1} f{l[++n]=$0; if(NF) last=n} END{for(i=1;i<=last;i++) print l[i]}')
           LAST_CHANGELOG_ENTRY=${LAST_CHANGELOG_ENTRY:-"see CHANGELOG.md"}
-          gh release create "v$NEW_VERSION" \
+          gh release create "$NEW_VERSION" \
             --target main \
-            --title "v$NEW_VERSION" \
+            --title "$NEW_VERSION" \
             --notes "$LAST_CHANGELOG_ENTRY"
 
       - name: Notify Slack - Failed
