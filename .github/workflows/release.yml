@@ -76,6 +76,8 @@ jobs:
       - name: Apply changesets and update version
         id: candidate
         env:
+          # changelog-github resolves each changeset's PR and author via the API
+          GITHUB_TOKEN: ${{ github.token }}
           # If scripts/bump-version.sh changes, recompute this with:
           # sha256sum scripts/bump-version.sh
           # Then update EXPECTED_BUMP_SCRIPT_SHA256 in this workflow in the same PR.
