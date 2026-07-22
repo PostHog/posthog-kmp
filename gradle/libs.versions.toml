@@ -4,7 +4,7 @@ agp = "8.13.0"
 android-compileSdk = "36"
 compose-multiplatform = "1.10.0"
 androidx-activity-compose = "1.12.3"
-posthog-android = "3.53.3"
+posthog-android = "3.54.0"
 # Pure-JVM core that posthog-android is built on (versioned independently of posthog-android)
 posthog-core = "6.24.0"
 posthog-ios = "3.64.1"
