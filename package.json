@@ -1,5 +1,13 @@
 {
   "name": "posthog-kmp",
   "version": "0.1.0",
-  "private": true
+  "private": true,
+  "description": "Release metadata and changesets for the PostHog Kotlin Multiplatform SDK",
+  "packageManager": "pnpm@11.7.0",
+  "scripts": {
+    "changeset": "changeset"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.30.0"
+  }
 }

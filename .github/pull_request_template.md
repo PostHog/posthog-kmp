@@ -16,7 +16,7 @@
 
 ### If releasing new changes
 
-- [ ] Ran `sampo add` to generate a changeset file
+- [ ] Ran `pnpm changeset` to generate a changeset file
 
 <!-- For more details check RELEASING.md -->
 

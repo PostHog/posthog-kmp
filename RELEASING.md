@@ -1,14 +1,14 @@
 # Releasing
 
-Releases are semi-automated using [Sampo](https://github.com/PostHog/sampo) and follow the [PostHog SDK releases process](https://posthog.com/handbook/engineering/sdks/releases).
+Releases are semi-automated using [changesets](https://github.com/changesets/changesets) and follow the [PostHog SDK releases process](https://posthog.com/handbook/engineering/sdks/releases).
 
-`posthog-kmp` publishes to [Maven Central](https://central.sonatype.com/artifact/com.posthog/posthog-kmp) as `com.posthog:posthog-kmp` (plus the per-target `-android`, `-iosarm64`, `-iossimulatorarm64`, `-iosx64`, and `-js` variants). Consumers are Kotlin Multiplatform projects that resolve the right platform artifact through Gradle — native Swift (SPM/CocoaPods) and web (npm) are served by `posthog-ios` and `posthog-js` respectively, so they are intentionally not published here.
+`posthog-kmp` publishes to [Maven Central](https://central.sonatype.com/artifact/com.posthog/posthog-kmp) as `com.posthog:posthog-kmp` (plus the per-target `-android`, `-jvm`, `-iosarm64`, `-iossimulatorarm64`, `-iosx64`, and `-js` variants). Consumers are Kotlin Multiplatform projects that resolve the right platform artifact through Gradle — native Swift (SPM/CocoaPods) and web (npm) are served by `posthog-ios` and `posthog-js` respectively, so they are intentionally not published here.
 
 ## How versioning works
 
-Sampo does not natively support Gradle/Maven, so the version lives in two places kept in lockstep by CI:
+Changesets does not natively support Gradle/Maven, so the version lives in two places kept in lockstep by CI:
 
-- **`package.json`** — a private version carrier (`"private": true`, never published to npm). Sampo owns and bumps this.
+- **`package.json`** — a private version carrier (`"private": true`, never published to npm). `changeset version` owns and bumps this.
 - **`version.properties`** — the source of truth the Gradle build reads. `scripts/bump-version.sh` syncs it from `package.json` during release.
 
 You never edit either by hand for a release — changesets drive the bump.
@@ -18,28 +18,36 @@ You never edit either by hand for a release — changesets drive the bump.
 When making a change that should appear in the changelog, add a changeset:
 
 ```bash
-# Install the sampo CLI (requires a Rust toolchain)
-cargo install sampo
+# One-time: install the release tooling (requires Node.js + pnpm)
+pnpm install
 
 # Describe your change — pick patch / minor / major and write a summary
-sampo add
+pnpm changeset
 ```
 
-This writes a file to `.sampo/changesets/`. **Commit it with your PR.**
+This writes a file to `.changeset/`. **Commit it with your PR.**
 
 ## How to trigger a release
 
 1. **Add a changeset** to your PR (see above).
 2. **Merge the PR** into `main`. No release label or manual tagging is required.
 
-On merge, the `Release` workflow runs and:
+On merge, the `Release` workflow runs:
 
-1. Consumes all pending changesets
-2. Bumps the version in `package.json` and syncs it to `version.properties`
-3. Updates `CHANGELOG.md`
-4. Commits the version bump to `main`
-5. Publishes all targets to Maven Central
-6. Creates the Git tag (e.g. `v0.1.0`) and a GitHub Release
+1. **Prepare** — consumes all pending changesets, bumps `package.json`, syncs
+   `version.properties`, updates `CHANGELOG.md`, and captures the result as a
+   patch artifact (with a pinned sha256).
+2. **Verify** — re-applies the patch on a clean checkout, checks the versions
+   are consistent, and checks the tag and GitHub release don't already exist.
+3. **Approval** — waits for a maintainer to approve the `Release` environment
+   (requested in Slack, see below).
+4. **Release** — applies the verified patch (after confirming `main` hasn't
+   moved), commits the version bump to `main`, publishes all targets to Maven
+   Central, then creates the Git tag (e.g. `0.1.0`, no `v` prefix) and a GitHub
+   Release.
+
+Build and tests are intentionally **not** re-run during release — CI already
+gates every PR and push to `main`; the release publishes the approved commit.
 
 ## Release approval
 
