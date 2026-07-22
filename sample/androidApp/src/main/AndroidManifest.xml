@@ -4,6 +4,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
+        android:name=".SampleApplication"
         android:allowBackup="true"
         android:label="PostHog Sample"
         android:supportsRtl="true"
