@@ -19,3 +19,29 @@ jobs:
       contents: read
       pull-requests: read
     uses: PostHog/.github/.github/workflows/semantic-pr-title.yml@926dd076f0c796f7531177ae5cfcf1cf7cf0aeb3
+
+  # feat/fix PRs ship user-visible changes, so they must carry a changeset;
+  # other types (ci, docs, chore, ...) are exempt.
+  changeset:
+    name: Check for changeset
+    runs-on: ubuntu-latest
+    if: startsWith(github.event.pull_request.title, 'feat') || startsWith(github.event.pull_request.title, 'fix')
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check for changeset
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if git diff --name-only "origin/${BASE_REF}...HEAD" -- '.changeset/*.md' | grep -v '^.changeset/README.md$' | grep -q .; then
+            echo "Changeset found"
+          else
+            echo "::error::This feat/fix PR has no changeset. Run 'pnpm changeset' and commit the generated file (see RELEASING.md), or retitle the PR (e.g. chore:/ci:/docs:) if it should not be released."
+            exit 1
+          fi
