@@ -26,6 +26,11 @@ plugins.withType<org.jetbrains.kotlin.gradle.targets.js.yarn.YarnPlugin> {
         resolution("serialize-javascript", "7.0.5")
         resolution("uuid", "11.1.1")
         resolution("diff", "8.0.3")
+        // Forces 1.x consumers onto the 2.x line (same API), like uuid above.
+        resolution("brace-expansion", "2.1.2")
+        resolution("fast-uri", "3.1.4")
+        resolution("body-parser", "1.20.6")
+        resolution("dompurify", "3.4.12")
     }
 }
 
