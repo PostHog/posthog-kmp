@@ -32,9 +32,11 @@ This writes a file to `.changeset/`. **Commit it with your PR.**
 On merge, the `Release` workflow runs:
 
 1. **Prepare** — uses `pnpm version -r` to consume all pending change intents,
-   bump `package.json`, update `CHANGELOG.md` and `.changeset/ledger.yaml`, then
-   syncs `version.properties` and captures the result as a patch artifact (with
-   a pinned sha256).
+   bump `package.json`, update `CHANGELOG.md` and `.changeset/ledger.yaml`.
+   `scripts/enrich-changelog.mjs` then rewrites the new changelog entries with
+   the commit link and `— Thanks @author!` attribution (matching the previous
+   changesets format), `scripts/bump-version.sh` syncs `version.properties`,
+   and the result is captured as a patch artifact (with a pinned sha256).
 2. **Verify** — re-applies the patch on a clean checkout, checks the versions
    are consistent, and checks the tag and GitHub release don't already exist.
 3. **Approval** — waits for a maintainer to approve the `Release` environment
