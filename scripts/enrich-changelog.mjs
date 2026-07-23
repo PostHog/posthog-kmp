@@ -69,13 +69,22 @@ for (const intentPath of consumedIntents) {
       continue
     }
 
+    // Thank the author of the PR that introduced the intent (like
+    // changelog-github); fall back to the commit author for direct pushes.
     let login = ''
     try {
       login = execFileSync(
         'gh',
-        ['api', `repos/${repo}/commits/${sha}`, '--jq', '.author.login // empty'],
+        ['api', `repos/${repo}/commits/${sha}/pulls`, '--jq', '.[0].user.login // empty'],
         { encoding: 'utf8' },
       ).trim()
+      if (!login) {
+        login = execFileSync(
+          'gh',
+          ['api', `repos/${repo}/commits/${sha}`, '--jq', '.author.login // empty'],
+          { encoding: 'utf8' },
+        ).trim()
+      }
     } catch {
       warn(`${intentPath}: could not resolve the author of ${sha}; omitting thanks`)
     }

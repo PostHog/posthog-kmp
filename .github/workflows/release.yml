@@ -91,7 +91,7 @@ jobs:
           # sha256sum scripts/bump-version.sh scripts/enrich-changelog.mjs
           # Then update the EXPECTED_* value in this workflow in the same PR.
           EXPECTED_BUMP_SCRIPT_SHA256: e3c2d323ea8a2e34c13a91843771dbc0e3865f6d4615dc501706c4a814e709ac
-          EXPECTED_ENRICH_SCRIPT_SHA256: cc329ff73494f92d0e3ec25a3bef2c73fb4ec619d4314339b145d25e0d7aaa42
+          EXPECTED_ENRICH_SCRIPT_SHA256: 21c30868e6e84921be38f96d7a8b3e095ff55df35cd4715e4872571aa94dc72a
         run: |
           set -euo pipefail
 
