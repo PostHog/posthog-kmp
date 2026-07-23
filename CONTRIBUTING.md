@@ -23,4 +23,4 @@ SDK usage examples and code snippets live in the [official documentation](https:
 
 ## Releasing
 
-Releases are semi-automatic: changesets merged to `main` trigger the release pipeline, which waits for approval in the `#approvals-client-libraries` Slack channel. See [RELEASING.md](RELEASING.md) for details.
+Releases are semi-automatic: release change intents merged to `main` trigger the release pipeline, which waits for approval in the `#approvals-client-libraries` Slack channel. See [RELEASING.md](RELEASING.md) for details.
