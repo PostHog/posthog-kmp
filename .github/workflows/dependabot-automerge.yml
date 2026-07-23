@@ -1,0 +1,26 @@
+name: Dependabot auto-merge
+
+# Arms GitHub auto-merge on dependabot PRs so they merge on their own once a
+# code owner approves and all required checks pass. It does not approve
+# anything itself - the "Review request" ruleset still requires a human review.
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  automerge:
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - name: Enable auto-merge
+        # The guard keeps re-runs (e.g. after a dependabot rebase triggers a
+        # synchronize event) from failing on an already-armed PR.
+        run: |
+          if [ "$(gh pr view "$PR_URL" --json autoMergeRequest --jq '.autoMergeRequest != null')" = "false" ]; then
+              gh pr merge --auto --squash "$PR_URL"
+          fi
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
