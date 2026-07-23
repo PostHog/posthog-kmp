@@ -24,8 +24,7 @@ jobs:
   # other types (ci, docs, chore, ...) are exempt. Any intent present is
   # validated so malformed ones fail here instead of at release time.
   changeset:
-    # Job name is a required status check in the "Review request" ruleset —
-    # renaming it strands every PR on a check that never reports.
+    # Job name is a required status check in the branch ruleset; do not rename.
     name: Check for changeset
     runs-on: ubuntu-latest
     permissions:

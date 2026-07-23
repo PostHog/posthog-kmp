@@ -85,9 +85,7 @@ jobs:
       - name: Apply change intents and update version
         id: candidate
         env:
-          # If scripts/bump-version.sh changes, recompute this with:
-          # sha256sum scripts/bump-version.sh
-          # Then update EXPECTED_BUMP_SCRIPT_SHA256 in this workflow in the same PR.
+          # sha256sum scripts/bump-version.sh — recompute when the script changes
           EXPECTED_BUMP_SCRIPT_SHA256: e3c2d323ea8a2e34c13a91843771dbc0e3865f6d4615dc501706c4a814e709ac
         run: |
           set -euo pipefail
