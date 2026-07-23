@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # Release tooling (@changesets/*)
+  # Release tooling (pnpm packageManager pin; no npm deps since pnpm native versioning)
   - package-ecosystem: "npm"
     directory: "/"
     schedule:

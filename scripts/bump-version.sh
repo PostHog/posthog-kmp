@@ -3,11 +3,11 @@
 # ./scripts/bump-version.sh [new version]
 # eg ./scripts/bump-version.sh "0.1.0"
 #
-# Syncs the version from the root package.json (managed by changesets) into
-# version.properties, the source of truth the Gradle build reads. If no
-# argument is given, the version is read from package.json.
+# Syncs the version from the root package.json (managed by pnpm's native
+# release management) into version.properties, the source of truth the Gradle
+# build reads. If no argument is given, the version is read from package.json.
 #
-# `changeset version` bumps package.json (its only supported ecosystem here);
+# `pnpm version -r` bumps package.json (its only supported ecosystem here);
 # this script mirrors that version into version.properties so the published
 # Maven artifacts carry the right version.
 #

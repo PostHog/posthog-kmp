@@ -20,11 +20,11 @@ jobs:
       pull-requests: read
     uses: PostHog/.github/.github/workflows/semantic-pr-title.yml@926dd076f0c796f7531177ae5cfcf1cf7cf0aeb3
 
-  # feat/fix PRs ship user-visible changes, so they must carry a changeset;
-  # other types (ci, docs, chore, ...) are exempt. Any changeset present is
+  # feat/fix PRs ship user-visible changes, so they must carry a change intent;
+  # other types (ci, docs, chore, ...) are exempt. Any intent present is
   # validated so malformed ones fail here instead of at release time.
   changeset:
-    name: Check for changeset
+    name: Check for change intent
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -35,7 +35,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Detect changesets
+      - name: Detect change intents
         id: detect
         env:
           BASE_REF: ${{ github.base_ref }}
@@ -46,25 +46,22 @@ jobs:
             echo "present=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Require changeset for feat/fix PRs
+      - name: Require change intent for feat/fix PRs
         if: steps.detect.outputs.present == 'false' && (startsWith(github.event.pull_request.title, 'feat') || startsWith(github.event.pull_request.title, 'fix'))
         run: |
-          echo "::error::This feat/fix PR has no changeset. Run 'pnpm changeset' and commit the generated file (see RELEASING.md), or retitle the PR (e.g. chore:/ci:/docs:) if it should not be released."
+          echo "::error::This feat/fix PR has no change intent. Run 'pnpm change' and commit the generated file (see RELEASING.md), or retitle the PR (e.g. chore:/ci:/docs:) if it should not be released."
           exit 1
 
       - name: Setup pnpm and Node.js
         if: steps.detect.outputs.present == 'true'
         uses: pnpm/setup@5d160c5bc68a09337ad0d5654e237e03253b5879 # v1.0.0
         with:
-          version: 11.7.0
+          # Native release management requires pnpm >=11.13.0.
+          version: 11.13.1
           runtime: node@24
           cache: true
           install: false
 
-      - name: Install release tooling dependencies
+      - name: Validate change intents
         if: steps.detect.outputs.present == 'true'
-        run: pnpm install --frozen-lockfile --ignore-scripts
-
-      - name: Validate changesets
-        if: steps.detect.outputs.present == 'true'
-        run: pnpm exec changeset status
+        run: pnpm change status
