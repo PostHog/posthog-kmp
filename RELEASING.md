@@ -1,42 +1,42 @@
 # Releasing
 
-Releases are semi-automated using [changesets](https://github.com/changesets/changesets) and follow the [PostHog SDK releases process](https://posthog.com/handbook/engineering/sdks/releases).
+Releases are semi-automated using [pnpm's native release management](https://pnpm.io/versioning) and follow the [PostHog SDK releases process](https://posthog.com/handbook/engineering/sdks/releases).
 
 `posthog-kmp` publishes to [Maven Central](https://central.sonatype.com/artifact/com.posthog/posthog-kmp) as `com.posthog:posthog-kmp` (plus the per-target `-android`, `-jvm`, `-iosarm64`, `-iossimulatorarm64`, `-iosx64`, and `-js` variants). Consumers are Kotlin Multiplatform projects that resolve the right platform artifact through Gradle — native Swift (SPM/CocoaPods) and web (npm) are served by `posthog-ios` and `posthog-js` respectively, so they are intentionally not published here.
 
 ## How versioning works
 
-Changesets does not natively support Gradle/Maven, so the version lives in two places kept in lockstep by CI:
+pnpm's release management does not natively support Gradle/Maven, so the version lives in two places kept in lockstep by CI:
 
-- **`package.json`** — a private version carrier (`"private": true`, never published to npm). `changeset version` owns and bumps this.
+- **`package.json`** — a private version carrier (`"private": true`, never published to npm). `pnpm version -r` owns and bumps this.
 - **`version.properties`** — the source of truth the Gradle build reads. `scripts/bump-version.sh` syncs it from `package.json` during release.
 
-You never edit either by hand for a release — changesets drive the bump.
+You never edit either by hand for a release — change intents drive the bump.
 
-## Creating a changeset
+## Recording a change intent
 
-When making a change that should appear in the changelog, add a changeset:
+When making a change that should appear in the changelog, record a change intent (requires pnpm >= 11.13 — no `pnpm install` needed, the tooling is built into pnpm):
 
 ```bash
-# One-time: install the release tooling (requires Node.js + pnpm)
-pnpm install
-
 # Describe your change — pick patch / minor / major and write a summary
-pnpm changeset
+pnpm change
 ```
 
 This writes a file to `.changeset/`. **Commit it with your PR.**
 
 ## How to trigger a release
 
-1. **Add a changeset** to your PR (see above).
+1. **Add a change intent** to your PR (see above).
 2. **Merge the PR** into `main`. No release label or manual tagging is required.
 
 On merge, the `Release` workflow runs:
 
-1. **Prepare** — consumes all pending changesets, bumps `package.json`, syncs
-   `version.properties`, updates `CHANGELOG.md`, and captures the result as a
-   patch artifact (with a pinned sha256).
+1. **Prepare** — uses `pnpm version -r` to consume all pending change intents,
+   bump `package.json`, update `CHANGELOG.md` and `.changeset/ledger.yaml`.
+   `scripts/bump-version.sh` syncs `version.properties`, and the result is
+   captured as a patch artifact (with a pinned sha256). Changelog entries are
+   pnpm's plain summaries — no commit-link/author enrichment; add any thanks
+   to the intent text itself.
 2. **Verify** — re-applies the patch on a clean checkout, checks the versions
    are consistent, and checks the tag and GitHub release don't already exist.
 3. **Approval** — waits for a maintainer to approve the `Release` environment
@@ -52,11 +52,11 @@ gates every PR and push to `main`; the release publishes the approved commit.
 ## If a release fails
 
 - **Before the version-bump commit lands on `main`** (prepare, verify, or the
-  patch/publish steps up to the commit): nothing was mutated and the changesets
-  are untouched. Fix the cause and use **Re-run all jobs**, or dispatch the
-  `Release` workflow again.
+  patch/publish steps up to the commit): nothing was mutated and the change
+  intents are untouched. Fix the cause and use **Re-run all jobs**, or dispatch
+  the `Release` workflow again.
 - **After the version-bump commit** (publish, tag, or GitHub release failed):
-  the changesets are consumed, so re-running `Release` finds nothing. Run the
+  the change intents are consumed, so re-running `Release` finds nothing. Run the
   **Republish Release** workflow instead (Actions → Republish Release). It
   publishes the version already committed on `main` and creates the tag and
   GitHub release, skipping whatever already exists. Tick `skip_publish` if the

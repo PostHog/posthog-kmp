@@ -1,7 +1,7 @@
 name: "Republish Release"
 
 # Recovery tool for a release that failed AFTER the version-bump commit landed
-# on main (changesets already consumed, so re-running Release finds nothing).
+# on main (change intents already consumed, so re-running Release finds nothing).
 # Publishes the committed version and creates the tag and GitHub release,
 # skipping any of those that already exist. See RELEASING.md.
 
