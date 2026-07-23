@@ -29,7 +29,7 @@ jobs:
           java-version: '17'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92
 
       - name: Run detekt
         run: ./gradlew detekt --no-daemon
@@ -49,7 +49,7 @@ jobs:
           java-version: '17'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92
 
       - name: Run unit tests and build Android sample
         run: ./gradlew :posthog-kmp:testAndroid :sample:androidApp:assembleDebug --no-daemon
@@ -69,7 +69,7 @@ jobs:
           java-version: '17'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92
 
       - name: Run JVM tests
         run: ./gradlew :posthog-kmp:jvmTest --no-daemon
@@ -94,7 +94,7 @@ jobs:
           node-version: '20'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92
 
       - name: Build JS
         run: ./gradlew :posthog-kmp:compileKotlinJs kotlinStoreYarnLock --no-daemon
@@ -114,7 +114,7 @@ jobs:
           java-version: '17'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92
 
       - name: Cache Kotlin Native
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
@@ -147,7 +147,7 @@ jobs:
           node-version: '20'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92
 
       # Mirror the release workflow (version bump, build, tests, artifact
       # assembly) without credentials or side effects. iOS targets are
