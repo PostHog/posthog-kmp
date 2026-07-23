@@ -33,10 +33,10 @@ On merge, the `Release` workflow runs:
 
 1. **Prepare** — uses `pnpm version -r` to consume all pending change intents,
    bump `package.json`, update `CHANGELOG.md` and `.changeset/ledger.yaml`.
-   `scripts/enrich-changelog.mjs` then rewrites the new changelog entries with
-   the commit link and `— Thanks @author!` attribution (matching the previous
-   changesets format), `scripts/bump-version.sh` syncs `version.properties`,
-   and the result is captured as a patch artifact (with a pinned sha256).
+   `scripts/bump-version.sh` syncs `version.properties`, and the result is
+   captured as a patch artifact (with a pinned sha256). Changelog entries are
+   pnpm's plain summaries — no commit-link/author enrichment; add any thanks
+   to the intent text itself.
 2. **Verify** — re-applies the patch on a clean checkout, checks the versions
    are consistent, and checks the tag and GitHub release don't already exist.
 3. **Approval** — waits for a maintainer to approve the `Release` environment

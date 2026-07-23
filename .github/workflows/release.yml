@@ -85,13 +85,10 @@ jobs:
       - name: Apply change intents and update version
         id: candidate
         env:
-          # enrich-changelog resolves each intent's introducing commit author via the API
-          GH_TOKEN: ${{ github.token }}
-          # If either pinned script changes, recompute its hash with:
-          # sha256sum scripts/bump-version.sh scripts/enrich-changelog.mjs
-          # Then update the EXPECTED_* value in this workflow in the same PR.
+          # If scripts/bump-version.sh changes, recompute this with:
+          # sha256sum scripts/bump-version.sh
+          # Then update EXPECTED_BUMP_SCRIPT_SHA256 in this workflow in the same PR.
           EXPECTED_BUMP_SCRIPT_SHA256: e3c2d323ea8a2e34c13a91843771dbc0e3865f6d4615dc501706c4a814e709ac
-          EXPECTED_ENRICH_SCRIPT_SHA256: 21c30868e6e84921be38f96d7a8b3e095ff55df35cd4715e4872571aa94dc72a
         run: |
           set -euo pipefail
 
@@ -100,18 +97,11 @@ jobs:
             echo "scripts/bump-version.sh sha256 mismatch: expected $EXPECTED_BUMP_SCRIPT_SHA256, got $actual_bump_script_sha256" >&2
             exit 1
           fi
-          actual_enrich_script_sha256=$(sha256sum scripts/enrich-changelog.mjs | awk '{print $1}')
-          if [ "$actual_enrich_script_sha256" != "$EXPECTED_ENRICH_SCRIPT_SHA256" ]; then
-            echo "scripts/enrich-changelog.mjs sha256 mismatch: expected $EXPECTED_ENRICH_SCRIPT_SHA256, got $actual_enrich_script_sha256" >&2
-            exit 1
-          fi
 
           source_sha=$(git rev-parse HEAD)
           pnpm version -r
           git add --intent-to-add .changeset/ledger.yaml
           new_version=$(node -p "require('./package.json').version")
-
-          node scripts/enrich-changelog.mjs
 
           ./scripts/bump-version.sh "$new_version"
 
