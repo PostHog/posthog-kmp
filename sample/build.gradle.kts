@@ -31,6 +31,12 @@ kotlin {
         binaries.executable()
     }
 
+    @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
+    wasmJs {
+        browser()
+        binaries.executable()
+    }
+
     sourceSets {
         val commonMain by getting {
             dependencies {
@@ -51,6 +57,10 @@ kotlin {
         val iosSimulatorArm64Main by getting { dependsOn(iosMain) }
 
         val jsMain by getting {
+            dependsOn(commonMain)
+        }
+
+        getByName("wasmJsMain") {
             dependsOn(commonMain)
         }
     }

@@ -91,6 +91,12 @@ kotlin {
         binaries.library()
     }
 
+    @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
+    wasmJs {
+        browser()
+        binaries.library()
+    }
+
     jvm {
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
@@ -134,6 +140,18 @@ kotlin {
         val jsMain by getting {
             dependencies {
                 implementation(npm("posthog-js", libs.versions.posthog.js.get()))
+            }
+        }
+
+        getByName("wasmJsMain") {
+            dependencies {
+                implementation(npm("posthog-js", libs.versions.posthog.js.get()))
+            }
+        }
+
+        getByName("wasmJsTest") {
+            dependencies {
+                implementation(libs.kotlin.test)
             }
         }
 
