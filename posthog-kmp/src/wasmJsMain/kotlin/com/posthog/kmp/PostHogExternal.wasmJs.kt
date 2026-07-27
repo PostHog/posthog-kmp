@@ -14,13 +14,13 @@ internal external interface PostHogJsApi : JsAny {
     )
     fun alias(alias: String)
     fun reset()
-    fun get_distinct_id(): String
+    fun get_distinct_id(): JsAny?
     fun register(properties: JsAny)
     fun unregister(key: String)
     fun group(type: String, key: String, groupProperties: JsAny? = definedExternally)
     fun isFeatureEnabled(key: String, options: JsAny? = definedExternally): Boolean?
     fun getFeatureFlag(key: String, options: JsAny? = definedExternally): JsAny?
-    fun getAllFeatureFlags(): JsAny
+    fun getAllFeatureFlags(): JsAny?
     fun reloadFeatureFlags()
     fun onFeatureFlags(callback: () -> Unit): JsAny
     fun getFeatureFlagResult(key: String, options: JsAny? = definedExternally): JsAny?

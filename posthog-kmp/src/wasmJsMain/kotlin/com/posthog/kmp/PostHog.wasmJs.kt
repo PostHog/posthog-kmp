@@ -102,9 +102,9 @@ internal actual fun platformReset() {
     PostHogJs.reset()
 }
 
-internal actual fun platformGetDistinctId(): String? = runCatching {
-    PostHogJs.get_distinct_id()
-}.getOrNull()
+internal actual fun platformGetDistinctId(): String? = wasmCall("getDistinctId") {
+    PostHogJs.get_distinct_id()?.takeIf { isJsString(it) }?.toKotlinString()
+}
 
 internal actual fun platformRegister(key: String, value: Any) {
     val properties = createJsObject()
@@ -141,7 +141,8 @@ private fun featureFlagOptions(sendFeatureFlagEvent: Boolean): JsAny {
 }
 
 internal actual fun platformGetAllFeatureFlags(): Map<String, FeatureFlagResult> {
-    val results = PostHogJs.getAllFeatureFlags()
+    val results = wasmCall("getAllFeatureFlags") { PostHogJs.getAllFeatureFlags() } ?: return emptyMap()
+    if (!isJsArray(results)) return emptyMap()
     return buildMap {
         repeat(jsArrayLength(results)) { index ->
             val result = jsArrayItem(results, index) ?: return@repeat
@@ -187,7 +188,11 @@ private fun JsAny.toFeatureFlagResult(): FeatureFlagResult? {
 
 internal actual fun platformCaptureException(throwable: Throwable, additionalProperties: Map<String, Any>?) {
     PostHogJs.captureException(
-        createJsError(throwable.message ?: throwable.toString(), throwable.stackTraceToString()),
+        createJsError(
+            throwable::class.simpleName ?: "Error",
+            throwable.message ?: throwable.toString(),
+            throwable.stackTraceToString()
+        ),
         additionalProperties?.toJsObject()
     )
 }
@@ -290,7 +295,8 @@ private fun JsAny.toKotlinMap(): Map<String, Any?> {
 private fun createJsObject(): JsAny = js("({})")
 private fun createJsArray(): JsAny = js("([])")
 private fun createJsDate(timestamp: Double): JsAny = js("new Date(timestamp)")
-private fun createJsError(message: String, stack: String): JsAny = js("Object.assign(new Error(message), { stack: stack })")
+private fun createJsError(name: String, message: String, stack: String): JsAny =
+    js("Object.assign(new Error(message), { name: name, stack: stack })")
 private fun numberToJsAny(value: Double): JsAny = js("value")
 private fun setJsProperty(target: JsAny, key: String, value: JsAny?): Unit = js("{ target[key] = value; }")
 private fun getJsProperty(target: JsAny, key: String): JsAny? = js("target[key]")

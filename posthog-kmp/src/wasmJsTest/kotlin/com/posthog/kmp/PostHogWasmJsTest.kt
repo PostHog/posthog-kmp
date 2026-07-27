@@ -129,11 +129,32 @@ class PostHogWasmJsTest {
 
         PostHog.reloadFeatureFlags { callbackCount++ }
 
-        // onFeatureFlags fires synchronously at registration (stale values); only the
-        // post-reload fire may reach the callback, and the listener must unsubscribe after
         assertEquals(1, callbackCount)
         assertEquals(1.0, readNumber(fakePostHog, "reloadCount"))
         assertTrue(readBoolean(fakePostHog, "unsubscribed"))
+    }
+
+    @Test
+    fun getAllFeatureFlagsReturnsEmptyMapWhenFlagsAreUnavailable() {
+        mockPostHogWasmJs = createUninitializedFakePostHog()
+
+        assertEquals(emptyMap(), PostHog.getAllFeatureFlags())
+    }
+
+    @Test
+    fun getDistinctIdReturnsNullWhenUnavailable() {
+        mockPostHogWasmJs = createUninitializedFakePostHog()
+
+        assertEquals(null, PostHog.getDistinctId())
+    }
+
+    @Test
+    fun captureExceptionPreservesTypeMessageAndStack() {
+        PostHog.captureException(IllegalStateException("checkout blew up"))
+
+        assertEquals("IllegalStateException", readNestedString(fakePostHog, "capturedError", "name"))
+        assertEquals("checkout blew up", readNestedString(fakePostHog, "capturedError", "message"))
+        assertTrue(readNestedString(fakePostHog, "capturedError", "stack").isNotEmpty())
     }
 
     @Test
@@ -189,12 +210,20 @@ private fun createFakePostHog(): PostHogJsApi = js(
             },
             getAllFeatureFlags() {
                 return [{ key: 'checkout-flow', enabled: true, variant: 'test', payload: { color: 'blue' } }];
+            },
+            captureException(error, additionalProperties) {
+                this.capturedError = error;
+                this.capturedErrorProperties = additionalProperties;
             }
         };
         fake._requestQueue = { unload() { fake.requestQueueUnloaded = true; } };
         fake._retryQueue = { unload() { fake.retryQueueUnloaded = true; } };
         return fake;
     })()"""
+)
+
+private fun createUninitializedFakePostHog(): PostHogJsApi = js(
+    "({ getAllFeatureFlags() { return undefined; }, get_distinct_id() { return undefined; } })"
 )
 
 private fun readString(target: PostHogJsApi, key: String): String = js("target[key]")
