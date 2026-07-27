@@ -92,37 +92,114 @@ class PostHogWasmJsTest {
         assertFalse(readNestedBoolean(fakePostHog, "featureFlagOptions", "send_event"))
         assertEquals(result, allResults["checkout-flow"])
     }
+
+    @Test
+    fun screenCapturesScreenEventWithName() {
+        PostHog.screen(screenName = "Checkout", properties = mapOf("section" to "demo"))
+
+        assertEquals("\$screen", readString(fakePostHog, "event"))
+        assertEquals("Checkout", readNestedString(fakePostHog, "properties", "\$screen_name"))
+        assertEquals("demo", readNestedString(fakePostHog, "properties", "section"))
+    }
+
+    @Test
+    fun identifyRoutesDistinctIdAndProperties() {
+        PostHog.identify(
+            distinctId = "user_42",
+            userProperties = mapOf("plan" to "scale"),
+            userPropertiesSetOnce = mapOf("signup_source" to "wasm")
+        )
+
+        assertEquals("user_42", readString(fakePostHog, "distinctId"))
+        assertEquals("scale", readNestedString(fakePostHog, "userProperties", "plan"))
+        assertEquals("wasm", readNestedString(fakePostHog, "userPropertiesSetOnce", "signup_source"))
+    }
+
+    @Test
+    fun flushDrainsRequestAndRetryQueues() {
+        PostHog.flush()
+
+        assertTrue(readBoolean(fakePostHog, "requestQueueUnloaded"))
+        assertTrue(readBoolean(fakePostHog, "retryQueueUnloaded"))
+    }
+
+    @Test
+    fun reloadFeatureFlagsCallbackIgnoresStaleImmediateFire() {
+        var callbackCount = 0
+
+        PostHog.reloadFeatureFlags { callbackCount++ }
+
+        // onFeatureFlags fires synchronously at registration (stale values); only the
+        // post-reload fire may reach the callback, and the listener must unsubscribe after
+        assertEquals(1, callbackCount)
+        assertEquals(1.0, readNumber(fakePostHog, "reloadCount"))
+        assertTrue(readBoolean(fakePostHog, "unsubscribed"))
+    }
+
+    @Test
+    fun optOutOptInAndResetRouteToPostHogJs() {
+        PostHog.optOut()
+        assertTrue(readBoolean(fakePostHog, "optedOut"))
+
+        PostHog.optIn()
+        assertTrue(readBoolean(fakePostHog, "optedIn"))
+
+        PostHog.reset()
+        assertEquals(1.0, readNumber(fakePostHog, "resetCalls"))
+    }
 }
 
 private fun createFakePostHog(): PostHogJsApi = js(
-    """({
-        init(apiKey, options) {
-            this.apiKey = apiKey;
-            this.options = options;
-            return this;
-        },
-        _overrideSDKInfo(sdkName, sdkVersion) {
-            this.sdkName = sdkName;
-            this.sdkVersion = sdkVersion;
-        },
-        opt_out_capturing() { this.optedOut = true; },
-        capture(event, properties, options) {
-            this.event = event;
-            this.properties = properties;
-            this.captureOptions = options;
-        },
-        getFeatureFlagResult(key, options) {
-            this.featureFlagOptions = options;
-            return { key: key, enabled: true, variant: 'test', payload: { color: 'blue' } };
-        },
-        getAllFeatureFlags() {
-            return [{ key: 'checkout-flow', enabled: true, variant: 'test', payload: { color: 'blue' } }];
-        }
-    })"""
+    """(() => {
+        const fake = {
+            init(apiKey, options) {
+                this.apiKey = apiKey;
+                this.options = options;
+                return this;
+            },
+            _overrideSDKInfo(sdkName, sdkVersion) {
+                this.sdkName = sdkName;
+                this.sdkVersion = sdkVersion;
+            },
+            opt_out_capturing() { this.optedOut = true; },
+            opt_in_capturing() { this.optedIn = true; },
+            reset() { this.resetCalls = (this.resetCalls || 0) + 1; },
+            capture(event, properties, options) {
+                this.event = event;
+                this.properties = properties;
+                this.captureOptions = options;
+            },
+            identify(distinctId, userProperties, userPropertiesSetOnce) {
+                this.distinctId = distinctId;
+                this.userProperties = userProperties;
+                this.userPropertiesSetOnce = userPropertiesSetOnce;
+            },
+            onFeatureFlags(callback) {
+                this.flagsCallback = callback;
+                callback();
+                return () => { this.unsubscribed = true; };
+            },
+            reloadFeatureFlags() {
+                this.reloadCount = (this.reloadCount || 0) + 1;
+                if (this.flagsCallback) this.flagsCallback();
+            },
+            getFeatureFlagResult(key, options) {
+                this.featureFlagOptions = options;
+                return { key: key, enabled: true, variant: 'test', payload: { color: 'blue' } };
+            },
+            getAllFeatureFlags() {
+                return [{ key: 'checkout-flow', enabled: true, variant: 'test', payload: { color: 'blue' } }];
+            }
+        };
+        fake._requestQueue = { unload() { fake.requestQueueUnloaded = true; } };
+        fake._retryQueue = { unload() { fake.retryQueueUnloaded = true; } };
+        return fake;
+    })()"""
 )
 
 private fun readString(target: PostHogJsApi, key: String): String = js("target[key]")
 private fun readBoolean(target: PostHogJsApi, key: String): Boolean = js("target[key]")
+private fun readNumber(target: PostHogJsApi, key: String): Double = js("target[key]")
 private fun readNestedString(target: PostHogJsApi, parent: String, key: String): String = js("target[parent][key]")
 private fun readNestedBoolean(target: PostHogJsApi, parent: String, key: String): Boolean = js("target[parent][key]")
 private fun readNestedNumber(target: PostHogJsApi, parent: String, key: String): Double = js("target[parent][key]")
