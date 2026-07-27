@@ -2,7 +2,7 @@
 
 Releases are semi-automated using [pnpm's native release management](https://pnpm.io/versioning) and follow the [PostHog SDK releases process](https://posthog.com/handbook/engineering/sdks/releases).
 
-`posthog-kmp` publishes to [Maven Central](https://central.sonatype.com/artifact/com.posthog/posthog-kmp) as `com.posthog:posthog-kmp` (plus the per-target `-android`, `-jvm`, `-iosarm64`, `-iossimulatorarm64`, `-iosx64`, and `-js` variants). Consumers are Kotlin Multiplatform projects that resolve the right platform artifact through Gradle — native Swift (SPM/CocoaPods) and web (npm) are served by `posthog-ios` and `posthog-js` respectively, so they are intentionally not published here.
+`posthog-kmp` publishes to [Maven Central](https://central.sonatype.com/artifact/com.posthog/posthog-kmp) as `com.posthog:posthog-kmp` (plus the per-target `-android`, `-jvm`, `-iosarm64`, `-iossimulatorarm64`, `-iosx64`, `-js`, and `-wasm-js` variants). Kotlin Multiplatform consumers resolve the right platform artifact through Gradle. Native Swift and JavaScript consumers should continue using `posthog-ios` and `posthog-js` directly; those non-KMP packages are intentionally not published here.
 
 ## How versioning works
 

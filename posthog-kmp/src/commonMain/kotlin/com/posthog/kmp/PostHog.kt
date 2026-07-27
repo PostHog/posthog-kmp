@@ -5,7 +5,7 @@ import kotlin.concurrent.Volatile
 /**
  * PostHog Kotlin Multiplatform SDK
  *
- * A cross-platform analytics SDK for PostHog that works on Android, iOS, and Web (JS).
+ * A cross-platform analytics SDK for PostHog that works on Android, iOS, JVM, and Web (JS and Wasm).
  *
  * ## Basic Usage
  *
