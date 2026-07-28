@@ -1,5 +1,11 @@
 # posthog-kmp
 
+## 0.2.0
+
+### Minor Changes
+
+- Add Kotlin/Wasm browser support backed by posthog-js.
+
 ## 0.1.0 — 2026-07-16
 
 ### Minor changes
