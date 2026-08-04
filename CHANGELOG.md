@@ -1,5 +1,11 @@
 # posthog-kmp
 
+## 0.2.1
+
+### Patch Changes
+
+- Fix Compose Desktop release networking with a compatible Okio version and document the required packaging configuration.
+
 ## 0.2.0
 
 ### Minor Changes
