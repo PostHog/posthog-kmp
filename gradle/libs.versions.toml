@@ -7,6 +7,7 @@ androidx-activity-compose = "1.13.0"
 posthog-android = "3.55.2"
 # Pure-JVM core that posthog-android is built on (versioned independently of posthog-android)
 posthog-core = "6.26.1"
+okio = "3.18.1"
 posthog-ios = "3.64.1"
 posthog-js = "1.398.7"
 mavenPublish = "0.37.0"
@@ -26,7 +27,7 @@ kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", versio
 # PostHog SDKs
 posthog-android = { group = "com.posthog", name = "posthog-android", version.ref = "posthog-android" }
 posthog-core = { group = "com.posthog", name = "posthog", version.ref = "posthog-core" }
-
+okio-jvm = { group = "com.squareup.okio", name = "okio-jvm", version.ref = "okio" }
 
 # Testing
 kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test", version.ref = "kotlin-test" }

@@ -2,4 +2,4 @@
 'posthog-kmp': patch
 ---
 
-Document the required Compose Desktop release configuration and add a working macOS sample package.
+Fix Compose Desktop release networking with a compatible Okio version and document the required packaging configuration.

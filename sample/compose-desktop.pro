@@ -3,9 +3,6 @@
 -keep class com.posthog.** { *; }
 -keep class com.google.gson.** { *; }
 
-# Compose Desktop's ProGuard optimizer can produce invalid Okio bridge return types.
--keep class okio.** { *; }
-
 # OkHttp probes optional platform and TLS provider classes at runtime.
 -dontwarn android.**
 -dontwarn dalvik.**

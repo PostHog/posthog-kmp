@@ -155,8 +155,12 @@ kotlin {
             }
         }
 
-        val jvmMain by getting {
+        getByName("jvmMain") {
             dependsOn(jvmCommonMain)
+            dependencies {
+                // Okio 3.6.0 can produce invalid bytecode when optimized by Compose Desktop's ProGuard.
+                implementation(libs.okio.jvm)
+            }
         }
     }
 }
