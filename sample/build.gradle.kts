@@ -1,3 +1,5 @@
+import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidKmpLibrary)
@@ -37,6 +39,8 @@ kotlin {
         binaries.executable()
     }
 
+    jvm()
+
     sourceSets {
         val commonMain by getting {
             dependencies {
@@ -62,6 +66,29 @@ kotlin {
 
         getByName("wasmJsMain") {
             dependsOn(commonMain)
+        }
+
+        getByName("jvmMain") {
+            dependencies {
+                implementation(compose.desktop.currentOs)
+            }
+        }
+    }
+}
+
+compose.desktop {
+    application {
+        mainClass = "com.posthog.kmp.sample.MainKt"
+
+        buildTypes.release.proguard {
+            configurationFiles.from(project.file("compose-desktop.pro"))
+        }
+
+        nativeDistributions {
+            targetFormats(TargetFormat.Dmg)
+            modules("jdk.unsupported")
+            packageName = "PostHog KMP Sample"
+            packageVersion = "1.0.0"
         }
     }
 }
