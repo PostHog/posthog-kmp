@@ -6,7 +6,7 @@ compose-multiplatform = "1.11.1"
 androidx-activity-compose = "1.13.0"
 posthog-android = "3.55.2"
 # Pure-JVM core that posthog-android is built on (versioned independently of posthog-android)
-posthog-core = "6.26.1"
+posthog-core = "6.27.0"
 okio = "3.18.1"
 posthog-ios = "3.64.1"
 posthog-js = "1.398.7"
