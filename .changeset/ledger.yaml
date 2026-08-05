@@ -6,3 +6,7 @@ posthog-kmp@0.2.1:
   dir: ""
   intents:
     - calm-pumas-report
+posthog-kmp@0.2.2:
+  dir: ""
+  intents:
+    - swift-dingos-update
