@@ -5,6 +5,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      release-tooling:
+        patterns:
+          - "*"
     cooldown:
       default-days: 7
     commit-message:
@@ -16,6 +20,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
     cooldown:
       default-days: 7
     commit-message:
@@ -27,6 +35,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      gradle-dependencies:
+        patterns:
+          - "*"
     cooldown:
       default-days: 7
     commit-message:
