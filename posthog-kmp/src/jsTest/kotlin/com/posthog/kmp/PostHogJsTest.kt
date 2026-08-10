@@ -297,8 +297,7 @@ class PostHogJsTest {
             calledMethods.add("init" to arrayOf<dynamic>(apiKey, options))
         }
         PostHog.setup(
-            PostHogConfig(
-                apiKey = "key",
+            PostHogConfig(apiKey = "key").apply {
                 beforeSend = listOf(
                     PostHogBeforeSend {
                         it.copy(
@@ -308,7 +307,7 @@ class PostHogJsTest {
                         )
                     }
                 )
-            ),
+            },
             PostHogContext()
         )
         val callback = getCall("init")[1]["before_send"]
@@ -320,6 +319,8 @@ class PostHogJsTest {
         assertEquals("anonymous", result.properties.distinct_id as String)
         assertNull(result.properties.email)
         assertEquals("paid", result.properties.plan as String)
+        assertNull(callback(js("({ event: 'checkout', properties: {} })")))
+        assertNull(callback(js("({ properties: { distinct_id: 'user-1' } })")))
     }
 
     @Test

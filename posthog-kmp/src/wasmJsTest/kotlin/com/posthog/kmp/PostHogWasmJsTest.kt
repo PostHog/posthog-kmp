@@ -9,6 +9,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class PostHogWasmJsTest {
@@ -57,8 +58,7 @@ class PostHogWasmJsTest {
     @Test
     fun setupMapsBeforeSendToPostHogJs() {
         PostHog.setup(
-            PostHogConfig(
-                apiKey = "phc_test",
+            PostHogConfig(apiKey = "phc_test").apply {
                 beforeSend = listOf(
                     PostHogBeforeSend {
                         it.copy(
@@ -68,7 +68,7 @@ class PostHogWasmJsTest {
                         )
                     }
                 )
-            ),
+            },
             PostHogContext()
         )
 
@@ -78,6 +78,8 @@ class PostHogWasmJsTest {
         assertEquals("anonymous", readDeepJsString(result, "properties", "distinct_id"))
         assertEquals("paid", readDeepJsString(result, "properties", "plan"))
         assertFalse(hasDeepJsProperty(result, "properties", "email"))
+        assertNull(invokeBeforeSendWithoutDistinctId(fakePostHog))
+        assertNull(invokeBeforeSendWithoutEvent(fakePostHog))
     }
 
     @Test
@@ -264,6 +266,10 @@ private fun readArrayString(target: PostHogJsApi, parent: String, child: String,
 private fun readTimestamp(target: PostHogJsApi): Double = js("target.captureOptions.timestamp.getTime()")
 private fun invokeBeforeSend(target: PostHogJsApi): JsAny =
     js("target.options.before_send({ event: 'checkout', properties: { distinct_id: 'user-1', email: 'person@example.com', plan: 'paid' } })")
+private fun invokeBeforeSendWithoutDistinctId(target: PostHogJsApi): JsAny? =
+    js("target.options.before_send({ event: 'checkout', properties: {} })")
+private fun invokeBeforeSendWithoutEvent(target: PostHogJsApi): JsAny? =
+    js("target.options.before_send({ properties: { distinct_id: 'user-1' } })")
 private fun readJsString(target: JsAny, key: String): String = js("target[key]")
 private fun readDeepJsString(target: JsAny, parent: String, key: String): String = js("target[parent][key]")
 private fun hasDeepJsProperty(target: JsAny, parent: String, key: String): Boolean =

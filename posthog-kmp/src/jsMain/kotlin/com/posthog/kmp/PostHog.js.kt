@@ -318,15 +318,20 @@ private fun logError(operation: String, error: Throwable) {
 private fun processBeforeSend(config: PostHogConfig, captureResult: dynamic): dynamic {
     if (captureResult == null || captureResult == undefined) return null
 
-    val event = captureResult.event as? String ?: return captureResult
-    val properties = dynamicToMap(captureResult.properties)
-    val distinctId = properties["distinct_id"] as? String ?: return captureResult
-    val processed = config.runBeforeSend(PostHogEvent(event, distinctId, properties - "distinct_id")) ?: return null
+    val event = dynamicToPostHogEvent(captureResult) ?: return null
+    val processed = config.runBeforeSend(event) ?: return null
 
     captureResult.event = processed.event
     captureResult.properties = processed.properties.toJsObject()
     captureResult.properties["distinct_id"] = processed.distinctId
     return captureResult
+}
+
+private fun dynamicToPostHogEvent(captureResult: dynamic): PostHogEvent? {
+    val event = captureResult.event as? String ?: return null
+    val properties = dynamicToMap(captureResult.properties)
+    val distinctId = properties["distinct_id"] as? String ?: return null
+    return PostHogEvent(event, distinctId, properties - "distinct_id")
 }
 
 private fun dynamicToMap(value: dynamic): Map<String, Any> {

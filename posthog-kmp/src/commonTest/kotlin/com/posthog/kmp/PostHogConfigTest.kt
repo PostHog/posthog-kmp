@@ -28,15 +28,14 @@ class PostHogConfigTest {
 
     @Test
     fun beforeSendCallbacksRunInOrder() {
-        val config = PostHogConfig(
-            apiKey = "phc_test",
+        val config = PostHogConfig(apiKey = "phc_test").apply {
             beforeSend = listOf(
                 PostHogBeforeSend { it.copy(properties = it.properties + ("first" to true)) },
                 PostHogBeforeSend {
                     it.copy(properties = it.properties + ("saw_first" to it.properties.containsKey("first")))
                 }
             )
-        )
+        }
 
         val result = config.runBeforeSend(PostHogEvent("checkout", "user-1", emptyMap()))
 
@@ -46,8 +45,7 @@ class PostHogConfigTest {
     @Test
     fun beforeSendStopsAfterDroppedEvent() {
         var finalCallbackCalled = false
-        val config = PostHogConfig(
-            apiKey = "phc_test",
+        val config = PostHogConfig(apiKey = "phc_test").apply {
             beforeSend = listOf(
                 PostHogBeforeSend { null },
                 PostHogBeforeSend {
@@ -55,7 +53,7 @@ class PostHogConfigTest {
                     it
                 }
             )
-        )
+        }
 
         assertNull(config.runBeforeSend(PostHogEvent("checkout", "user-1", emptyMap())))
         assertEquals(false, finalCallbackCalled)

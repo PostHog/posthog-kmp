@@ -37,9 +37,11 @@ public data class PostHogConfig(
     val optOut: Boolean = false,
     val personProfiles: PersonProfiles = PersonProfiles.IDENTIFIED_ONLY,
     val sessionRecording: SessionRecordingConfig? = null,
-    val autocapture: Boolean = false,
-    val beforeSend: List<PostHogBeforeSend> = emptyList()
+    val autocapture: Boolean = false
 ) {
+    /** Synchronous callbacks that can modify or drop events before they are queued. */
+    public var beforeSend: List<PostHogBeforeSend> = emptyList()
+
     public companion object {
         /** PostHog US Cloud instance */
         public const val HOST_US: String = "https://us.i.posthog.com"

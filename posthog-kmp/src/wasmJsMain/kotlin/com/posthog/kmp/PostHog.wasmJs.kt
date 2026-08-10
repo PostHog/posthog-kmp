@@ -191,7 +191,7 @@ private fun JsAny.toFeatureFlagResult(): FeatureFlagResult? {
 
 private fun processBeforeSend(config: PostHogConfig, captureResult: JsAny?): JsAny? {
     captureResult ?: return null
-    val event = captureResult.toPostHogEvent() ?: return captureResult
+    val event = captureResult.toPostHogEvent() ?: return null
     val processed = config.runBeforeSend(event) ?: return null
 
     val processedProperties = processed.properties.toJsObject()
