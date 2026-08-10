@@ -8,6 +8,26 @@ internal var postHogInstance: PostHogInterface? = null
 
 internal const val SDK_NAME = "posthog-kmp"
 
+internal fun com.posthog.PostHogConfig.configureBeforeSend(config: PostHogConfig) {
+    if (config.beforeSend.isEmpty()) return
+
+    addBeforeSend { event ->
+        config.runBeforeSend(
+            PostHogEvent(
+                event = event.event,
+                distinctId = event.distinctId,
+                properties = event.properties.orEmpty()
+            )
+        )?.let { processed ->
+            event.copy(
+                event = processed.event,
+                distinctId = processed.distinctId,
+                properties = processed.properties.toMutableMap()
+            )
+        }
+    }
+}
+
 internal actual fun platformCapture(
     event: String,
     properties: Map<String, Any>?,

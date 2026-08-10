@@ -292,6 +292,37 @@ class PostHogJsTest {
     }
 
     @Test
+    fun testSetupMapsBeforeSendToPostHogJs() {
+        fakeJs.init = { apiKey: String, options: dynamic ->
+            calledMethods.add("init" to arrayOf<dynamic>(apiKey, options))
+        }
+        PostHog.setup(
+            PostHogConfig(
+                apiKey = "key",
+                beforeSend = listOf(
+                    PostHogBeforeSend {
+                        it.copy(
+                            event = "sanitized",
+                            distinctId = "anonymous",
+                            properties = it.properties - "email"
+                        )
+                    }
+                )
+            ),
+            PostHogContext()
+        )
+        val callback = getCall("init")[1]["before_send"]
+        val captureResult = js("({ event: 'checkout', properties: { distinct_id: 'user-1', email: 'person@example.com', plan: 'paid' } })")
+
+        val result = callback(captureResult)
+
+        assertEquals("sanitized", result.event as String)
+        assertEquals("anonymous", result.properties.distinct_id as String)
+        assertNull(result.properties.email)
+        assertEquals("paid", result.properties.plan as String)
+    }
+
+    @Test
     fun testGetFeatureFlagResultRoutesCorrectly() {
         PostHog.getFeatureFlagResult("test_flag")
         val call = getCall("getFeatureFlagResult")

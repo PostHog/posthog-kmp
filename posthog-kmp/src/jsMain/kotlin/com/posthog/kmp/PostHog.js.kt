@@ -40,6 +40,12 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
     options["persistence"] = "localStorage"
     options["defaults"] = "2026-05-30"
     options["bootstrap"] = js("{}")
+
+    if (config.beforeSend.isNotEmpty()) {
+        options["before_send"] = { captureResult: dynamic ->
+            processBeforeSend(config, captureResult)
+        }
+    }
     
     options["person_profiles"] = when (config.personProfiles) {
         PersonProfiles.ALWAYS -> "always"
@@ -307,6 +313,48 @@ internal actual fun platformSetDebug(enabled: Boolean) {
 
 private fun logError(operation: String, error: Throwable) {
     console.error("[PostHog] $operation failed", error)
+}
+
+private fun processBeforeSend(config: PostHogConfig, captureResult: dynamic): dynamic {
+    if (captureResult == null || captureResult == undefined) return null
+
+    val event = captureResult.event as? String ?: return captureResult
+    val properties = dynamicToMap(captureResult.properties)
+    val distinctId = properties["distinct_id"] as? String ?: return captureResult
+    val processed = config.runBeforeSend(PostHogEvent(event, distinctId, properties - "distinct_id")) ?: return null
+
+    captureResult.event = processed.event
+    captureResult.properties = processed.properties.toJsObject()
+    captureResult.properties["distinct_id"] = processed.distinctId
+    return captureResult
+}
+
+private fun dynamicToMap(value: dynamic): Map<String, Any> {
+    if (value == null || value == undefined) return emptyMap()
+    val keys: Array<String> = js("Object.keys(value)")
+    return buildMap {
+        for (key in keys) {
+            dynamicToKotlinValue(value[key])?.let { put(key, it) }
+        }
+    }
+}
+
+private fun dynamicToKotlinValue(value: dynamic): Any? {
+    if (value == null || value == undefined) return null
+    return when (jsTypeOf(value)) {
+        "string", "boolean", "number" -> value
+        "object" -> when {
+            js("Array.isArray(value)") as Boolean -> {
+                val length = value.length as Int
+                List(length) { index -> dynamicToKotlinValue(value[index]) }
+            }
+            js("Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null") as Boolean -> {
+                dynamicToMap(value)
+            }
+            else -> value
+        }
+        else -> value
+    }
 }
 
 private fun Map<String, Any?>.toJsObject(): dynamic {

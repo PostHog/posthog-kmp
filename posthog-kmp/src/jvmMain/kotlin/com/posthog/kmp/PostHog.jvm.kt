@@ -32,6 +32,7 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         optOut = config.optOut
 
         personProfiles = config.personProfiles.toCorePersonProfiles()
+        configureBeforeSend(config)
     }
 
     val home = System.getProperty("user.home")?.takeIf { it.isNotBlank() }

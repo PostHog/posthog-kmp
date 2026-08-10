@@ -25,6 +25,9 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
 
     val bootstrap = createJsObject()
     setJsProperty(options, "bootstrap", bootstrap)
+    if (config.beforeSend.isNotEmpty()) {
+        setBeforeSendCallback(options) { captureResult -> processBeforeSend(config, captureResult) }
+    }
     config.sessionRecording?.takeIf { it.enabled }?.let { configureSessionRecording(options, it) }
 
     PostHogJs.init(config.apiKey, options)
@@ -186,6 +189,28 @@ private fun JsAny.toFeatureFlagResult(): FeatureFlagResult? {
     return FeatureFlagResult(key = key, enabled = enabled, variant = variant, payload = payload)
 }
 
+private fun processBeforeSend(config: PostHogConfig, captureResult: JsAny?): JsAny? {
+    captureResult ?: return null
+    val event = captureResult.toPostHogEvent() ?: return captureResult
+    val processed = config.runBeforeSend(event) ?: return null
+
+    val processedProperties = processed.properties.toJsObject()
+    setJsProperty(processedProperties, "distinct_id", processed.distinctId.toJsString())
+    setJsProperty(captureResult, "event", processed.event.toJsString())
+    setJsProperty(captureResult, "properties", processedProperties)
+    return captureResult
+}
+
+private fun JsAny.toPostHogEvent(): PostHogEvent? {
+    val event = getJsProperty(this, "event")?.toKotlinString() ?: return null
+    val jsProperties = getJsProperty(this, "properties") ?: return null
+    val properties = jsProperties.toKotlinMap().mapNotNull { (key, value) ->
+        value?.let { key to it }
+    }.toMap()
+    val distinctId = properties["distinct_id"] as? String ?: return null
+    return PostHogEvent(event, distinctId, properties - "distinct_id")
+}
+
 internal actual fun platformCaptureException(throwable: Throwable, additionalProperties: Map<String, Any>?) {
     PostHogJs.captureException(
         createJsError(
@@ -299,6 +324,8 @@ private fun createJsError(name: String, message: String, stack: String): JsAny =
     js("Object.assign(new Error(message), { name: name, stack: stack })")
 private fun numberToJsAny(value: Double): JsAny = js("value")
 private fun setJsProperty(target: JsAny, key: String, value: JsAny?): Unit = js("{ target[key] = value; }")
+private fun setBeforeSendCallback(target: JsAny, callback: (JsAny?) -> JsAny?): Unit =
+    js("{ target.before_send = callback; }")
 private fun getJsProperty(target: JsAny, key: String): JsAny? = js("target[key]")
 private fun appendJsArray(target: JsAny, value: JsAny?): Unit = js("{ target.push(value); }")
 private fun jsArrayLength(value: JsAny): Int = js("value.length")

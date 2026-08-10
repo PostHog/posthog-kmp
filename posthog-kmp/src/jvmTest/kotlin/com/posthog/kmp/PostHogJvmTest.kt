@@ -1,5 +1,7 @@
 package com.posthog.kmp
 
+import java.util.Date
+import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -202,5 +204,42 @@ class PostHogJvmTest {
     fun testSetPersonPropertiesRoutesCorrectly() {
         PostHog.setPersonProperties(mapOf("plan" to "premium"), mapOf("first_login" to true))
         assertMethodCalled("setPersonProperties", mapOf("plan" to "premium"), mapOf("first_login" to true))
+    }
+
+    @Test
+    fun testBeforeSendDelegatesToNativeConfigAndPreservesMetadata() {
+        val wrapperConfig = PostHogConfig(
+            apiKey = "key",
+            beforeSend = listOf(
+                PostHogBeforeSend {
+                    it.copy(
+                        event = "sanitized",
+                        distinctId = "anonymous",
+                        properties = it.properties - "email"
+                    )
+                }
+            )
+        )
+        val nativeConfig = com.posthog.PostHogConfig(apiKey = "key")
+        nativeConfig.configureBeforeSend(wrapperConfig)
+        val timestamp = Date(1234)
+        val uuid = UUID.randomUUID()
+
+        val result = nativeConfig.beforeSendList.single().run(
+            com.posthog.PostHogEvent(
+                event = "checkout",
+                distinctId = "user-1",
+                properties = mutableMapOf("email" to "person@example.com", "plan" to "paid"),
+                timestamp = timestamp,
+                uuid = uuid
+            )
+        )
+
+        assertEquals("sanitized", result?.event)
+        assertEquals("anonymous", result?.distinctId)
+        assertEquals("paid", result?.properties?.get("plan"))
+        assertEquals(false, result?.properties?.containsKey("email"))
+        assertEquals(timestamp, result?.timestamp)
+        assertEquals(uuid, result?.uuid)
     }
 }

@@ -37,7 +37,8 @@ import PostHog
         sessionRecordingCaptureLogs: Bool = false,
         sessionRecordingScreenshotMode: Bool = false,
         autocapture: Bool = false,
-        sdkVersion: String = "unknown"
+        sdkVersion: String = "unknown",
+        beforeSend: ((NSDictionary) -> NSDictionary?)? = nil
     ) {
         let config = PostHogConfig(apiKey: apiKey, host: host)
 
@@ -78,6 +79,28 @@ import PostHog
         }
 
         #endif
+
+        if let beforeSend {
+            config.setBeforeSend { event in
+                let transformed = beforeSend([
+                    "event": event.event,
+                    "distinctId": event.distinctId,
+                    "properties": event.properties,
+                ])
+                guard let transformed else { return nil }
+
+                if let eventName = transformed["event"] as? String {
+                    event.event = eventName
+                }
+                if let distinctId = transformed["distinctId"] as? String {
+                    event.distinctId = distinctId
+                }
+                if let properties = transformed["properties"] as? [String: Any] {
+                    event.properties = properties
+                }
+                return event
+            }
+        }
 
         postHogSdkName = "posthog-kmp"
         postHogVersion = sdkVersion

@@ -55,6 +55,32 @@ class PostHogWasmJsTest {
     }
 
     @Test
+    fun setupMapsBeforeSendToPostHogJs() {
+        PostHog.setup(
+            PostHogConfig(
+                apiKey = "phc_test",
+                beforeSend = listOf(
+                    PostHogBeforeSend {
+                        it.copy(
+                            event = "sanitized",
+                            distinctId = "anonymous",
+                            properties = it.properties - "email"
+                        )
+                    }
+                )
+            ),
+            PostHogContext()
+        )
+
+        val result = invokeBeforeSend(fakePostHog)
+
+        assertEquals("sanitized", readJsString(result, "event"))
+        assertEquals("anonymous", readDeepJsString(result, "properties", "distinct_id"))
+        assertEquals("paid", readDeepJsString(result, "properties", "plan"))
+        assertFalse(hasDeepJsProperty(result, "properties", "email"))
+    }
+
+    @Test
     fun captureConvertsPropertiesGroupsAndTimestamp() {
         PostHog.capture(
             event = "checkout",
@@ -236,3 +262,9 @@ private fun readDeepString(target: PostHogJsApi, parent: String, child: String, 
 private fun readDeepBoolean(target: PostHogJsApi, parent: String, child: String, key: String): Boolean = js("target[parent][child][key]")
 private fun readArrayString(target: PostHogJsApi, parent: String, child: String, index: Int): String = js("target[parent][child][index]")
 private fun readTimestamp(target: PostHogJsApi): Double = js("target.captureOptions.timestamp.getTime()")
+private fun invokeBeforeSend(target: PostHogJsApi): JsAny =
+    js("target.options.before_send({ event: 'checkout', properties: { distinct_id: 'user-1', email: 'person@example.com', plan: 'paid' } })")
+private fun readJsString(target: JsAny, key: String): String = js("target[key]")
+private fun readDeepJsString(target: JsAny, parent: String, key: String): String = js("target[parent][key]")
+private fun hasDeepJsProperty(target: JsAny, parent: String, key: String): Boolean =
+    js("Object.prototype.hasOwnProperty.call(target[parent], key)")

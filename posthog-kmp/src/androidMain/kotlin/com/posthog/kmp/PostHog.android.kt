@@ -27,6 +27,7 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         optOut = config.optOut
 
         personProfiles = config.personProfiles.toCorePersonProfiles()
+        configureBeforeSend(config)
 
         config.sessionRecording?.let { sessionConfig ->
             sessionReplay = sessionConfig.enabled
