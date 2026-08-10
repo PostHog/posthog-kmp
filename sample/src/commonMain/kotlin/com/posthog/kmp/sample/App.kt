@@ -9,6 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.posthog.kmp.PostHog
+import com.posthog.kmp.PostHogBeforeSend
 import com.posthog.kmp.PostHogConfig
 import com.posthog.kmp.PostHogContext
 
@@ -94,7 +95,20 @@ fun App(postHogContext: PostHogContext) {
                                 config = PostHogConfig(
                                     apiKey = apiKey,
                                     debug = true,
-                                ),
+                                ).apply {
+                                    beforeSend = listOf(
+                                        PostHogBeforeSend { event ->
+                                            if (event.event == "before_send_drop_test") {
+                                                null
+                                            } else {
+                                                event.copy(
+                                                    properties = event.properties - "sensitive" +
+                                                        ("before_send_applied" to true)
+                                                )
+                                            }
+                                        }
+                                    )
+                                },
                                 context = postHogContext
                             )
                             statusMessage = if (isInitialized) {
@@ -128,13 +142,19 @@ fun App(postHogContext: PostHogContext) {
                     singleLine = true
                 )
 
+                Text(
+                    text = "The sample removes the sensitive property and drops events named before_send_drop_test.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+
                 Button(
                     onClick = {
                         PostHog.capture(
                             event = eventName,
                             properties = mapOf(
                                 "source" to "sample_app",
-                                "platform" to getPlatformName()
+                                "platform" to getPlatformName(),
+                                "sensitive" to "remove_before_send"
                             )
                         )
                         statusMessage = "Event '$eventName' captured!"
@@ -143,6 +163,20 @@ fun App(postHogContext: PostHogContext) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Capture Event")
+                }
+
+                Button(
+                    onClick = {
+                        PostHog.capture(
+                            event = "before_send_drop_test",
+                            properties = mapOf("source" to "sample_app")
+                        )
+                        statusMessage = "Before-send drop test triggered!"
+                    },
+                    enabled = isInitialized,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Capture Dropped Event")
                 }
 
                 Button(
