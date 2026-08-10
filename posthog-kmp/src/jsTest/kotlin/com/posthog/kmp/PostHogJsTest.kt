@@ -297,7 +297,8 @@ class PostHogJsTest {
             calledMethods.add("init" to arrayOf<dynamic>(apiKey, options))
         }
         PostHog.setup(
-            PostHogConfig(apiKey = "key").apply {
+            PostHogConfig(
+                apiKey = "key",
                 beforeSend = listOf(
                     PostHogBeforeSend {
                         it.copy(
@@ -307,7 +308,7 @@ class PostHogJsTest {
                         )
                     }
                 )
-            },
+            ),
             PostHogContext()
         )
         val callback = getCall("init")[1]["before_send"]

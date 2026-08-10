@@ -58,7 +58,8 @@ class PostHogWasmJsTest {
     @Test
     fun setupMapsBeforeSendToPostHogJs() {
         PostHog.setup(
-            PostHogConfig(apiKey = "phc_test").apply {
+            PostHogConfig(
+                apiKey = "phc_test",
                 beforeSend = listOf(
                     PostHogBeforeSend {
                         it.copy(
@@ -68,7 +69,7 @@ class PostHogWasmJsTest {
                         )
                     }
                 )
-            },
+            ),
             PostHogContext()
         )
 

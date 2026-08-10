@@ -95,7 +95,6 @@ fun App(postHogContext: PostHogContext) {
                                 config = PostHogConfig(
                                     apiKey = apiKey,
                                     debug = true,
-                                ).apply {
                                     beforeSend = listOf(
                                         PostHogBeforeSend { event ->
                                             if (event.event == "before_send_drop_test") {
@@ -108,7 +107,7 @@ fun App(postHogContext: PostHogContext) {
                                             }
                                         }
                                     )
-                                },
+                                ),
                                 context = postHogContext
                             )
                             statusMessage = if (isInitialized) {

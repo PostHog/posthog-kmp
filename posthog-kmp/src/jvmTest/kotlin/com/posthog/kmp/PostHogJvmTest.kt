@@ -208,7 +208,8 @@ class PostHogJvmTest {
 
     @Test
     fun testBeforeSendDelegatesToNativeConfigAndPreservesMetadata() {
-        val wrapperConfig = PostHogConfig(apiKey = "key").apply {
+        val wrapperConfig = PostHogConfig(
+            apiKey = "key",
             beforeSend = listOf(
                 PostHogBeforeSend {
                     it.copy(
@@ -218,7 +219,7 @@ class PostHogJvmTest {
                     )
                 }
             )
-        }
+        )
         val nativeConfig = com.posthog.PostHogConfig(apiKey = "key")
         nativeConfig.configureBeforeSend(wrapperConfig)
         val timestamp = Date(1234)
