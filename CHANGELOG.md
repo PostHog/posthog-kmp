@@ -1,5 +1,11 @@
 # posthog-kmp
 
+## 0.3.0
+
+### Minor Changes
+
+- Add before-send callbacks for modifying or dropping events on Android, iOS, JVM, JS, and Wasm.
+
 ## 0.2.2
 
 ### Patch Changes

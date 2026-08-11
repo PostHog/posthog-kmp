@@ -10,3 +10,7 @@ posthog-kmp@0.2.2:
   dir: ""
   intents:
     - swift-dingos-update
+posthog-kmp@0.3.0:
+  dir: ""
+  intents:
+    - calm-events-filter
