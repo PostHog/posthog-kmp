@@ -17,12 +17,17 @@ internal fun com.posthog.PostHogConfig.configureBeforeSend(config: PostHogConfig
                 event = event.event,
                 distinctId = event.distinctId,
                 properties = event.properties.orEmpty()
-            )
+            ),
+            onError = {
+                if (config.debug) logger.log("Before-send callback failed and was ignored.")
+            }
         )?.let { processed ->
             event.copy(
                 event = processed.event,
                 distinctId = processed.distinctId,
-                properties = processed.properties.toMutableMap()
+                properties = processed.properties.mapNotNull { (key, value) ->
+                    value?.let { key to it }
+                }.toMap().toMutableMap()
             )
         }
     }

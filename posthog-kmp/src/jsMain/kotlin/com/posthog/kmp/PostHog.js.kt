@@ -318,13 +318,20 @@ private fun logError(operation: String, error: Throwable) {
 private fun processBeforeSend(config: PostHogConfig, captureResult: dynamic): dynamic {
     if (captureResult == null || captureResult == undefined) return null
 
-    val event = dynamicToPostHogEvent(captureResult) ?: return null
-    val processed = config.runBeforeSend(event) ?: return null
+    return try {
+        val event = dynamicToPostHogEvent(captureResult) ?: return null
+        val processed = config.runBeforeSend(event) {
+            if (config.debug) console.error("[PostHog] Before-send callback failed and was ignored.")
+        } ?: return null
 
-    captureResult.event = processed.event
-    captureResult.properties = processed.properties.toJsObject()
-    captureResult.properties["distinct_id"] = processed.distinctId
-    return captureResult
+        captureResult.event = processed.event
+        captureResult.properties = processed.properties.toJsObject()
+        captureResult.properties["distinct_id"] = processed.distinctId
+        captureResult
+    } catch (_: Throwable) {
+        if (config.debug) console.error("[PostHog] Before-send processing failed; event was dropped.")
+        null
+    }
 }
 
 private fun dynamicToPostHogEvent(captureResult: dynamic): PostHogEvent? {
@@ -334,15 +341,19 @@ private fun dynamicToPostHogEvent(captureResult: dynamic): PostHogEvent? {
     return PostHogEvent(event, distinctId, properties - "distinct_id")
 }
 
-private fun dynamicToMap(value: dynamic): Map<String, Any> {
+private fun dynamicToMap(value: dynamic): Map<String, Any?> {
     if (value == null || value == undefined) return emptyMap()
     val keys: Array<String> = js("Object.keys(value)")
     return buildMap {
         for (key in keys) {
-            dynamicToKotlinValue(value[key])?.let { put(key, it) }
+            val propertyValue = value[key]
+            if (!isUndefined(propertyValue)) put(key, dynamicToKotlinValue(propertyValue))
         }
     }
 }
+
+@Suppress("UNUSED_PARAMETER")
+private fun isUndefined(value: dynamic): Boolean = js("value === undefined")
 
 private fun dynamicToKotlinValue(value: dynamic): Any? {
     if (value == null || value == undefined) return null
@@ -364,19 +375,17 @@ private fun dynamicToKotlinValue(value: dynamic): Any? {
 
 private fun Map<String, Any?>.toJsObject(): dynamic {
     val obj = js("{}")
-    this.forEach { (key, value) ->
-        obj[key] = when (value) {
-            is Map<*, *> -> (value as Map<String, Any?>).toJsObject()
-            is List<*> -> value.map { item ->
-                when (item) {
-                    is Map<*, *> -> (item as Map<String, Any?>).toJsObject()
-                    else -> item
-                }
-            }.toTypedArray()
-            else -> value
-        }
-    }
+    forEach { (key, value) -> obj[key] = value.toJsValue() }
     return obj
+}
+
+private fun Any?.toJsValue(): dynamic = when (this) {
+    is Map<*, *> -> {
+        @Suppress("UNCHECKED_CAST")
+        (this as Map<String, Any?>).toJsObject()
+    }
+    is List<*> -> map { it.toJsValue() }.toTypedArray()
+    else -> this
 }
 
 internal actual fun platformSetPersonProperties(

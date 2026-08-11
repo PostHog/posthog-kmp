@@ -191,22 +191,27 @@ private fun JsAny.toFeatureFlagResult(): FeatureFlagResult? {
 
 private fun processBeforeSend(config: PostHogConfig, captureResult: JsAny?): JsAny? {
     captureResult ?: return null
-    val event = captureResult.toPostHogEvent() ?: return null
-    val processed = config.runBeforeSend(event) ?: return null
+    return try {
+        val event = captureResult.toPostHogEvent() ?: return null
+        val processed = config.runBeforeSend(event) {
+            if (config.debug) logWasmError("beforeSend", "callback failed and was ignored")
+        } ?: return null
 
-    val processedProperties = processed.properties.toJsObject()
-    setJsProperty(processedProperties, "distinct_id", processed.distinctId.toJsString())
-    setJsProperty(captureResult, "event", processed.event.toJsString())
-    setJsProperty(captureResult, "properties", processedProperties)
-    return captureResult
+        val processedProperties = processed.properties.toJsObject()
+        setJsProperty(processedProperties, "distinct_id", processed.distinctId.toJsString())
+        setJsProperty(captureResult, "event", processed.event.toJsString())
+        setJsProperty(captureResult, "properties", processedProperties)
+        captureResult
+    } catch (_: Throwable) {
+        if (config.debug) logWasmError("beforeSend", "processing failed; event was dropped")
+        null
+    }
 }
 
 private fun JsAny.toPostHogEvent(): PostHogEvent? {
     val event = getJsProperty(this, "event")?.toKotlinString() ?: return null
     val jsProperties = getJsProperty(this, "properties") ?: return null
-    val properties = jsProperties.toKotlinMap().mapNotNull { (key, value) ->
-        value?.let { key to it }
-    }.toMap()
+    val properties = jsProperties.toKotlinMap()
     val distinctId = properties["distinct_id"] as? String ?: return null
     return PostHogEvent(event, distinctId, properties - "distinct_id")
 }
@@ -295,6 +300,7 @@ private fun Any?.toJsAny(): JsAny? = when (this) {
         (this as Map<String, Any?>).toJsObject()
     }
     is List<*> -> toJsArray()
+    is OpaqueJsValue -> value
     else -> toString().toJsString()
 }
 
@@ -303,16 +309,23 @@ private fun JsAny.toKotlinValue(): Any? = when {
     isJsBoolean(this) -> toKotlinBoolean()
     isJsNumber(this) -> toKotlinDouble()
     isJsArray(this) -> List(jsArrayLength(this)) { index -> jsArrayItem(this, index)?.toKotlinValue() }
-    isJsObject(this) -> toKotlinMap()
-    else -> null
+    isPlainJsObject(this) -> toKotlinMap()
+    else -> OpaqueJsValue(this)
 }
+
+private class OpaqueJsValue(val value: JsAny)
 
 private fun JsAny.toKotlinMap(): Map<String, Any?> {
     val keys = jsObjectKeys(this)
     return buildMap {
         repeat(jsArrayLength(keys)) { index ->
             val key = jsArrayItem(keys, index)?.toKotlinString() ?: return@repeat
-            put(key, getJsProperty(this@toKotlinMap, key)?.toKotlinValue())
+            val value = getJsProperty(this@toKotlinMap, key)
+            if (value != null) {
+                put(key, value.toKotlinValue())
+            } else if (isJsNullProperty(this@toKotlinMap, key)) {
+                put(key, null)
+            }
         }
     }
 }
@@ -335,7 +348,9 @@ private fun isJsArray(value: JsAny): Boolean = js("Array.isArray(value)")
 private fun isJsString(value: JsAny): Boolean = js("typeof value === 'string'")
 private fun isJsBoolean(value: JsAny): Boolean = js("typeof value === 'boolean'")
 private fun isJsNumber(value: JsAny): Boolean = js("typeof value === 'number'")
-private fun isJsObject(value: JsAny): Boolean = js("typeof value === 'object' && value !== null")
+private fun isPlainJsObject(value: JsAny): Boolean =
+    js("typeof value === 'object' && value !== null && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)")
+private fun isJsNullProperty(target: JsAny, key: String): Boolean = js("target[key] === null")
 private fun JsAny.toKotlinString(): String = jsStringValue(this)
 private fun JsAny.toKotlinBoolean(): Boolean = jsBooleanValue(this)
 private fun JsAny.toKotlinDouble(): Double = jsNumberValue(this)

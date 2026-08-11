@@ -79,8 +79,31 @@ class PostHogWasmJsTest {
         assertEquals("anonymous", readDeepJsString(result, "properties", "distinct_id"))
         assertEquals("paid", readDeepJsString(result, "properties", "plan"))
         assertFalse(hasDeepJsProperty(result, "properties", "email"))
+        assertTrue(hasDeepJsProperty(result, "properties", "nullable"))
+        assertTrue(isDeepJsNull(result, "properties", "nullable"))
+        assertEquals("two", readDeepJsArrayString(result, "properties", "nested", 1, 0))
+        assertEquals(0.0, readDeepJsDateTime(result, "properties", "date"))
         assertNull(invokeBeforeSendWithoutDistinctId(fakePostHog))
         assertNull(invokeBeforeSendWithoutEvent(fakePostHog))
+    }
+
+    @Test
+    fun beforeSendContainsCallbackAndConversionExceptions() {
+        PostHog.setup(
+            PostHogConfig(
+                apiKey = "phc_test",
+                beforeSend = listOf(
+                    PostHogBeforeSend { throw IllegalStateException("failed") },
+                    PostHogBeforeSend { it.copy(event = "continued") }
+                )
+            ),
+            PostHogContext()
+        )
+
+        val result = invokeBeforeSend(fakePostHog)
+
+        assertEquals("continued", readJsString(result, "event"))
+        assertNull(invokeBeforeSendWithThrowingGetter(fakePostHog))
     }
 
     @Test
@@ -265,8 +288,11 @@ private fun readDeepString(target: PostHogJsApi, parent: String, child: String, 
 private fun readDeepBoolean(target: PostHogJsApi, parent: String, child: String, key: String): Boolean = js("target[parent][child][key]")
 private fun readArrayString(target: PostHogJsApi, parent: String, child: String, index: Int): String = js("target[parent][child][index]")
 private fun readTimestamp(target: PostHogJsApi): Double = js("target.captureOptions.timestamp.getTime()")
-private fun invokeBeforeSend(target: PostHogJsApi): JsAny =
-    js("target.options.before_send({ event: 'checkout', properties: { distinct_id: 'user-1', email: 'person@example.com', plan: 'paid' } })")
+private fun invokeBeforeSend(target: PostHogJsApi): JsAny = js(
+    "target.options.before_send({ event: 'checkout', properties: { distinct_id: 'user-1', " +
+        "email: 'person@example.com', plan: 'paid', nullable: null, nested: [['one'], ['two']], " +
+        "date: new Date(0) } })"
+)
 private fun invokeBeforeSendWithoutDistinctId(target: PostHogJsApi): JsAny? =
     js("target.options.before_send({ event: 'checkout', properties: {} })")
 private fun invokeBeforeSendWithoutEvent(target: PostHogJsApi): JsAny? =
@@ -275,3 +301,15 @@ private fun readJsString(target: JsAny, key: String): String = js("target[key]")
 private fun readDeepJsString(target: JsAny, parent: String, key: String): String = js("target[parent][key]")
 private fun hasDeepJsProperty(target: JsAny, parent: String, key: String): Boolean =
     js("Object.prototype.hasOwnProperty.call(target[parent], key)")
+private fun isDeepJsNull(target: JsAny, parent: String, key: String): Boolean = js("target[parent][key] === null")
+private fun readDeepJsArrayString(
+    target: JsAny,
+    parent: String,
+    key: String,
+    outerIndex: Int,
+    innerIndex: Int
+): String = js("target[parent][key][outerIndex][innerIndex]")
+private fun readDeepJsDateTime(target: JsAny, parent: String, key: String): Double =
+    js("target[parent][key].getTime()")
+private fun invokeBeforeSendWithThrowingGetter(target: PostHogJsApi): JsAny? =
+    js("target.options.before_send(new Proxy({}, { get() { throw Error() } }))")

@@ -54,6 +54,25 @@ class PostHogConfigTest {
     }
 
     @Test
+    fun beforeSendContinuesAfterCallbackException() {
+        var errorCount = 0
+        val config = PostHogConfig(
+            apiKey = "phc_test",
+            beforeSend = listOf(
+                PostHogBeforeSend { throw IllegalStateException("failed") },
+                PostHogBeforeSend { it.copy(event = "continued") }
+            )
+        )
+
+        val result = config.runBeforeSend(PostHogEvent("checkout", "user-1", emptyMap())) {
+            errorCount++
+        }
+
+        assertEquals("continued", result?.event)
+        assertEquals(1, errorCount)
+    }
+
+    @Test
     fun beforeSendStopsAfterDroppedEvent() {
         var finalCallbackCalled = false
         val config = PostHogConfig(

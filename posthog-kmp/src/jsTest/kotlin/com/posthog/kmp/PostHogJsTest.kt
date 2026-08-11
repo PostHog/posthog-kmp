@@ -1,3 +1,5 @@
+@file:Suppress("UnusedParameter")
+
 package com.posthog.kmp
 
 import kotlin.test.Test
@@ -312,7 +314,10 @@ class PostHogJsTest {
             PostHogContext()
         )
         val callback = getCall("init")[1]["before_send"]
-        val captureResult = js("({ event: 'checkout', properties: { distinct_id: 'user-1', email: 'person@example.com', plan: 'paid' } })")
+        val captureResult = js(
+            "({ event: 'checkout', properties: { distinct_id: 'user-1', email: 'person@example.com', " +
+                "plan: 'paid', nullable: null, nested: [['one'], ['two']], date: new Date(0) } })"
+        )
 
         val result = callback(captureResult)
 
@@ -320,8 +325,35 @@ class PostHogJsTest {
         assertEquals("anonymous", result.properties.distinct_id as String)
         assertNull(result.properties.email)
         assertEquals("paid", result.properties.plan as String)
+        assertTrue(hasOwnProperty(result.properties, "nullable"))
+        assertNull(result.properties.nullable)
+        assertEquals("two", readNestedArrayString(result.properties, "nested", 1, 0))
+        assertEquals(0.0, readDateTime(result.properties, "date"))
         assertNull(callback(js("({ event: 'checkout', properties: {} })")))
         assertNull(callback(js("({ properties: { distinct_id: 'user-1' } })")))
+    }
+
+    @Test
+    fun testBeforeSendContainsCallbackAndConversionExceptions() {
+        fakeJs.init = { _: String, options: dynamic ->
+            calledMethods.add("init" to arrayOf<dynamic>(options))
+        }
+        PostHog.setup(
+            PostHogConfig(
+                apiKey = "key",
+                beforeSend = listOf(
+                    PostHogBeforeSend { throw IllegalStateException("failed") },
+                    PostHogBeforeSend { it.copy(event = "continued") }
+                )
+            ),
+            PostHogContext()
+        )
+        val callback = getCall("init")[0]["before_send"]
+
+        val result = callback(js("({ event: 'checkout', properties: { distinct_id: 'user-1' } })"))
+
+        assertEquals("continued", result.event as String)
+        assertNull(callback(createThrowingCaptureResult()))
     }
 
     @Test
@@ -394,3 +426,11 @@ class PostHogJsTest {
         assertEquals(true, call[1]["first_login"] as Boolean)
     }
 }
+
+private fun hasOwnProperty(target: dynamic, key: String): Boolean =
+    js("Object.prototype.hasOwnProperty.call(target, key)")
+private fun readNestedArrayString(target: dynamic, key: String, outerIndex: Int, innerIndex: Int): String =
+    js("target[key][outerIndex][innerIndex]")
+private fun readDateTime(target: dynamic, key: String): Double = js("target[key].getTime()")
+private fun createThrowingCaptureResult(): dynamic =
+    js("new Proxy({ event: 'checkout' }, { get(target, key) { if (key === 'properties') throw new Error('failed'); return target[key]; } })")
