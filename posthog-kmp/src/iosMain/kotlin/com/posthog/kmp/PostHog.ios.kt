@@ -5,6 +5,7 @@ package com.posthog.kmp
 import PostHogBridge.PostHogBridge
 import kotlinx.cinterop.ExperimentalForeignApi
 import platform.Foundation.NSDate
+import platform.Foundation.NSLog
 import platform.Foundation.dateWithTimeIntervalSince1970
 
 /**
@@ -42,8 +43,38 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         sessionRecordingCaptureLogs = sessionConfig?.captureLogs ?: false,
         sessionRecordingScreenshotMode = sessionConfig?.screenshot ?: false,
         autocapture = config.autocapture,
-        sdkVersion = PostHogKmpVersion.VERSION
+        sdkVersion = PostHogKmpVersion.VERSION,
+        beforeSend = if (config.beforeSend.isEmpty()) {
+            null
+        } else {
+            { event -> processBeforeSend(config, event) }
+        }
     )
+}
+
+private fun processBeforeSend(config: PostHogConfig, event: Map<Any?, *>?): Map<Any?, *>? {
+    event ?: return null
+    val postHogEvent = event.toPostHogEvent() ?: return null
+    val processed = config.runBeforeSend(postHogEvent) {
+        if (config.debug) NSLog("[PostHog] Before-send callback failed and was ignored.")
+    } ?: return null
+    return mapOf(
+        "event" to processed.event,
+        "distinctId" to processed.distinctId,
+        "properties" to processed.properties.filterValues { it != null }
+    )
+}
+
+private fun Map<Any?, *>.toPostHogEvent(): PostHogEvent? {
+    val eventName = this["event"] as? String ?: return null
+    val distinctId = this["distinctId"] as? String ?: return null
+    val nativeProperties = this["properties"] as? Map<*, *> ?: return null
+    val properties = buildMap {
+        for ((key, value) in nativeProperties) {
+            if (key is String && value != null) put(key, value)
+        }
+    }
+    return PostHogEvent(eventName, distinctId, properties)
 }
 
 internal actual fun platformCapture(

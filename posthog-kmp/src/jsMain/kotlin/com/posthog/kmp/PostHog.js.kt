@@ -40,6 +40,12 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
     options["persistence"] = "localStorage"
     options["defaults"] = "2026-05-30"
     options["bootstrap"] = js("{}")
+
+    if (config.beforeSend.isNotEmpty()) {
+        options["before_send"] = { captureResult: dynamic ->
+            processBeforeSend(config, captureResult)
+        }
+    }
     
     options["person_profiles"] = when (config.personProfiles) {
         PersonProfiles.ALWAYS -> "always"
@@ -309,21 +315,77 @@ private fun logError(operation: String, error: Throwable) {
     console.error("[PostHog] $operation failed", error)
 }
 
-private fun Map<String, Any?>.toJsObject(): dynamic {
-    val obj = js("{}")
-    this.forEach { (key, value) ->
-        obj[key] = when (value) {
-            is Map<*, *> -> (value as Map<String, Any?>).toJsObject()
-            is List<*> -> value.map { item ->
-                when (item) {
-                    is Map<*, *> -> (item as Map<String, Any?>).toJsObject()
-                    else -> item
-                }
-            }.toTypedArray()
-            else -> value
+private fun processBeforeSend(config: PostHogConfig, captureResult: dynamic): dynamic {
+    if (captureResult == null || captureResult == undefined) return null
+
+    return try {
+        val event = dynamicToPostHogEvent(captureResult) ?: return null
+        val processed = config.runBeforeSend(event) {
+            if (config.debug) console.error("[PostHog] Before-send callback failed and was ignored.")
+        } ?: return null
+
+        captureResult.event = processed.event
+        captureResult.properties = processed.properties.toJsObject()
+        captureResult.properties["distinct_id"] = processed.distinctId
+        captureResult
+    } catch (_: Throwable) {
+        if (config.debug) console.error("[PostHog] Before-send processing failed; event was dropped.")
+        null
+    }
+}
+
+private fun dynamicToPostHogEvent(captureResult: dynamic): PostHogEvent? {
+    val event = captureResult.event as? String ?: return null
+    val properties = dynamicToMap(captureResult.properties)
+    val distinctId = properties["distinct_id"] as? String ?: return null
+    return PostHogEvent(event, distinctId, properties - "distinct_id")
+}
+
+private fun dynamicToMap(value: dynamic): Map<String, Any?> {
+    if (value == null || value == undefined) return emptyMap()
+    val keys: Array<String> = js("Object.keys(value)")
+    return buildMap {
+        for (key in keys) {
+            val propertyValue = value[key]
+            if (!isUndefined(propertyValue)) put(key, dynamicToKotlinValue(propertyValue))
         }
     }
+}
+
+@Suppress("UNUSED_PARAMETER")
+private fun isUndefined(value: dynamic): Boolean = js("value === undefined")
+
+private fun dynamicToKotlinValue(value: dynamic): Any? {
+    if (value == null || value == undefined) return null
+    return when (jsTypeOf(value)) {
+        "string", "boolean", "number" -> value
+        "object" -> when {
+            js("Array.isArray(value)") as Boolean -> {
+                val length = value.length as Int
+                List(length) { index -> dynamicToKotlinValue(value[index]) }
+            }
+            js("Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null") as Boolean -> {
+                dynamicToMap(value)
+            }
+            else -> value
+        }
+        else -> value
+    }
+}
+
+private fun Map<String, Any?>.toJsObject(): dynamic {
+    val obj = js("{}")
+    forEach { (key, value) -> obj[key] = value.toJsValue() }
     return obj
+}
+
+private fun Any?.toJsValue(): dynamic = when (this) {
+    is Map<*, *> -> {
+        @Suppress("UNCHECKED_CAST")
+        (this as Map<String, Any?>).toJsObject()
+    }
+    is List<*> -> map { it.toJsValue() }.toTypedArray()
+    else -> this
 }
 
 internal actual fun platformSetPersonProperties(
