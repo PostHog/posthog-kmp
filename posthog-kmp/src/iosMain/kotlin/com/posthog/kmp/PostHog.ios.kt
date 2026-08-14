@@ -88,9 +88,11 @@ internal actual fun platformCapture(
         event,
         properties = properties as? Map<Any?, *>,
         groups = groups as? Map<Any?, *>,
-        timestamp = timestamp?.let { NSDate.dateWithTimeIntervalSince1970(it.toDouble() / 1000.0) }
+        timestamp = timestamp?.toNSDate()
     )
 }
+
+internal fun Long.toNSDate(): NSDate = NSDate.dateWithTimeIntervalSince1970(toDouble() / 1000.0)
 
 internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?) {
     @Suppress("UNCHECKED_CAST")

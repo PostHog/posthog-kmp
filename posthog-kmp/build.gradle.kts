@@ -132,10 +132,16 @@ kotlin {
         val iosMain by creating {
             dependsOn(commonMain)
         }
+        val iosTest by creating {
+            dependsOn(commonTest)
+        }
 
         val iosX64Main by getting { dependsOn(iosMain) }
+        getByName("iosX64Test") { dependsOn(iosTest) }
         val iosArm64Main by getting { dependsOn(iosMain) }
+        getByName("iosArm64Test") { dependsOn(iosTest) }
         val iosSimulatorArm64Main by getting { dependsOn(iosMain) }
+        getByName("iosSimulatorArm64Test") { dependsOn(iosTest) }
 
         val jsMain by getting {
             dependencies {
