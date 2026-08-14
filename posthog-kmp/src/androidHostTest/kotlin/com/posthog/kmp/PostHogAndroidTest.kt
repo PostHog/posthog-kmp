@@ -1,5 +1,8 @@
 package com.posthog.kmp
 
+import java.time.OffsetDateTime
+import java.util.Date
+import java.util.TimeZone
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -50,6 +53,24 @@ class PostHogAndroidTest {
             null,
             mapOf("company" to "acme")
         )
+    }
+
+    @Test
+    fun testCapturePreservesTimestampInstantAcrossDefaultTimeZones() {
+        val originalTimeZone = TimeZone.getDefault()
+        try {
+            TimeZone.setDefault(TimeZone.getTimeZone("Pacific/Honolulu"))
+            val timestamp = OffsetDateTime.parse("2024-01-01T17:04:05.678-10:00")
+                .toInstant()
+                .toEpochMilli()
+
+            PostHog.capture("test_event", options = CaptureOptions(timestamp = timestamp))
+
+            assertMethodCalled("capture", "test_event", null, null, null, null, null, Date(timestamp))
+            assertEquals("2024-01-02T03:04:05.678Z", Date(timestamp).toInstant().toString())
+        } finally {
+            TimeZone.setDefault(originalTimeZone)
+        }
     }
 
     @Test

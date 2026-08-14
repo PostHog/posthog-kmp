@@ -129,6 +129,7 @@ class PostHogWasmJsTest {
         assertEquals("two", readArrayString(fakePostHog, "properties", "items", 1))
         assertEquals("posthog", readDeepString(fakePostHog, "properties", "\$groups", "company"))
         assertEquals(1_700_000_000_000.0, readTimestamp(fakePostHog))
+        assertEquals("2023-11-14T22:13:20.000Z", readTimestampIso(fakePostHog))
     }
 
     @Test
@@ -288,6 +289,7 @@ private fun readDeepString(target: PostHogJsApi, parent: String, child: String, 
 private fun readDeepBoolean(target: PostHogJsApi, parent: String, child: String, key: String): Boolean = js("target[parent][child][key]")
 private fun readArrayString(target: PostHogJsApi, parent: String, child: String, index: Int): String = js("target[parent][child][index]")
 private fun readTimestamp(target: PostHogJsApi): Double = js("target.captureOptions.timestamp.getTime()")
+private fun readTimestampIso(target: PostHogJsApi): String = js("target.captureOptions.timestamp.toISOString()")
 private fun invokeBeforeSend(target: PostHogJsApi): JsAny = js(
     "target.options.before_send({ event: 'checkout', properties: { distinct_id: 'user-1', " +
         "email: 'person@example.com', plan: 'paid', nullable: null, nested: [['one'], ['two']], " +

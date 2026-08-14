@@ -152,6 +152,18 @@ class PostHogJsTest {
     }
 
     @Test
+    fun testCapturePreservesTimestampAsUtcInstant() {
+        PostHog.capture(
+            "test_event",
+            options = CaptureOptions(timestamp = 1_704_164_645_678)
+        )
+
+        val timestamp = getCall("capture")[2]["timestamp"]
+        assertEquals("2024-01-02T03:04:05.678Z", timestamp.toISOString() as String)
+        assertEquals(1_704_164_645_678.0, timestamp.getTime() as Double)
+    }
+
+    @Test
     fun testCaptureDropsNullPropertyValues() {
         PostHog.capture("test_event", mapOf("keep" to 1, "drop" to null))
         val call = getCall("capture")

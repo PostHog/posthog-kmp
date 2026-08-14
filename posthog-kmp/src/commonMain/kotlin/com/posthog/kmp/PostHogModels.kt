@@ -4,7 +4,10 @@ package com.posthog.kmp
  * Options for capturing events.
  *
  * @property groups Groups to associate with this event
- * @property timestamp Custom timestamp for the event (defaults to now)
+ * @property timestamp Custom event time as Unix epoch milliseconds, representing a UTC instant
+ *   (defaults to now). UTC is preferred when deriving this value from a date and time; resolve any
+ *   non-UTC offset to the equivalent instant before converting it to epoch milliseconds. Platform
+ *   bridges preserve this instant when constructing their native date type.
  */
 public data class CaptureOptions(
     val groups: Map<String, String>? = null,
