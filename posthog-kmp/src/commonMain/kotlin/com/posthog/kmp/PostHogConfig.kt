@@ -1,5 +1,7 @@
 package com.posthog.kmp
 
+import kotlin.reflect.KClass
+
 /**
  * Configuration options for PostHog SDK initialization.
  *
@@ -228,10 +230,20 @@ public enum class PersonProfiles {
  *
  * @property autoCapture Automatically capture unhandled exceptions
  * @property inAppIncludes Additional package or bundle prefixes to mark as in-app frames (Android/JVM/iOS)
+ * @property ignoredExceptionTypes Throwable types that should not be captured
+ * @property inAppExcludes Package or bundle prefixes to mark as external frames (iOS only)
+ * @property inAppByDefault Whether unmatched stack frames should be considered in-app (iOS only)
+ *
+ * TODO: Add exceptionSteps when PostHog.addExceptionStep is available in the common API.
  */
 public data class ErrorTrackingConfig(
     val autoCapture: Boolean = false,
-    val inAppIncludes: List<String> = emptyList()
+    val inAppIncludes: List<String> = emptyList(),
+    val ignoredExceptionTypes: List<KClass<out Throwable>> = emptyList(),
+    /** iOS only. */
+    val inAppExcludes: List<String> = emptyList(),
+    /** iOS only. */
+    val inAppByDefault: Boolean = true
 )
 
 /**

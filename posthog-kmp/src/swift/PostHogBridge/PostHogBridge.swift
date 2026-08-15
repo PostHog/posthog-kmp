@@ -39,6 +39,9 @@ import PostHog
         autocapture: Bool = false,
         errorAutoCapture: Bool = false,
         errorTrackingInAppIncludes: [String] = [],
+        errorTrackingIgnoredExceptionTypes: [String] = [],
+        errorTrackingInAppExcludes: [String] = [],
+        errorTrackingInAppByDefault: Bool = true,
         sdkVersion: String = "unknown",
         beforeSend: ((NSDictionary) -> NSDictionary?)? = nil
     ) {
@@ -69,6 +72,9 @@ import PostHog
         config.setDefaultPersonProperties = true
         config.errorTrackingConfig.autoCapture = errorAutoCapture
         config.errorTrackingConfig.inAppIncludes.append(contentsOf: errorTrackingInAppIncludes)
+        config.errorTrackingConfig.ignoredExceptionTypes.append(contentsOf: errorTrackingIgnoredExceptionTypes)
+        config.errorTrackingConfig.inAppExcludes.append(contentsOf: errorTrackingInAppExcludes)
+        config.errorTrackingConfig.inAppByDefault = errorTrackingInAppByDefault
 
         #if os(iOS) || targetEnvironment(macCatalyst)
         config.captureElementInteractions = autocapture

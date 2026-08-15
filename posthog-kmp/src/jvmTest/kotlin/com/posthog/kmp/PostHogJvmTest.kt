@@ -36,11 +36,19 @@ class PostHogJvmTest {
         val nativeConfig = com.posthog.PostHogConfig(apiKey = "key")
 
         nativeConfig.configureErrorTracking(
-            ErrorTrackingConfig(autoCapture = true, inAppIncludes = listOf("com.example"))
+            ErrorTrackingConfig(
+                autoCapture = true,
+                inAppIncludes = listOf("com.example"),
+                ignoredExceptionTypes = listOf(IllegalStateException::class)
+            )
         )
 
         assertEquals(true, nativeConfig.errorTrackingConfig.autoCapture)
         assertEquals(listOf("com.example"), nativeConfig.errorTrackingConfig.inAppIncludes)
+        assertEquals(
+            listOf<Class<out Throwable>>(IllegalStateException::class.java),
+            nativeConfig.errorTrackingConfig.ignoredExceptionTypes
+        )
     }
 
     @Test

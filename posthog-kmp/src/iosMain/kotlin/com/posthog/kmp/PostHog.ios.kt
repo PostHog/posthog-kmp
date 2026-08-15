@@ -45,6 +45,10 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         autocapture = config.autocapture,
         errorAutoCapture = config.errorTracking?.autoCapture ?: false,
         errorTrackingInAppIncludes = config.errorTracking?.inAppIncludes ?: emptyList<String>(),
+        errorTrackingIgnoredExceptionTypes = config.errorTracking?.ignoredExceptionTypes
+            ?.mapNotNull { it.simpleName } ?: emptyList<String>(),
+        errorTrackingInAppExcludes = config.errorTracking?.inAppExcludes ?: emptyList<String>(),
+        errorTrackingInAppByDefault = config.errorTracking?.inAppByDefault ?: true,
         sdkVersion = PostHogKmpVersion.VERSION,
         beforeSend = if (config.beforeSend.isEmpty()) {
             null
