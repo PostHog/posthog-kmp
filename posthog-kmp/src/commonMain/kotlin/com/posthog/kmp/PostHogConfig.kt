@@ -245,7 +245,9 @@ public data class ErrorTrackingConfig(
      * Console errors remain disabled.
      */
     val autoCapture: Boolean = false,
+    /** Supported on Android, JVM, and iOS. */
     val inAppIncludes: List<String> = emptyList(),
+    /** Supported on Android, JVM, and iOS. */
     val ignoredExceptionTypes: List<KClass<out Throwable>> = emptyList(),
     /** iOS only. */
     val inAppExcludes: List<String> = emptyList(),
