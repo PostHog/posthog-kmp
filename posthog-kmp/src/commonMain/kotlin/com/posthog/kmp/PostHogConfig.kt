@@ -236,6 +236,8 @@ public enum class PersonProfiles {
  *
  * TODO: Add exceptionSteps when PostHog.addExceptionStep is available in the common API.
  * TODO: Add support for configuring individual Web exception autocapture sources.
+ * TODO: Normalize iOS Kotlin/Native stack traces with NSExceptionKt; see
+ * https://github.com/PostHog/posthog-kmp/issues/57.
  */
 public data class ErrorTrackingConfig(
     /**
@@ -243,6 +245,10 @@ public data class ErrorTrackingConfig(
      *
      * On Web, enabling this captures unhandled errors and unhandled promise rejections.
      * Console errors remain disabled.
+     *
+     * On Android, symbolication of minified frames requires the PostHog Android Gradle plugin
+     * to upload the ProGuard or R8 mappings. On iOS, server-side symbolication requires uploading
+     * the app's debug symbols (dSYMs).
      */
     val autoCapture: Boolean = false,
     /** Supported on Android, JVM, and iOS. */
