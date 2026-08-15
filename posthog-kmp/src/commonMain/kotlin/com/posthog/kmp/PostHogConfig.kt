@@ -235,8 +235,15 @@ public enum class PersonProfiles {
  * @property inAppByDefault Whether unmatched stack frames should be considered in-app (iOS only)
  *
  * TODO: Add exceptionSteps when PostHog.addExceptionStep is available in the common API.
+ * TODO: Add support for configuring individual Web exception autocapture sources.
  */
 public data class ErrorTrackingConfig(
+    /**
+     * Automatically capture unhandled exceptions.
+     *
+     * On Web, enabling this captures unhandled errors and unhandled promise rejections.
+     * Console errors remain disabled.
+     */
     val autoCapture: Boolean = false,
     val inAppIncludes: List<String> = emptyList(),
     val ignoredExceptionTypes: List<KClass<out Throwable>> = emptyList(),
