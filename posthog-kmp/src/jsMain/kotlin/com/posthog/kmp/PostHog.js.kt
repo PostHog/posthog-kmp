@@ -37,6 +37,7 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
     options["capture_pageview"] = config.captureScreenViews
     options["capture_pageleave"] = config.captureScreenViews
     options["autocapture"] = config.autocapture
+    config.errorTracking?.let { options["capture_exceptions"] = it.autoCapture }
     options["persistence"] = "localStorage"
     options["defaults"] = "2026-05-30"
     options["bootstrap"] = js("{}")

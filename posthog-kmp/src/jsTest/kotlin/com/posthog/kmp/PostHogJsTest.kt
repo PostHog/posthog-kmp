@@ -303,6 +303,20 @@ class PostHogJsTest {
         assertEquals("key", call[0] as String)
         assertEquals(true, call[1]["advanced_disable_feature_flags_on_first_load"] as Boolean)
         assertNull(call[1]["advanced_disable_feature_flags"], "flag evaluation must not be disabled permanently")
+        assertNull(call[1]["capture_exceptions"], "error tracking must remain unset unless configured")
+    }
+
+    @Test
+    fun testSetupMapsErrorTrackingToPostHogJs() {
+        fakeJs.init = { apiKey: String, options: dynamic ->
+            calledMethods.add("init" to arrayOf<dynamic>(apiKey, options))
+        }
+        PostHog.setup(
+            PostHogConfig(apiKey = "key", errorTracking = ErrorTrackingConfig(autoCapture = true)),
+            PostHogContext()
+        )
+
+        assertEquals(true, getCall("init")[1]["capture_exceptions"] as Boolean)
     }
 
     @Test

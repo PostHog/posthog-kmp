@@ -17,6 +17,26 @@ class PostHogConfigTest {
     }
 
     @Test
+    fun defaultsErrorTrackingToNull() {
+        assertNull(PostHogConfig(apiKey = "phc_test").errorTracking)
+    }
+
+    @Test
+    fun errorTrackingDefaultsMatchNativeSdks() {
+        val config = ErrorTrackingConfig()
+        assertEquals(false, config.autoCapture)
+        assertEquals(emptyList(), config.inAppIncludes)
+    }
+
+    @Test
+    fun copyPreservesErrorTracking() {
+        val errorTracking = ErrorTrackingConfig(autoCapture = true, inAppIncludes = listOf("com.example"))
+        val config = PostHogConfig(apiKey = "phc_test", errorTracking = errorTracking)
+
+        assertEquals(errorTracking, config.copy(debug = true).errorTracking)
+    }
+
+    @Test
     fun sessionRecordingDefaultsMatchNativeSdks() {
         val config = SessionRecordingConfig()
         assertEquals(true, config.maskAllTextInputs)

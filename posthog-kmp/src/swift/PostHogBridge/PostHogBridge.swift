@@ -37,6 +37,8 @@ import PostHog
         sessionRecordingCaptureLogs: Bool = false,
         sessionRecordingScreenshotMode: Bool = false,
         autocapture: Bool = false,
+        errorAutoCapture: Bool = false,
+        errorTrackingInAppIncludes: [String] = [],
         sdkVersion: String = "unknown",
         beforeSend: ((NSDictionary) -> NSDictionary?)? = nil
     ) {
@@ -65,6 +67,8 @@ import PostHog
             config.personProfiles = .identifiedOnly
         }
         config.setDefaultPersonProperties = true
+        config.errorTrackingConfig.autoCapture = errorAutoCapture
+        config.errorTrackingConfig.inAppIncludes.append(contentsOf: errorTrackingInAppIncludes)
 
         #if os(iOS) || targetEnvironment(macCatalyst)
         config.captureElementInteractions = autocapture

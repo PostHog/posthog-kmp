@@ -32,6 +32,18 @@ class PostHogJvmTest {
     }
 
     @Test
+    fun testConfigureErrorTracking() {
+        val nativeConfig = com.posthog.PostHogConfig(apiKey = "key")
+
+        nativeConfig.configureErrorTracking(
+            ErrorTrackingConfig(autoCapture = true, inAppIncludes = listOf("com.example"))
+        )
+
+        assertEquals(true, nativeConfig.errorTrackingConfig.autoCapture)
+        assertEquals(listOf("com.example"), nativeConfig.errorTrackingConfig.inAppIncludes)
+    }
+
+    @Test
     fun testCaptureRoutesCorrectly() {
         PostHog.capture("test_event", mapOf("prop" to "value"))
         assertMethodCalled("capture", "test_event", null, mapOf("prop" to "value"))

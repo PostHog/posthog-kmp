@@ -18,6 +18,9 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
     setJsProperty(options, "capture_pageview", config.captureScreenViews.toJsBoolean())
     setJsProperty(options, "capture_pageleave", config.captureScreenViews.toJsBoolean())
     setJsProperty(options, "autocapture", config.autocapture.toJsBoolean())
+    config.errorTracking?.let {
+        setJsProperty(options, "capture_exceptions", it.autoCapture.toJsBoolean())
+    }
     setJsProperty(options, "persistence", "localStorage".toJsString())
     setJsProperty(options, "defaults", "2026-05-30".toJsString())
     setJsProperty(options, "person_profiles", config.personProfiles.postHogValue().toJsString())

@@ -43,6 +43,8 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         sessionRecordingCaptureLogs = sessionConfig?.captureLogs ?: false,
         sessionRecordingScreenshotMode = sessionConfig?.screenshot ?: false,
         autocapture = config.autocapture,
+        errorAutoCapture = config.errorTracking?.autoCapture ?: false,
+        errorTrackingInAppIncludes = config.errorTracking?.inAppIncludes ?: emptyList<String>(),
         sdkVersion = PostHogKmpVersion.VERSION,
         beforeSend = if (config.beforeSend.isEmpty()) {
             null

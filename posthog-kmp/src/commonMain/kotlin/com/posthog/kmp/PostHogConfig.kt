@@ -20,6 +20,7 @@ package com.posthog.kmp
  * @property sessionRecording Enable session recording (platform dependent)
  * @property autocapture Enable automatic event capture (platform dependent)
  * @property beforeSend Synchronous callbacks that can modify or drop events before they are queued
+ * @property errorTracking Error tracking configuration (platform dependent)
  */
 public data class PostHogConfig(
     val apiKey: String,
@@ -38,8 +39,49 @@ public data class PostHogConfig(
     val personProfiles: PersonProfiles = PersonProfiles.IDENTIFIED_ONLY,
     val sessionRecording: SessionRecordingConfig? = null,
     val autocapture: Boolean = false,
-    val beforeSend: List<PostHogBeforeSend> = emptyList()
+    val beforeSend: List<PostHogBeforeSend> = emptyList(),
+    val errorTracking: ErrorTrackingConfig? = null
 ) {
+    @Deprecated("Retained for binary compatibility", level = DeprecationLevel.HIDDEN)
+    public constructor(
+        apiKey: String,
+        host: String = "https://us.i.posthog.com",
+        debug: Boolean = false,
+        captureApplicationLifecycleEvents: Boolean = true,
+        captureScreenViews: Boolean = false,
+        captureDeepLinks: Boolean = true,
+        sendFeatureFlagEvent: Boolean = true,
+        preloadFeatureFlags: Boolean = true,
+        flushAt: Int = 20,
+        flushIntervalSeconds: Int = 30,
+        maxQueueSize: Int = 1000,
+        maxBatchSize: Int = 50,
+        optOut: Boolean = false,
+        personProfiles: PersonProfiles = PersonProfiles.IDENTIFIED_ONLY,
+        sessionRecording: SessionRecordingConfig? = null,
+        autocapture: Boolean = false,
+        beforeSend: List<PostHogBeforeSend> = emptyList()
+    ) : this(
+        apiKey = apiKey,
+        host = host,
+        debug = debug,
+        captureApplicationLifecycleEvents = captureApplicationLifecycleEvents,
+        captureScreenViews = captureScreenViews,
+        captureDeepLinks = captureDeepLinks,
+        sendFeatureFlagEvent = sendFeatureFlagEvent,
+        preloadFeatureFlags = preloadFeatureFlags,
+        flushAt = flushAt,
+        flushIntervalSeconds = flushIntervalSeconds,
+        maxQueueSize = maxQueueSize,
+        maxBatchSize = maxBatchSize,
+        optOut = optOut,
+        personProfiles = personProfiles,
+        sessionRecording = sessionRecording,
+        autocapture = autocapture,
+        beforeSend = beforeSend,
+        errorTracking = null
+    )
+
     @Deprecated("Retained for binary compatibility", level = DeprecationLevel.HIDDEN)
     public constructor(
         apiKey: String,
@@ -75,7 +117,48 @@ public data class PostHogConfig(
         personProfiles = personProfiles,
         sessionRecording = sessionRecording,
         autocapture = autocapture,
-        beforeSend = emptyList()
+        beforeSend = emptyList(),
+        errorTracking = null
+    )
+
+    @Deprecated("Retained for binary compatibility", level = DeprecationLevel.HIDDEN)
+    public fun copy(
+        apiKey: String = this.apiKey,
+        host: String = this.host,
+        debug: Boolean = this.debug,
+        captureApplicationLifecycleEvents: Boolean = this.captureApplicationLifecycleEvents,
+        captureScreenViews: Boolean = this.captureScreenViews,
+        captureDeepLinks: Boolean = this.captureDeepLinks,
+        sendFeatureFlagEvent: Boolean = this.sendFeatureFlagEvent,
+        preloadFeatureFlags: Boolean = this.preloadFeatureFlags,
+        flushAt: Int = this.flushAt,
+        flushIntervalSeconds: Int = this.flushIntervalSeconds,
+        maxQueueSize: Int = this.maxQueueSize,
+        maxBatchSize: Int = this.maxBatchSize,
+        optOut: Boolean = this.optOut,
+        personProfiles: PersonProfiles = this.personProfiles,
+        sessionRecording: SessionRecordingConfig? = this.sessionRecording,
+        autocapture: Boolean = this.autocapture,
+        beforeSend: List<PostHogBeforeSend> = this.beforeSend
+    ): PostHogConfig = PostHogConfig(
+        apiKey = apiKey,
+        host = host,
+        debug = debug,
+        captureApplicationLifecycleEvents = captureApplicationLifecycleEvents,
+        captureScreenViews = captureScreenViews,
+        captureDeepLinks = captureDeepLinks,
+        sendFeatureFlagEvent = sendFeatureFlagEvent,
+        preloadFeatureFlags = preloadFeatureFlags,
+        flushAt = flushAt,
+        flushIntervalSeconds = flushIntervalSeconds,
+        maxQueueSize = maxQueueSize,
+        maxBatchSize = maxBatchSize,
+        optOut = optOut,
+        personProfiles = personProfiles,
+        sessionRecording = sessionRecording,
+        autocapture = autocapture,
+        beforeSend = beforeSend,
+        errorTracking = errorTracking
     )
 
     @Deprecated("Retained for binary compatibility", level = DeprecationLevel.HIDDEN)
@@ -113,7 +196,8 @@ public data class PostHogConfig(
         personProfiles = personProfiles,
         sessionRecording = sessionRecording,
         autocapture = autocapture,
-        beforeSend = beforeSend
+        beforeSend = beforeSend,
+        errorTracking = errorTracking
     )
 
     public companion object {
@@ -138,6 +222,17 @@ public enum class PersonProfiles {
     /** Never create person profiles */
     NEVER
 }
+
+/**
+ * Error tracking configuration options.
+ *
+ * @property autoCapture Automatically capture unhandled exceptions
+ * @property inAppIncludes Additional package or bundle prefixes to mark as in-app frames (Android/JVM/iOS)
+ */
+public data class ErrorTrackingConfig(
+    val autoCapture: Boolean = false,
+    val inAppIncludes: List<String> = emptyList()
+)
 
 /**
  * Session recording configuration options.

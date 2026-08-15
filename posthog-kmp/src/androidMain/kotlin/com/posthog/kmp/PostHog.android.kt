@@ -27,6 +27,7 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         optOut = config.optOut
 
         personProfiles = config.personProfiles.toCorePersonProfiles()
+        configureErrorTracking(config.errorTracking)
         configureBeforeSend(config)
 
         config.sessionRecording?.let { sessionConfig ->
