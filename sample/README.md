@@ -4,7 +4,7 @@ The sample runs on Android, iOS, Web, and JVM desktop.
 
 ## iOS error tracking
 
-The iOS app target generates dSYMs for Debug and Release builds. Its final `Upload PostHog dSYMs` build phase calls [`scripts/upload-posthog-dsyms.sh`](iosApp/scripts/upload-posthog-dsyms.sh). Uploads are opt-in so normal sample and CI builds do not require PostHog credentials.
+The iOS app target generates dSYMs for Debug and Release builds. Its `Upload PostHog dSYMs` post-build action calls [`scripts/upload-posthog-dsyms.sh`](iosApp/scripts/upload-posthog-dsyms.sh) after Xcode finishes generating the dSYM. Uploads are opt-in so normal sample and CI builds do not require PostHog credentials.
 
 Install `posthog-cli` 0.7.12 or newer and authenticate locally:
 

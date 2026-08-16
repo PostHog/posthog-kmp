@@ -138,7 +138,6 @@
 				49CE9E73EA13311C13F26D2E /* Sources */,
 				CCDF0391B7E30A322B718C78 /* Frameworks */,
 				E3142E7290D01099F16CA5D2 /* Resources */,
-				A91B4C2D3E4F5061728394A5 /* Upload PostHog dSYMs */,
 			);
 			buildRules = (
 			);
@@ -195,26 +194,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		A91B4C2D3E4F5061728394A5 /* Upload PostHog dSYMs */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"$(DWARF_DSYM_FOLDER_PATH)/$(DWARF_DSYM_FILE_NAME)",
-			);
-			name = "Upload PostHog dSYMs";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${SRCROOT}/scripts/upload-posthog-dsyms.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		49CE9E73EA13311C13F26D2E /* Sources */ = {

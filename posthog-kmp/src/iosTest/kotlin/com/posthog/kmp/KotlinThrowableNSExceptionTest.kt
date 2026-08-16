@@ -1,7 +1,15 @@
+@file:OptIn(ExperimentalNativeApi::class)
+
 package com.posthog.kmp
 
+import kotlin.experimental.ExperimentalNativeApi
+import kotlin.native.ReportUnhandledExceptionHook
+import kotlin.native.getUnhandledExceptionHook
+import kotlin.native.setUnhandledExceptionHook
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
@@ -79,6 +87,32 @@ class KotlinThrowableNSExceptionTest {
 
         assertEquals(listOf<Long>(8, 7, 6), addresses.dropCommonAddresses(commonAddresses))
         assertSame(addresses, addresses.dropCommonAddresses(emptyList()))
+    }
+
+    @Test
+    fun releasesOnlyItsOwnUnhandledExceptionHook() {
+        val originalHook = setUnhandledExceptionHook(null)
+        try {
+            configureUnhandledKotlinExceptionCapture(true)
+            val installedHook = assertNotNull(getUnhandledExceptionHook())
+
+            configureUnhandledKotlinExceptionCapture(false)
+            assertNull(getUnhandledExceptionHook())
+
+            configureUnhandledKotlinExceptionCapture(true)
+            assertSame(installedHook, getUnhandledExceptionHook())
+
+            val replacementHook: ReportUnhandledExceptionHook = { _ -> }
+            setUnhandledExceptionHook(replacementHook)
+            configureUnhandledKotlinExceptionCapture(false)
+            assertSame(replacementHook, getUnhandledExceptionHook())
+
+            configureUnhandledKotlinExceptionCapture(true)
+            assertSame(replacementHook, getUnhandledExceptionHook())
+        } finally {
+            configureUnhandledKotlinExceptionCapture(false)
+            setUnhandledExceptionHook(originalHook)
+        }
     }
 
     private class MutableCauseThrowable(override val message: String) : Throwable() {

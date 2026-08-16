@@ -22,6 +22,15 @@ if [[ -z "$(find "${DWARF_DSYM_FOLDER_PATH}" -name '*.dSYM' -type d -print -quit
     exit 1
 fi
 
+if [[ -n "${DWARF_DSYM_FILE_NAME:-}" ]]; then
+    MAIN_DSYM_PATH="${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}"
+    MAIN_DWARF_PATH="${MAIN_DSYM_PATH}/Contents/Resources/DWARF"
+    if [[ ! -d "${MAIN_DWARF_PATH}" || -z "$(find "${MAIN_DWARF_PATH}" -type f -size +0c -print -quit)" ]]; then
+        echo "error: Main dSYM is incomplete: ${MAIN_DSYM_PATH}"
+        exit 1
+    fi
+fi
+
 export PATH="/opt/homebrew/bin:/usr/local/bin:${HOME}/.posthog:${PATH}"
 POSTHOG_CLI_PATH="${POSTHOG_CLI_PATH:-$(command -v posthog-cli || true)}"
 if [[ -z "${POSTHOG_CLI_PATH}" || ! -x "${POSTHOG_CLI_PATH}" ]]; then

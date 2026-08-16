@@ -33,6 +33,7 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.UnsafeNumber
 import kotlinx.cinterop.convert
 import platform.Foundation.NSException
+import platform.Foundation.NSLock
 import platform.Foundation.NSLog
 import platform.Foundation.NSNumber
 import platform.darwin.NSUInteger
@@ -133,19 +134,33 @@ private class KotlinThrowableNSException(
 
 private val captureUnhandledExceptions = AtomicInt(0)
 private val installedUnhandledExceptionHook = AtomicInt(0)
+private val unhandledExceptionHookLock = NSLock()
+private val unhandledKotlinExceptionHook: ReportUnhandledExceptionHook = { throwable ->
+    if (captureUnhandledExceptions.value == 1) {
+        // Raising lets the native crash reporter own capture, metadata, remote configuration, and termination.
+        throwable.toNSException().raise()
+    }
+    terminateWithUnhandledException(throwable)
+}
 
 internal fun configureUnhandledKotlinExceptionCapture(enabled: Boolean, debug: Boolean = false) {
-    captureUnhandledExceptions.value = if (enabled) 1 else 0
-    if (!enabled || !installedUnhandledExceptionHook.compareAndSet(0, 1)) return
-
-    val hook: ReportUnhandledExceptionHook = { throwable ->
-        if (captureUnhandledExceptions.value == 1) {
-            // Raising lets the native crash reporter own capture, metadata, remote configuration, and termination.
-            throwable.toNSException().raise()
+    unhandledExceptionHookLock.lock()
+    try {
+        captureUnhandledExceptions.value = if (enabled) 1 else 0
+        if (enabled) {
+            installUnhandledKotlinExceptionHook(debug)
+        } else {
+            uninstallUnhandledKotlinExceptionHook()
         }
-        terminateWithUnhandledException(throwable)
+    } finally {
+        unhandledExceptionHookLock.unlock()
     }
-    val previousHook = setUnhandledExceptionHook(hook)
+}
+
+private fun installUnhandledKotlinExceptionHook(debug: Boolean) {
+    if (!installedUnhandledExceptionHook.compareAndSet(0, 1)) return
+
+    val previousHook = setUnhandledExceptionHook(unhandledKotlinExceptionHook)
     if (previousHook != null) {
         // Raising is non-returning, so preserve an existing hook rather than installing an unchainable wrapper.
         setUnhandledExceptionHook(previousHook)
@@ -153,5 +168,15 @@ internal fun configureUnhandledKotlinExceptionCapture(enabled: Boolean, debug: B
         if (debug) {
             NSLog("[PostHog] Kotlin crash normalization was not installed because another unhandled-exception hook is active.")
         }
+    }
+}
+
+private fun uninstallUnhandledKotlinExceptionHook() {
+    if (!installedUnhandledExceptionHook.compareAndSet(1, 0)) return
+
+    val removedHook = setUnhandledExceptionHook(null)
+    if (removedHook !== unhandledKotlinExceptionHook) {
+        // The hook was replaced after installation; put the current owner back.
+        setUnhandledExceptionHook(removedHook)
     }
 }
