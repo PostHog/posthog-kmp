@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.posthog.kmp.ErrorTrackingConfig
 import com.posthog.kmp.PostHog
 import com.posthog.kmp.PostHogBeforeSend
 import com.posthog.kmp.PostHogConfig
@@ -95,6 +96,7 @@ fun App(postHogContext: PostHogContext) {
                                 config = PostHogConfig(
                                     apiKey = apiKey,
                                     debug = true,
+                                    errorTracking = ErrorTrackingConfig(autoCapture = true),
                                     beforeSend = listOf(
                                         PostHogBeforeSend { event ->
                                             if (event.event == "before_send_drop_test") {
@@ -487,6 +489,12 @@ fun App(postHogContext: PostHogContext) {
                     enabled = isInitialized, modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) { Text("Capture Sample Exception") }
+                Button(
+                    onClick = { error("Unhandled sample exception") },
+                    enabled = isInitialized,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Crash Sample App") }
 
                 HorizontalDivider()
 
