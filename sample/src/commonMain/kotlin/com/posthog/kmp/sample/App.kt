@@ -490,7 +490,7 @@ fun App(postHogContext: PostHogContext) {
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) { Text("Capture Sample Exception") }
                 Button(
-                    onClick = { error("Unhandled sample exception") },
+                    onClick = { crashSampleApp(IllegalStateException("Unhandled sample exception")) },
                     enabled = isInitialized,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
@@ -549,3 +549,5 @@ fun App(postHogContext: PostHogContext) {
 }
 
 expect fun getPlatformName(): String
+
+expect fun crashSampleApp(throwable: Throwable)

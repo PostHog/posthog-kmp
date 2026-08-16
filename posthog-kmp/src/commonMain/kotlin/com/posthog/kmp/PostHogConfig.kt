@@ -236,8 +236,6 @@ public enum class PersonProfiles {
  *
  * TODO: Add exceptionSteps when PostHog.addExceptionStep is available in the common API.
  * TODO: Add support for configuring individual Web exception autocapture sources.
- * TODO: Normalize iOS Kotlin/Native stack traces with NSExceptionKt; see
- * https://github.com/PostHog/posthog-kmp/issues/57.
  */
 public data class ErrorTrackingConfig(
     /**
