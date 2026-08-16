@@ -36,7 +36,6 @@ import platform.Foundation.NSException
 import platform.Foundation.NSNumber
 import platform.darwin.NSUInteger
 import kotlin.concurrent.AtomicInt
-import kotlin.concurrent.AtomicReference
 import kotlin.experimental.ExperimentalNativeApi
 import kotlin.native.ReportUnhandledExceptionHook
 import kotlin.native.getStackTraceAddresses
@@ -138,14 +137,17 @@ internal fun configureUnhandledKotlinExceptionCapture(enabled: Boolean) {
     captureUnhandledExceptions.value = if (enabled) 1 else 0
     if (!enabled || !installedUnhandledExceptionHook.compareAndSet(0, 1)) return
 
-    val previousHook = AtomicReference<ReportUnhandledExceptionHook?>(null)
     val hook: ReportUnhandledExceptionHook = { throwable ->
         if (captureUnhandledExceptions.value == 1) {
             // Raising lets the native crash reporter own capture, metadata, remote configuration, and termination.
             throwable.toNSException().raise()
         }
-        previousHook.value?.invoke(throwable)
         terminateWithUnhandledException(throwable)
     }
-    previousHook.value = setUnhandledExceptionHook(hook)
+    val previousHook = setUnhandledExceptionHook(hook)
+    if (previousHook != null) {
+        // Raising is non-returning, so preserve an existing hook rather than installing an unchainable wrapper.
+        setUnhandledExceptionHook(previousHook)
+        installedUnhandledExceptionHook.value = 0
+    }
 }
