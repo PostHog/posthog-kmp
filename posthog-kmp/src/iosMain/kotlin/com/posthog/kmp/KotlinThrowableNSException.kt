@@ -33,6 +33,7 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.UnsafeNumber
 import kotlinx.cinterop.convert
 import platform.Foundation.NSException
+import platform.Foundation.NSLog
 import platform.Foundation.NSNumber
 import platform.darwin.NSUInteger
 import kotlin.concurrent.AtomicInt
@@ -133,7 +134,7 @@ private class KotlinThrowableNSException(
 private val captureUnhandledExceptions = AtomicInt(0)
 private val installedUnhandledExceptionHook = AtomicInt(0)
 
-internal fun configureUnhandledKotlinExceptionCapture(enabled: Boolean) {
+internal fun configureUnhandledKotlinExceptionCapture(enabled: Boolean, debug: Boolean = false) {
     captureUnhandledExceptions.value = if (enabled) 1 else 0
     if (!enabled || !installedUnhandledExceptionHook.compareAndSet(0, 1)) return
 
@@ -149,5 +150,8 @@ internal fun configureUnhandledKotlinExceptionCapture(enabled: Boolean) {
         // Raising is non-returning, so preserve an existing hook rather than installing an unchainable wrapper.
         setUnhandledExceptionHook(previousHook)
         installedUnhandledExceptionHook.value = 0
+        if (debug) {
+            NSLog("[PostHog] Kotlin crash normalization was not installed because another unhandled-exception hook is active.")
+        }
     }
 }

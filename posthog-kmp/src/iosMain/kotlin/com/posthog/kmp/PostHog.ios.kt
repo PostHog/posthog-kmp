@@ -57,7 +57,10 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
             { event -> processBeforeSend(config, event) }
         }
     )
-    configureUnhandledKotlinExceptionCapture(config.errorTracking?.autoCapture == true)
+    configureUnhandledKotlinExceptionCapture(
+        enabled = config.errorTracking?.autoCapture == true,
+        debug = config.debug
+    )
 }
 
 private fun processBeforeSend(config: PostHogConfig, event: Map<Any?, *>?): Map<Any?, *>? {
