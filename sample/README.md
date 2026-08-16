@@ -6,7 +6,7 @@ The sample runs on Android, iOS, Web, and JVM desktop.
 
 The iOS app target generates dSYMs for Debug and Release builds. Its final `Upload PostHog dSYMs` build phase calls [`scripts/upload-posthog-dsyms.sh`](iosApp/scripts/upload-posthog-dsyms.sh). Uploads are opt-in so normal sample and CI builds do not require PostHog credentials.
 
-Install `posthog-cli` 0.7.7 or newer and authenticate locally:
+Install `posthog-cli` 0.7.12 or newer and authenticate locally:
 
 ```bash
 posthog-cli login

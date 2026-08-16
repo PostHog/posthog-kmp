@@ -251,7 +251,13 @@ public data class ErrorTrackingConfig(
     val autoCapture: Boolean = false,
     /** Supported on Android, JVM, and iOS. */
     val inAppIncludes: List<String> = emptyList(),
-    /** Supported on Android, JVM, and iOS. */
+    /**
+     * Supported on Android, JVM, and iOS.
+     *
+     * Android and JVM match throwable classes through their type hierarchy. iOS matches simple class names,
+     * so classes with the same name in different packages are treated as the same type. Native signal and
+     * Mach exception types cannot be represented by [KClass] and are not filtered by this setting.
+     */
     val ignoredExceptionTypes: List<KClass<out Throwable>> = emptyList(),
     /** iOS only. */
     val inAppExcludes: List<String> = emptyList(),
