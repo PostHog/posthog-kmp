@@ -141,10 +141,8 @@ internal fun configureUnhandledKotlinExceptionCapture(enabled: Boolean) {
     val previousHook = AtomicReference<ReportUnhandledExceptionHook?>(null)
     val hook: ReportUnhandledExceptionHook = { throwable ->
         if (captureUnhandledExceptions.value == 1) {
-            runCatching {
-                platformCaptureException(throwable, null)
-                platformFlush()
-            }
+            // Raising lets the native crash reporter own capture, metadata, remote configuration, and termination.
+            throwable.toNSException().raise()
         }
         previousHook.value?.invoke(throwable)
         terminateWithUnhandledException(throwable)
