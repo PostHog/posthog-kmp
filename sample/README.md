@@ -95,6 +95,8 @@ Build the macOS release DMG:
 ./gradlew :sample:packageReleaseDmg
 ```
 
+Compose Desktop's default release configuration disables obfuscation, so packaged DMGs retain readable class names, source filenames, and line numbers without uploading a mapping. PostHog KMP does not currently support deobfuscating custom-obfuscated JVM desktop builds because it does not expose the ProGuard map ID required for mapping uploads.
+
 Compose Desktop release distributions use ProGuard and a custom JDK runtime. Apps using PostHog must:
 
 1. Add `jdk.unsupported` to `nativeDistributions.modules`. Gson uses this module to deserialize PostHog queue and API models.
