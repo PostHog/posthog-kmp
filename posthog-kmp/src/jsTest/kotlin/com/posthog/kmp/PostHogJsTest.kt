@@ -396,6 +396,7 @@ class PostHogJsTest {
         PostHog.captureException(throwable, mapOf("context" to "test"))
         val call = getCall("captureException")
         assertEquals(throwable, call[0] as RuntimeException)
+        assertEquals("RuntimeException", call[0].name as String)
         assertEquals("test", call[1]["context"] as String)
     }
 

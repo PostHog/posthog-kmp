@@ -242,7 +242,9 @@ internal actual fun platformCaptureException(
     throwable: Throwable,
     additionalProperties: Map<String, Any>?
 ) {
-    PostHogJs.captureException(throwable, additionalProperties?.toJsObject())
+    val jsThrowable: dynamic = throwable
+    throwable::class.simpleName?.let { jsThrowable.name = it }
+    PostHogJs.captureException(jsThrowable, additionalProperties?.toJsObject())
 }
 
 internal actual fun platformGetAnonymousId(): String? {
