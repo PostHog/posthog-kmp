@@ -8,7 +8,7 @@ plugins {
 }
 
 kotlin {
-    androidLibrary {
+    android {
         namespace = "com.posthog.kmp.sample.shared"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         minSdk = 24
@@ -28,7 +28,7 @@ kotlin {
         }
     }
 
-    js(IR) {
+    js {
         browser()
         binaries.executable()
     }
@@ -42,25 +42,25 @@ kotlin {
     jvm()
 
     sourceSets {
-        val commonMain by getting {
+        val commonMain = getByName("commonMain") {
             dependencies {
                 api(project(":posthog-kmp"))
-                implementation(compose.runtime)
-                implementation(compose.foundation)
-                implementation(compose.material3)
-                implementation(compose.ui)
-                implementation(compose.components.resources)
+                implementation(libs.compose.runtime)
+                implementation(libs.compose.foundation)
+                implementation(libs.compose.material3)
+                implementation(libs.compose.ui)
+                implementation(libs.compose.components.resources)
             }
         }
 
-        val iosMain by creating {
+        val iosMain = create("iosMain") {
             dependsOn(commonMain)
         }
 
-        val iosArm64Main by getting { dependsOn(iosMain) }
-        val iosSimulatorArm64Main by getting { dependsOn(iosMain) }
+        getByName("iosArm64Main") { dependsOn(iosMain) }
+        getByName("iosSimulatorArm64Main") { dependsOn(iosMain) }
 
-        val jsMain by getting {
+        getByName("jsMain") {
             dependsOn(commonMain)
         }
 

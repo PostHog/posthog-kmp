@@ -2,6 +2,7 @@
 
 import com.vanniktech.maven.publish.KotlinMultiplatform
 import com.vanniktech.maven.publish.JavadocJar
+import com.vanniktech.maven.publish.SourcesJar
 import io.github.frankois944.spmForKmp.swiftPackageConfig
 import io.github.frankois944.spmForKmp.utils.ExperimentalSpmForKmpFeature
 import java.util.Properties
@@ -24,7 +25,7 @@ version = "$versionMajor.$versionMinor.$versionPatch"
 // Generate a common Kotlin source exposing the SDK version (single source of truth:
 // version.properties) so platform implementations can report it to PostHog.
 val generatedVersionDir = layout.buildDirectory.dir("generated/posthogVersion/kotlin")
-val generatePostHogVersion by tasks.registering {
+val generatePostHogVersion = tasks.register("generatePostHogVersion") {
     val versionValue = version.toString()
     val outputDir = generatedVersionDir
     inputs.property("version", versionValue)
@@ -50,7 +51,7 @@ val generatePostHogVersion by tasks.registering {
 kotlin {
     explicitApi()
 
-    androidLibrary {
+    android {
         namespace = "com.posthog.kmp"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         minSdk = 21
@@ -81,7 +82,7 @@ kotlin {
         }
     }
 
-    js(IR) {
+    js {
         browser {
             webpackTask {
                 mainOutputFileName = "posthog-kmp.js"
@@ -104,46 +105,46 @@ kotlin {
     }
 
     sourceSets {
-        val commonMain by getting {
+        val commonMain = getByName("commonMain") {
             kotlin.srcDir(generatedVersionDir)
         }
 
-        val commonTest by getting {
+        val commonTest = getByName("commonTest") {
             dependencies {
                 implementation(libs.kotlin.test)
             }
         }
 
         // shared delegation to the core PostHogInterface for the two JVM-backed targets
-        val jvmCommonMain by creating {
+        val jvmCommonMain = create("jvmCommonMain") {
             dependsOn(commonMain)
             dependencies {
                 implementation(libs.posthog.core)
             }
         }
 
-        val androidMain by getting {
+        getByName("androidMain") {
             dependsOn(jvmCommonMain)
             dependencies {
                 implementation(libs.posthog.android)
             }
         }
 
-        val iosMain by creating {
+        val iosMain = create("iosMain") {
             dependsOn(commonMain)
         }
-        val iosTest by creating {
+        val iosTest = create("iosTest") {
             dependsOn(commonTest)
         }
 
-        val iosX64Main by getting { dependsOn(iosMain) }
+        getByName("iosX64Main") { dependsOn(iosMain) }
         getByName("iosX64Test") { dependsOn(iosTest) }
-        val iosArm64Main by getting { dependsOn(iosMain) }
+        getByName("iosArm64Main") { dependsOn(iosMain) }
         getByName("iosArm64Test") { dependsOn(iosTest) }
-        val iosSimulatorArm64Main by getting { dependsOn(iosMain) }
+        getByName("iosSimulatorArm64Main") { dependsOn(iosMain) }
         getByName("iosSimulatorArm64Test") { dependsOn(iosTest) }
 
-        val jsMain by getting {
+        getByName("jsMain") {
             dependencies {
                 implementation(npm("posthog-js", libs.versions.posthog.js.get()))
             }
@@ -182,7 +183,7 @@ mavenPublishing {
 
     configure(KotlinMultiplatform(
         javadocJar = JavadocJar.Empty(),
-        sourcesJar = true
+        sourcesJar = SourcesJar.Sources()
     ))
 
     pom {
