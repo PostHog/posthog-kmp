@@ -14,3 +14,7 @@ posthog-kmp@0.3.0:
   dir: ""
   intents:
     - calm-events-filter
+posthog-kmp@0.4.0:
+  dir: ""
+  intents:
+    - quiet-cats-open
