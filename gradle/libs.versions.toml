@@ -3,6 +3,7 @@ kotlin = "2.4.10"
 agp = "9.3.1"
 android-compileSdk = "36"
 compose-multiplatform = "1.11.1"
+compose-material3 = "1.9.0"
 androidx-activity-compose = "1.13.0"
 posthog-android = "3.58.0"
 posthog-android-gradle-plugin = "1.4.0"
@@ -22,6 +23,12 @@ kotlin-test = "2.4.10"
 [libraries]
 # AndroidX
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity-compose" }
+# Compose
+compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose-multiplatform" }
+compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose-multiplatform" }
+compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "compose-material3" }
+compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose-multiplatform" }
+compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "compose-multiplatform" }
 # Kotlin
 kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", version.ref = "kotlin" }
 
