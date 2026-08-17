@@ -43,12 +43,23 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         sessionRecordingCaptureLogs = sessionConfig?.captureLogs ?: false,
         sessionRecordingScreenshotMode = sessionConfig?.screenshot ?: false,
         autocapture = config.autocapture,
+        errorAutoCapture = config.errorTracking?.autoCapture ?: false,
+        errorTrackingInAppIncludes = config.errorTracking?.inAppIncludes ?: emptyList<String>(),
+        errorTrackingIgnoredExceptionTypes = config.errorTracking?.ignoredExceptionTypes
+            ?.flatMap { listOfNotNull(it.simpleName, it.qualifiedName) }
+            ?.distinct() ?: emptyList<String>(),
+        errorTrackingInAppExcludes = config.errorTracking?.inAppExcludes ?: emptyList<String>(),
+        errorTrackingInAppByDefault = config.errorTracking?.inAppByDefault ?: true,
         sdkVersion = PostHogKmpVersion.VERSION,
         beforeSend = if (config.beforeSend.isEmpty()) {
             null
         } else {
             { event -> processBeforeSend(config, event) }
         }
+    )
+    configureUnhandledKotlinExceptionCapture(
+        enabled = config.errorTracking?.autoCapture == true,
+        debug = config.debug
     )
 }
 
@@ -104,10 +115,8 @@ internal actual fun platformCaptureException(
     additionalProperties: Map<String, Any>?
 ) {
     @Suppress("UNCHECKED_CAST")
-    PostHogBridge.shared().captureExceptionWithType(
-        type = throwable::class.simpleName ?: "Exception",
-        message = throwable.message,
-        stackTrace = throwable.stackTraceToString(),
+    PostHogBridge.shared().captureExceptionWithException(
+        exception = throwable.toNSException(),
         properties = additionalProperties as? Map<Any?, *>
     )
 }
@@ -230,6 +239,7 @@ internal actual fun platformFlush() {
 }
 
 internal actual fun platformClose() {
+    configureUnhandledKotlinExceptionCapture(false)
     PostHogBridge.shared().close()
 }
 

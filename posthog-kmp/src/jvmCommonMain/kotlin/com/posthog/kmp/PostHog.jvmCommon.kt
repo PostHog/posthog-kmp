@@ -8,6 +8,13 @@ internal var postHogInstance: PostHogInterface? = null
 
 internal const val SDK_NAME = "posthog-kmp"
 
+internal fun com.posthog.PostHogConfig.configureErrorTracking(config: ErrorTrackingConfig?) {
+    config ?: return
+    errorTrackingConfig.autoCapture = config.autoCapture
+    errorTrackingConfig.inAppIncludes.addAll(config.inAppIncludes)
+    errorTrackingConfig.ignoredExceptionTypes.addAll(config.ignoredExceptionTypes.map { it.java })
+}
+
 internal fun com.posthog.PostHogConfig.configureBeforeSend(config: PostHogConfig) {
     if (config.beforeSend.isEmpty()) return
 

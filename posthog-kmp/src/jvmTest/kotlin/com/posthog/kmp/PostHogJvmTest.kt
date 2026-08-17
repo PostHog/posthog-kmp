@@ -32,6 +32,26 @@ class PostHogJvmTest {
     }
 
     @Test
+    fun testConfigureErrorTracking() {
+        val nativeConfig = com.posthog.PostHogConfig(apiKey = "key")
+
+        nativeConfig.configureErrorTracking(
+            ErrorTrackingConfig(
+                autoCapture = true,
+                inAppIncludes = listOf("com.example"),
+                ignoredExceptionTypes = listOf(IllegalStateException::class)
+            )
+        )
+
+        assertEquals(true, nativeConfig.errorTrackingConfig.autoCapture)
+        assertEquals(listOf("com.example"), nativeConfig.errorTrackingConfig.inAppIncludes)
+        assertEquals(
+            listOf<Class<out Throwable>>(IllegalStateException::class.java),
+            nativeConfig.errorTrackingConfig.ignoredExceptionTypes
+        )
+    }
+
+    @Test
     fun testCaptureRoutesCorrectly() {
         PostHog.capture("test_event", mapOf("prop" to "value"))
         assertMethodCalled("capture", "test_event", null, mapOf("prop" to "value"))

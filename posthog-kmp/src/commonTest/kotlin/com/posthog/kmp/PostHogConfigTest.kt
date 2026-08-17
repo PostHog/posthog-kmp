@@ -6,6 +6,8 @@ import kotlin.test.assertNull
 
 class PostHogConfigTest {
 
+    private class IgnoredException : RuntimeException()
+
     @Test
     fun defaultsToUsCloudHost() {
         assertEquals(PostHogConfig.HOST_US, PostHogConfig(apiKey = "phc_test").host)
@@ -14,6 +16,35 @@ class PostHogConfigTest {
     @Test
     fun defaultsToIdentifiedOnlyPersonProfiles() {
         assertEquals(PersonProfiles.IDENTIFIED_ONLY, PostHogConfig(apiKey = "phc_test").personProfiles)
+    }
+
+    @Test
+    fun defaultsErrorTrackingToNull() {
+        assertNull(PostHogConfig(apiKey = "phc_test").errorTracking)
+    }
+
+    @Test
+    fun errorTrackingDefaultsMatchNativeSdks() {
+        val config = ErrorTrackingConfig()
+        assertEquals(false, config.autoCapture)
+        assertEquals(emptyList(), config.inAppIncludes)
+        assertEquals(emptyList(), config.ignoredExceptionTypes)
+        assertEquals(emptyList(), config.inAppExcludes)
+        assertEquals(true, config.inAppByDefault)
+    }
+
+    @Test
+    fun copyPreservesErrorTracking() {
+        val errorTracking = ErrorTrackingConfig(
+            autoCapture = true,
+            inAppIncludes = listOf("com.example"),
+            ignoredExceptionTypes = listOf(IgnoredException::class),
+            inAppExcludes = listOf("ThirdParty"),
+            inAppByDefault = false
+        )
+        val config = PostHogConfig(apiKey = "phc_test", errorTracking = errorTracking)
+
+        assertEquals(errorTracking, config.copy(debug = true).errorTracking)
     }
 
     @Test

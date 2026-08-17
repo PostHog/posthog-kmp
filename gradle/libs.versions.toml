@@ -6,6 +6,7 @@ compose-multiplatform = "1.11.1"
 compose-material3 = "1.9.0"
 androidx-activity-compose = "1.13.0"
 posthog-android = "3.58.0"
+posthog-android-gradle-plugin = "1.4.0"
 # Pure-JVM core that posthog-android is built on (versioned independently of posthog-android)
 posthog-core = "6.29.0"
 okio = "3.18.1"
@@ -45,6 +46,7 @@ kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref =
 kotlinAndroid = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 androidKmpLibrary = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
 androidApplication = { id = "com.android.application", version.ref = "agp" }
+posthogAndroid = { id = "com.posthog.android", version.ref = "posthog-android-gradle-plugin" }
 mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "mavenPublish" }
 spmforkmp = { id = "io.github.frankois944.spmForKmp", version.ref = "spmforkmp" }
 composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "compose-multiplatform" }
