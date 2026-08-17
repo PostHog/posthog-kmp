@@ -96,7 +96,10 @@ fun App(postHogContext: PostHogContext) {
                                 config = PostHogConfig(
                                     apiKey = apiKey,
                                     debug = true,
-                                    errorTracking = ErrorTrackingConfig(autoCapture = true),
+                                    errorTracking = ErrorTrackingConfig(
+                                        autoCapture = true,
+                                        inAppIncludes = listOf("com.posthog.kmp.sample")
+                                    ),
                                     beforeSend = listOf(
                                         PostHogBeforeSend { event ->
                                             if (event.event == "before_send_drop_test") {
