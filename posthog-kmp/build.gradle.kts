@@ -7,6 +7,13 @@ import io.github.frankois944.spmForKmp.swiftPackageConfig
 import io.github.frankois944.spmForKmp.utils.ExperimentalSpmForKmpFeature
 import java.util.Properties
 
+plugins {
+    alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.androidKmpLibrary)
+    alias(libs.plugins.mavenPublish)
+    alias(libs.plugins.spmforkmp)
+}
+
 val swiftCompatibilitySymbols = listOf(
     "__swift_FORCE_LOAD_\$_swiftCompatibility50",
     "__swift_FORCE_LOAD_\$_swiftCompatibility51",
@@ -16,13 +23,6 @@ val swiftCompatibilitySymbols = listOf(
     "__swift_FORCE_LOAD_\$_swiftCompatibilityPacks"
 )
 val portableSwiftLinkerOpts = swiftCompatibilitySymbols.joinToString(" ") { "-U $it" }
-
-plugins {
-    alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.androidKmpLibrary)
-    alias(libs.plugins.mavenPublish)
-    alias(libs.plugins.spmforkmp)
-}
 
 val versionProperties = Properties().apply {
     rootProject.file("version.properties").inputStream().use { load(it) }
