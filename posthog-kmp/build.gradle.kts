@@ -5,6 +5,7 @@ import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.SourcesJar
 import io.github.frankois944.spmForKmp.swiftPackageConfig
 import io.github.frankois944.spmForKmp.utils.ExperimentalSpmForKmpFeature
+import java.io.File
 import java.util.Properties
 
 plugins {
@@ -14,15 +15,22 @@ plugins {
     alias(libs.plugins.spmforkmp)
 }
 
-val swiftCompatibilitySymbols = listOf(
-    "__swift_FORCE_LOAD_\$_swiftCompatibility50",
-    "__swift_FORCE_LOAD_\$_swiftCompatibility51",
-    "__swift_FORCE_LOAD_\$_swiftCompatibility56",
-    "__swift_FORCE_LOAD_\$_swiftCompatibilityConcurrency",
-    "__swift_FORCE_LOAD_\$_swiftCompatibilityDynamicReplacements",
-    "__swift_FORCE_LOAD_\$_swiftCompatibilityPacks"
+val swiftCompatibilityLibraries = listOf(
+    "swiftCompatibility50",
+    "swiftCompatibility51",
+    "swiftCompatibility56",
+    "swiftCompatibilityConcurrency",
+    "swiftCompatibilityDynamicReplacements",
+    "swiftCompatibilityPacks"
 )
-val portableSwiftLinkerOpts = swiftCompatibilitySymbols.joinToString(" ") { "-U $it" }
+val portableSwiftLinkerOpts = swiftCompatibilityLibraries.joinToString(" ") {
+    "-U __swift_FORCE_LOAD_\$_$it"
+}
+val swiftToolchainDirectory = providers.exec {
+    commandLine("/usr/bin/xcrun", "--toolchain", "XcodeDefault", "--find", "swiftc")
+}.standardOutput.asText.map { output ->
+    File(output.trim()).parentFile.parentFile
+}
 
 val versionProperties = Properties().apply {
     rootProject.file("version.properties").inputStream().use { load(it) }
@@ -243,18 +251,58 @@ tasks.matching { it.name.endsWith("sourcesJar", ignoreCase = true) }.configureEa
 }
 
 // spmForKmp needs producer-local paths while generating the cinterop, but those paths are not
-// valid after publication. The static Swift archive is already embedded in the KLIB, so keep only
-// portable options for its Swift compatibility force-load markers.
+// valid after publication. Embed the Swift back-deployment libraries in the KLIB and keep only
+// portable linker options for their force-load markers.
 tasks.matching { it.name.startsWith("cinteropPostHogBridge") }.configureEach {
+    val swiftPlatform = when {
+        name.endsWith("IosArm64") -> "iphoneos"
+        name.endsWith("IosSimulatorArm64") || name.endsWith("IosX64") -> "iphonesimulator"
+        else -> error("Unsupported PostHogBridge cinterop target: $name")
+    }
+    val compatibilityArchives = swiftCompatibilityLibraries.map { library ->
+        swiftToolchainDirectory.map { toolchainDirectory ->
+            toolchainDirectory.resolve("lib/swift/$swiftPlatform/lib$library.a")
+        }
+    }
+
     inputs.property("portableSwiftLinkerOpts", portableSwiftLinkerOpts)
+    inputs.property("swiftCompatibilityArchiveNames", swiftCompatibilityLibraries.joinToString(" ") { "lib$it.a" })
+    inputs.files(compatibilityArchives)
+        .withPropertyName("swiftCompatibilityArchives")
+        .withPathSensitivity(org.gradle.api.tasks.PathSensitivity.NONE)
+
     doLast {
         val linkerOpts = inputs.properties.getValue("portableSwiftLinkerOpts") as String
-        outputs.files.asFileTree.matching { include("**/default/manifest") }.forEach { manifest ->
-            val sanitizedManifest = manifest.readLines().mapNotNull { line ->
+        val archiveNames = (inputs.properties.getValue("swiftCompatibilityArchiveNames") as String).split(' ')
+        val archivesByName = inputs.files.files.filter { it.name in archiveNames }.associateBy { it.name }
+        check(archivesByName.keys == archiveNames.toSet()) {
+            "Could not resolve every Swift compatibility archive for $name"
+        }
+        val archives = archiveNames.map(archivesByName::getValue)
+        val manifests = outputs.files.asFileTree.matching { include("**/default/manifest") }.files
+        check(manifests.isNotEmpty()) { "No cinterop manifest found in outputs of $name" }
+
+        manifests.forEach { manifest ->
+            val lines = manifest.readLines()
+            listOf("compilerOpts=", "libraryPaths=", "linkerOpts=", "staticLibraries=").forEach { key ->
+                check(lines.count { it.startsWith(key) } == 1) {
+                    "Expected exactly one $key entry in ${manifest.absolutePath}"
+                }
+            }
+
+            val nativeTarget = lines.single { it.startsWith("native_targets=") }.substringAfter('=')
+            val includedLibraries = manifest.parentFile.resolve("targets/$nativeTarget/included")
+            archives.forEach { archive ->
+                archive.copyTo(includedLibraries.resolve(archive.name), overwrite = true)
+            }
+
+            val archiveNames = archives.joinToString(" ") { it.name }
+            val sanitizedManifest = lines.mapNotNull { line ->
                 when {
                     line.startsWith("compilerOpts=") -> null
                     line.startsWith("libraryPaths=") -> null
                     line.startsWith("linkerOpts=") -> "linkerOpts=$linkerOpts"
+                    line.startsWith("staticLibraries=") -> "$line $archiveNames"
                     else -> line
                 }
             }.joinToString("\n", postfix = "\n")

@@ -24,6 +24,23 @@ if grep -Eq '(^|[=" ])/' <<<"$manifest" || grep -Eq '^(compilerOpts|libraryPaths
     exit 1
 fi
 
+compatibility_libraries=(
+    swiftCompatibility50
+    swiftCompatibility51
+    swiftCompatibility56
+    swiftCompatibilityConcurrency
+    swiftCompatibilityDynamicReplacements
+    swiftCompatibilityPacks
+)
+for library in "${compatibility_libraries[@]}"; do
+    archive="lib$library.a"
+    if ! grep -Eq "^staticLibraries=.*(^| )$archive( |$)" <<<"$manifest" ||
+        ! unzip -Z1 "$cinterop_klib" | grep -Fqx "default/targets/ios_simulator_arm64/included/$archive"; then
+        echo "Published iOS KLIB does not embed $archive" >&2
+        exit 1
+    fi
+done
+
 mkdir -p "$consumer/src/commonTest/kotlin"
 cat > "$consumer/settings.gradle.kts" <<EOF
 pluginManagement {
@@ -81,3 +98,10 @@ class PostHogLinkTest {
 EOF
 
 "$root_dir/gradlew" -p "$consumer" iosSimulatorArm64Test --no-daemon --console=plain
+
+test_binary="$consumer/build/bin/iosSimulatorArm64/debugTest/test.kexe"
+if xcrun nm -m "$test_binary" | grep -Eq '\(undefined\).*swiftCompatibility'; then
+    echo "Published iOS library leaves Swift compatibility symbols unresolved:" >&2
+    xcrun nm -m "$test_binary" | grep 'swiftCompatibility' >&2
+    exit 1
+fi
