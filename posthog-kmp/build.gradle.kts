@@ -7,6 +7,16 @@ import io.github.frankois944.spmForKmp.swiftPackageConfig
 import io.github.frankois944.spmForKmp.utils.ExperimentalSpmForKmpFeature
 import java.util.Properties
 
+val swiftCompatibilitySymbols = listOf(
+    "__swift_FORCE_LOAD_\$_swiftCompatibility50",
+    "__swift_FORCE_LOAD_\$_swiftCompatibility51",
+    "__swift_FORCE_LOAD_\$_swiftCompatibility56",
+    "__swift_FORCE_LOAD_\$_swiftCompatibilityConcurrency",
+    "__swift_FORCE_LOAD_\$_swiftCompatibilityDynamicReplacements",
+    "__swift_FORCE_LOAD_\$_swiftCompatibilityPacks"
+)
+val portableSwiftLinkerOpts = swiftCompatibilitySymbols.joinToString(" ") { "-U $it" }
+
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidKmpLibrary)
@@ -230,4 +240,25 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().con
 }
 tasks.matching { it.name.endsWith("sourcesJar", ignoreCase = true) }.configureEach {
     dependsOn(generatePostHogVersion)
+}
+
+// spmForKmp needs producer-local paths while generating the cinterop, but those paths are not
+// valid after publication. The static Swift archive is already embedded in the KLIB, so keep only
+// portable options for its Swift compatibility force-load markers.
+tasks.matching { it.name.startsWith("cinteropPostHogBridge") }.configureEach {
+    inputs.property("portableSwiftLinkerOpts", portableSwiftLinkerOpts)
+    doLast {
+        val linkerOpts = inputs.properties.getValue("portableSwiftLinkerOpts") as String
+        outputs.files.asFileTree.matching { include("**/default/manifest") }.forEach { manifest ->
+            val sanitizedManifest = manifest.readLines().mapNotNull { line ->
+                when {
+                    line.startsWith("compilerOpts=") -> null
+                    line.startsWith("libraryPaths=") -> null
+                    line.startsWith("linkerOpts=") -> "linkerOpts=$linkerOpts"
+                    else -> line
+                }
+            }.joinToString("\n", postfix = "\n")
+            manifest.writeText(sanitizedManifest)
+        }
+    }
 }
