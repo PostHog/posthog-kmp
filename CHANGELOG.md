@@ -1,5 +1,11 @@
 # posthog-kmp
 
+## 0.4.1
+
+### Patch Changes
+
+- Fix iOS linking when consumers use a different Xcode installation path.
+
 ## 0.4.0
 
 ### Minor Changes
