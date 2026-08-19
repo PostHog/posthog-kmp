@@ -5,15 +5,15 @@ android-compileSdk = "36"
 compose-multiplatform = "1.11.1"
 compose-material3 = "1.9.0"
 androidx-activity-compose = "1.13.0"
-posthog-android = "3.58.0"
+posthog-android = "3.58.2"
 posthog-android-gradle-plugin = "1.4.0"
 # Pure-JVM core that posthog-android is built on (versioned independently of posthog-android)
-posthog-core = "6.29.0"
+posthog-core = "6.30.0"
 okio = "3.18.1"
 posthog-ios = "3.64.1"
 posthog-js = "1.398.7"
 mavenPublish = "0.37.0"
-spmforkmp = "1.9.4"
+spmforkmp = "1.9.5"
 detekt = "1.23.8"
 
 # Testing
