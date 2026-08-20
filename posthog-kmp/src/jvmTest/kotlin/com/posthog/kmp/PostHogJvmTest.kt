@@ -1,11 +1,14 @@
 package com.posthog.kmp
 
+import java.io.ByteArrayOutputStream
+import java.io.PrintStream
 import java.time.OffsetDateTime
 import java.util.Date
 import java.util.TimeZone
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.test.BeforeTest
 
@@ -281,5 +284,34 @@ class PostHogJvmTest {
         assertEquals(false, result?.properties?.containsKey("email"))
         assertEquals(timestamp, result?.timestamp)
         assertEquals(uuid, result?.uuid)
+    }
+
+    @Test
+    fun testBeforeSendFailureLogsWhenDebugIsDisabled() {
+        val wrapperConfig = PostHogConfig(
+            apiKey = "key",
+            beforeSend = listOf(PostHogBeforeSend { throw IllegalStateException("failed") })
+        )
+        val nativeConfig = com.posthog.PostHogConfig(apiKey = "key")
+        nativeConfig.debug = false
+        nativeConfig.configureBeforeSend(wrapperConfig)
+        val output = ByteArrayOutputStream()
+        val originalError = System.err
+
+        val result = try {
+            System.setErr(PrintStream(output))
+            nativeConfig.beforeSendList.single().run(
+                com.posthog.PostHogEvent(
+                    event = "checkout",
+                    distinctId = "user-1",
+                    properties = mutableMapOf()
+                )
+            )
+        } finally {
+            System.setErr(originalError)
+        }
+
+        assertNull(result)
+        assertTrue(output.toString().contains("[PostHog] Before-send callback failed; event was dropped."))
     }
 }

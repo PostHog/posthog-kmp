@@ -26,7 +26,12 @@ internal fun com.posthog.PostHogConfig.configureBeforeSend(config: PostHogConfig
                 properties = event.properties.orEmpty()
             ),
             onError = {
-                logger.log("Before-send callback failed; event was dropped.")
+                val message = "Before-send callback failed; event was dropped."
+                if (logger.isEnabled()) {
+                    logger.log(message)
+                } else {
+                    System.err.println("[PostHog] $message")
+                }
             }
         )?.let { processed ->
             event.copy(
