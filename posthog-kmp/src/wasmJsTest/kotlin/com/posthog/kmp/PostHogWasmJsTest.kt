@@ -75,7 +75,7 @@ class PostHogWasmJsTest {
             PostHogContext()
         )
 
-        val result = invokeBeforeSend(fakePostHog)
+        val result = assertNotNull(invokeBeforeSend(fakePostHog))
 
         assertEquals("sanitized", readJsString(result, "event"))
         assertEquals("anonymous", readDeepJsString(result, "properties", "distinct_id"))
@@ -91,20 +91,24 @@ class PostHogWasmJsTest {
 
     @Test
     fun beforeSendContainsCallbackAndConversionExceptions() {
+        var sentinelCalled = false
         PostHog.setup(
             PostHogConfig(
                 apiKey = "phc_test",
                 beforeSend = listOf(
+                    PostHogBeforeSend { it.copy(event = "transformed") },
                     PostHogBeforeSend { throw IllegalStateException("failed") },
-                    PostHogBeforeSend { it.copy(event = "continued") }
+                    PostHogBeforeSend {
+                        sentinelCalled = true
+                        it
+                    }
                 )
             ),
             PostHogContext()
         )
 
-        val result = invokeBeforeSend(fakePostHog)
-
-        assertEquals("continued", readJsString(result, "event"))
+        assertNull(invokeBeforeSend(fakePostHog))
+        assertFalse(sentinelCalled)
         assertNull(invokeBeforeSendWithThrowingGetter(fakePostHog))
     }
 
@@ -292,7 +296,7 @@ private fun readDeepBoolean(target: PostHogJsApi, parent: String, child: String,
 private fun readArrayString(target: PostHogJsApi, parent: String, child: String, index: Int): String = js("target[parent][child][index]")
 private fun readTimestamp(target: PostHogJsApi): Double = js("target.captureOptions.timestamp.getTime()")
 private fun readTimestampIso(target: PostHogJsApi): String = js("target.captureOptions.timestamp.toISOString()")
-private fun invokeBeforeSend(target: PostHogJsApi): JsAny = js(
+private fun invokeBeforeSend(target: PostHogJsApi): JsAny? = js(
     "target.options.before_send({ event: 'checkout', properties: { distinct_id: 'user-1', " +
         "email: 'person@example.com', plan: 'paid', nullable: null, nested: [['one'], ['two']], " +
         "date: new Date(0) } })"

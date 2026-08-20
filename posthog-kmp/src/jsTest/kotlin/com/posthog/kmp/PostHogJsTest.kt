@@ -361,6 +361,7 @@ class PostHogJsTest {
 
     @Test
     fun testBeforeSendContainsCallbackAndConversionExceptions() {
+        var sentinelCalled = false
         fakeJs.init = { _: String, options: dynamic ->
             calledMethods.add("init" to arrayOf<dynamic>(options))
         }
@@ -368,8 +369,12 @@ class PostHogJsTest {
             PostHogConfig(
                 apiKey = "key",
                 beforeSend = listOf(
+                    PostHogBeforeSend { it.copy(event = "transformed") },
                     PostHogBeforeSend { throw IllegalStateException("failed") },
-                    PostHogBeforeSend { it.copy(event = "continued") }
+                    PostHogBeforeSend {
+                        sentinelCalled = true
+                        it
+                    }
                 )
             ),
             PostHogContext()
@@ -378,7 +383,8 @@ class PostHogJsTest {
 
         val result = callback(js("({ event: 'checkout', properties: { distinct_id: 'user-1' } })"))
 
-        assertEquals("continued", result.event as String)
+        assertNull(result)
+        assertEquals(false, sentinelCalled)
         assertNull(callback(createThrowingCaptureResult()))
     }
 

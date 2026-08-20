@@ -85,13 +85,18 @@ class PostHogConfigTest {
     }
 
     @Test
-    fun beforeSendContinuesAfterCallbackException() {
+    fun beforeSendDropsTransformedEventAndStopsAfterCallbackException() {
         var errorCount = 0
+        var sentinelCalled = false
         val config = PostHogConfig(
             apiKey = "phc_test",
             beforeSend = listOf(
+                PostHogBeforeSend { it.copy(event = "transformed") },
                 PostHogBeforeSend { throw IllegalStateException("failed") },
-                PostHogBeforeSend { it.copy(event = "continued") }
+                PostHogBeforeSend {
+                    sentinelCalled = true
+                    it
+                }
             )
         )
 
@@ -99,7 +104,8 @@ class PostHogConfigTest {
             errorCount++
         }
 
-        assertEquals("continued", result?.event)
+        assertNull(result)
+        assertEquals(false, sentinelCalled)
         assertEquals(1, errorCount)
     }
 

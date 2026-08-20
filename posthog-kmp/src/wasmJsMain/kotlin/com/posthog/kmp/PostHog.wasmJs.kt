@@ -197,7 +197,7 @@ private fun processBeforeSend(config: PostHogConfig, captureResult: JsAny?): JsA
     return try {
         val event = captureResult.toPostHogEvent() ?: return null
         val processed = config.runBeforeSend(event) {
-            if (config.debug) logWasmError("beforeSend", "callback failed and was ignored")
+            logWasmError("beforeSend", "callback failed; event was dropped")
         } ?: return null
 
         val processedProperties = processed.properties.toJsObject()

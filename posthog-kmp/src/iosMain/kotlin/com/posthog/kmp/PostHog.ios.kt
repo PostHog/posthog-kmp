@@ -67,7 +67,7 @@ private fun processBeforeSend(config: PostHogConfig, event: Map<Any?, *>?): Map<
     event ?: return null
     val postHogEvent = event.toPostHogEvent() ?: return null
     val processed = config.runBeforeSend(postHogEvent) {
-        if (config.debug) NSLog("[PostHog] Before-send callback failed and was ignored.")
+        NSLog("[PostHog] Before-send callback failed; event was dropped.")
     } ?: return null
     return mapOf(
         "event" to processed.event,
