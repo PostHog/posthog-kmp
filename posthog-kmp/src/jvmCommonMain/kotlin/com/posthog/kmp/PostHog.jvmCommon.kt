@@ -26,7 +26,7 @@ internal fun com.posthog.PostHogConfig.configureBeforeSend(config: PostHogConfig
                 properties = event.properties.orEmpty()
             ),
             onError = {
-                if (config.debug) logger.log("Before-send callback failed and was ignored.")
+                if (config.debug) logger.log("Before-send callback failed; event was dropped.")
             }
         )?.let { processed ->
             event.copy(

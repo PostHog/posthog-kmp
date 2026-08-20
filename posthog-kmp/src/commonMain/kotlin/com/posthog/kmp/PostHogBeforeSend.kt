@@ -16,8 +16,8 @@ public data class PostHogEvent(
  * Synchronous hook invoked before an event is queued.
  *
  * Callbacks run in configuration order. Return the same or a modified [PostHogEvent] to continue,
- * or `null` to drop the event and skip the remaining callbacks. If a callback throws, its changes
- * are ignored and the remaining callbacks continue with the last valid event.
+ * or `null` to drop the event and skip the remaining callbacks. If a callback throws, the event is
+ * dropped and the remaining callbacks are skipped.
  */
 public fun interface PostHogBeforeSend {
     public fun run(event: PostHogEvent): PostHogEvent?
@@ -33,7 +33,7 @@ internal fun PostHogConfig.runBeforeSend(
             callback.run(current) ?: return null
         } catch (error: Throwable) {
             onError(error)
-            current
+            return null
         }
     }
     return current

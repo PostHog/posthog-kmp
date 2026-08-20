@@ -324,7 +324,7 @@ private fun processBeforeSend(config: PostHogConfig, captureResult: dynamic): dy
     return try {
         val event = dynamicToPostHogEvent(captureResult) ?: return null
         val processed = config.runBeforeSend(event) {
-            if (config.debug) console.error("[PostHog] Before-send callback failed and was ignored.")
+            if (config.debug) console.error("[PostHog] Before-send callback failed; event was dropped.")
         } ?: return null
 
         captureResult.event = processed.event
