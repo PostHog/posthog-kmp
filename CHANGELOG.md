@@ -1,5 +1,11 @@
 # posthog-kmp
 
+## 0.4.2
+
+### Patch Changes
+
+- Drop events when a before-send callback throws.
+
 ## 0.4.1
 
 ### Patch Changes

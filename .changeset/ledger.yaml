@@ -22,3 +22,7 @@ posthog-kmp@0.4.1:
   dir: ""
   intents:
     - few-numbers-scream
+posthog-kmp@0.4.2:
+  dir: ""
+  intents:
+    - big-ends-share
