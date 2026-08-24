@@ -26,3 +26,7 @@ posthog-kmp@0.4.2:
   dir: ""
   intents:
     - big-ends-share
+posthog-kmp@0.5.0:
+  dir: ""
+  intents:
+    - swift-packages-link

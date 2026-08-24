@@ -1,5 +1,11 @@
 # posthog-kmp
 
+## 0.5.0
+
+### Minor Changes
+
+- Use Kotlin's official SwiftPM integration on iOS and include PostHog privacy manifests in Xcode applications.
+
 ## 0.4.2
 
 ### Patch Changes
