@@ -161,6 +161,8 @@ jobs:
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath "$derived_data" \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=YES \
             build
           test -f "$derived_data/Build/Products/Debug-iphonesimulator/iosApp.app/PostHog_PostHog.bundle/PrivacyInfo.xcprivacy"
           test -f "$derived_data/Build/Products/Debug-iphonesimulator/iosApp.app/PostHog_PHPLCrashReporter.bundle/PrivacyInfo.xcprivacy"
