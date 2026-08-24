@@ -10,6 +10,7 @@
 		2DFCA07B3610CA85C8A597E1 /* E2ETests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 891AD83475F62A51ADC0C861 /* E2ETests.swift */; };
 		4CB3A5070E459D2DDAE4A5D7 /* iOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04DD263C9708F22D171C7566 /* iOSApp.swift */; };
 		684CDADF674636B597F05574 /* FullTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4295C7EB023C10285BFFCE9A /* FullTest.swift */; };
+		998DE9461F753C0BD610339A /* KotlinMultiplatformLinkedPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 00E808F31D9A560593F5514F /* KotlinMultiplatformLinkedPackage */; };
 		9DF5E50ED2AE1F0717BF2073 /* TestConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E598512160786565AF3B2B2 /* TestConfig.swift */; };
 		BAC36AF6BA60A970AB81E2CD /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 860BDAA1DE059A116E0602D4 /* Foundation.framework */; };
 		BB561D422715D2BCA9CBD4D5 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 860BDAA1DE059A116E0602D4 /* Foundation.framework */; };
@@ -49,6 +50,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				BB561D422715D2BCA9CBD4D5 /* Foundation.framework in Frameworks */,
+				998DE9461F753C0BD610339A /* KotlinMultiplatformLinkedPackage in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -135,6 +137,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 2E3C4F183337232A6EFF2220 /* Build configuration list for PBXNativeTarget "iosApp" */;
 			buildPhases = (
+				15EB19FB0F978D490BA2C127 /* Compile Kotlin Framework */,
 				49CE9E73EA13311C13F26D2E /* Sources */,
 				CCDF0391B7E30A322B718C78 /* Frameworks */,
 				E3142E7290D01099F16CA5D2 /* Resources */,
@@ -144,6 +147,9 @@
 			dependencies = (
 			);
 			name = iosApp;
+			packageProductDependencies = (
+				00E808F31D9A560593F5514F /* KotlinMultiplatformLinkedPackage */,
+			);
 			productName = iosApp;
 			productReference = C0F28F6A34D090CB2FD8FD5B /* iosApp.app */;
 			productType = "com.apple.product-type.application";
@@ -167,6 +173,9 @@
 			);
 			mainGroup = E33ADC3DE3ADC9F46FE64A4D;
 			minimizedProjectReferenceProxies = 0;
+			packageReferences = (
+				6FB82FA240083C0CD5D7644F /* XCLocalSwiftPackageReference "KotlinMultiplatformLinkedPackage" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 904A2D96DCB707C74117317F /* Products */;
 			projectDirPath = "";
@@ -194,6 +203,28 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		15EB19FB0F978D490BA2C127 /* Compile Kotlin Framework */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Compile Kotlin Framework";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"YES\" = \"$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED\" ]; then\n  echo \"Skipping Gradle build task invocation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \\\"YES\\\"\"\n  exit 0\nfi\ncd \"$SRCROOT/../..\"\n./gradlew :sample:embedAndSignAppleFrameworkForXcode -i";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		49CE9E73EA13311C13F26D2E /* Sources */ = {
@@ -224,6 +255,20 @@
 			targetProxy = 55A9098278A9A2D708B077AB /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		6FB82FA240083C0CD5D7644F /* XCLocalSwiftPackageReference "KotlinMultiplatformLinkedPackage" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = KotlinMultiplatformLinkedPackage;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		00E808F31D9A560593F5514F /* KotlinMultiplatformLinkedPackage */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = KotlinMultiplatformLinkedPackage;
+		};
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin XCBuildConfiguration section */
 		12E8DC7668C5FD2BD8B4C6E9 /* Release */ = {

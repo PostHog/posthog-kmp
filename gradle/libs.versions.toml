@@ -1,5 +1,5 @@
 [versions]
-kotlin = "2.4.10"
+kotlin = "2.4.20-Beta2"
 agp = "9.3.1"
 android-compileSdk = "36"
 compose-multiplatform = "1.11.1"
@@ -13,12 +13,11 @@ okio = "3.18.1"
 posthog-ios = "3.64.1"
 posthog-js = "1.398.7"
 mavenPublish = "0.37.0"
-spmforkmp = "1.9.5"
 detekt = "1.23.8"
 
 # Testing
 junit = "4.13.2"
-kotlin-test = "2.4.10"
+kotlin-test = "2.4.20-Beta2"
 
 [libraries]
 # AndroidX
@@ -48,7 +47,6 @@ androidKmpLibrary = { id = "com.android.kotlin.multiplatform.library", version.r
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 posthogAndroid = { id = "com.posthog.android", version.ref = "posthog-android-gradle-plugin" }
 mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "mavenPublish" }
-spmforkmp = { id = "io.github.frankois944.spmForKmp", version.ref = "spmforkmp" }
 composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "compose-multiplatform" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }

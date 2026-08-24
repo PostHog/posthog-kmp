@@ -152,6 +152,19 @@ jobs:
       - name: Build iOS
         run: ./gradlew :posthog-kmp:compileKotlinIosArm64 --no-daemon
 
+      - name: Build iOS sample through Xcode
+        run: |
+          derived_data="$RUNNER_TEMP/posthog-kmp-xcode-derived-data"
+          xcodebuild \
+            -project sample/iosApp/iosApp.xcodeproj \
+            -scheme iosApp \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$derived_data" \
+            build
+          test -f "$derived_data/Build/Products/Debug-iphonesimulator/iosApp.app/PostHog_PostHog.bundle/PrivacyInfo.xcprivacy"
+          test -f "$derived_data/Build/Products/Debug-iphonesimulator/iosApp.app/PostHog_PHPLCrashReporter.bundle/PrivacyInfo.xcprivacy"
+
       - name: Build macOS desktop sample release
         run: ./gradlew :sample:packageReleaseDmg --no-daemon
 

@@ -53,6 +53,11 @@ xcuserdata/
 *.xcuserstate
 DerivedData/
 
+# SwiftPM import tooling (only the resolved dependency graph is committed)
+.swiftpm-locks/default/swiftImport/*
+!.swiftpm-locks/default/swiftImport/Package.resolved
+.swiftpm-locks/default/swiftPMCheckout/
+
 # CocoaPods
 Pods/
 
