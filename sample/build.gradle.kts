@@ -28,6 +28,10 @@ kotlin {
         }
     }
 
+    swiftPMDependencies {
+        iosMinimumDeploymentTarget.set("13.0")
+    }
+
     js {
         browser()
         binaries.executable()

@@ -2,14 +2,21 @@
 
 package com.posthog.kmp
 
-import PostHogBridge.PostHogBridge
 import kotlinx.cinterop.ExperimentalForeignApi
 import platform.Foundation.NSDate
 import platform.Foundation.NSLog
 import platform.Foundation.dateWithTimeIntervalSince1970
+import swiftPMImport.com.posthog.posthog.kmp.BoxedBeforeSendBlock
+import swiftPMImport.com.posthog.posthog.kmp.PostHogConfig as NativePostHogConfig
+import swiftPMImport.com.posthog.posthog.kmp.PostHogEvent as NativePostHogEvent
+import swiftPMImport.com.posthog.posthog.kmp.PostHogFeatureFlagResult as NativeFeatureFlagResult
+import swiftPMImport.com.posthog.posthog.kmp.PostHogPersonProfilesAlways
+import swiftPMImport.com.posthog.posthog.kmp.PostHogPersonProfilesIdentifiedOnly
+import swiftPMImport.com.posthog.posthog.kmp.PostHogPersonProfilesNever
+import swiftPMImport.com.posthog.posthog.kmp.PostHogSDK
 
 /**
- * iOS implementation using the native PostHog iOS SDK via Swift bridge.
+ * iOS implementation using the native PostHog iOS SDK imported through SwiftPM.
  *
  * This implementation provides full access to native PostHog features including:
  * - Session recording
@@ -21,71 +28,79 @@ import platform.Foundation.dateWithTimeIntervalSince1970
 @Suppress("UNUSED_PARAMETER")
 internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext) {
     val sessionConfig = config.sessionRecording
-
-    PostHogBridge.shared().setupWithApiKey(
-        apiKey = config.apiKey,
-        host = config.host,
-        debug = config.debug,
-        captureApplicationLifecycleEvents = config.captureApplicationLifecycleEvents,
-        captureScreenViews = config.captureScreenViews,
-        sendFeatureFlagEvent = config.sendFeatureFlagEvent,
-        preloadFeatureFlags = config.preloadFeatureFlags,
-        flushAt = config.flushAt.toLong(),
-        flushIntervalSeconds = config.flushIntervalSeconds.toDouble(),
-        maxQueueSize = config.maxQueueSize.toLong(),
-        maxBatchSize = config.maxBatchSize.toLong(),
-        optOut = config.optOut,
-        personProfiles = config.personProfiles.name,
-        sessionRecordingEnabled = sessionConfig?.enabled ?: false,
-        sessionRecordingMaskAllTextInputs = sessionConfig?.maskAllTextInputs ?: true,
-        sessionRecordingMaskAllImages = sessionConfig?.maskAllImages ?: true,
-        sessionRecordingCaptureNetworkTelemetry = sessionConfig?.captureNetworkTelemetry ?: true,
-        sessionRecordingCaptureLogs = sessionConfig?.captureLogs ?: false,
-        sessionRecordingScreenshotMode = sessionConfig?.screenshot ?: false,
-        autocapture = config.autocapture,
-        errorAutoCapture = config.errorTracking?.autoCapture ?: false,
-        errorTrackingInAppIncludes = config.errorTracking?.inAppIncludes ?: emptyList<String>(),
-        errorTrackingIgnoredExceptionTypes = config.errorTracking?.ignoredExceptionTypes
-            ?.flatMap { listOfNotNull(it.simpleName, it.qualifiedName) }
-            ?.distinct() ?: emptyList<String>(),
-        errorTrackingInAppExcludes = config.errorTracking?.inAppExcludes ?: emptyList<String>(),
-        errorTrackingInAppByDefault = config.errorTracking?.inAppByDefault ?: true,
-        sdkVersion = PostHogKmpVersion.VERSION,
-        beforeSend = if (config.beforeSend.isEmpty()) {
-            null
-        } else {
-            { event -> processBeforeSend(config, event) }
+    val nativeConfig = NativePostHogConfig(apiKey = config.apiKey, host = config.host).apply {
+        debug = config.debug
+        captureApplicationLifecycleEvents = config.captureApplicationLifecycleEvents
+        captureScreenViews = config.captureScreenViews
+        sendFeatureFlagEvent = config.sendFeatureFlagEvent
+        preloadFeatureFlags = config.preloadFeatureFlags
+        flushAt = config.flushAt.toLong()
+        flushIntervalSeconds = config.flushIntervalSeconds.toDouble()
+        maxQueueSize = config.maxQueueSize.toLong()
+        maxBatchSize = config.maxBatchSize.toLong()
+        optOut = config.optOut
+        personProfiles = when (config.personProfiles) {
+            PersonProfiles.ALWAYS -> PostHogPersonProfilesAlways
+            PersonProfiles.NEVER -> PostHogPersonProfilesNever
+            PersonProfiles.IDENTIFIED_ONLY -> PostHogPersonProfilesIdentifiedOnly
         }
-    )
+        setDefaultPersonProperties = true
+        captureElementInteractions = config.autocapture
+
+        if (sessionConfig?.enabled == true) {
+            sessionReplay = true
+            sessionReplayConfig.maskAllTextInputs = sessionConfig.maskAllTextInputs
+            sessionReplayConfig.maskAllImages = sessionConfig.maskAllImages
+            sessionReplayConfig.captureNetworkTelemetry = sessionConfig.captureNetworkTelemetry
+            sessionReplayConfig.captureLogs = sessionConfig.captureLogs
+            sessionReplayConfig.screenshotMode = sessionConfig.screenshot
+        }
+
+        config.errorTracking?.let { errorTracking ->
+            errorTrackingConfig.autoCapture = errorTracking.autoCapture
+            errorTrackingConfig.inAppIncludes = errorTrackingConfig.inAppIncludes + errorTracking.inAppIncludes
+            errorTrackingConfig.ignoredExceptionTypes = errorTrackingConfig.ignoredExceptionTypes +
+                errorTracking.ignoredExceptionTypes
+                    .flatMap { listOfNotNull(it.simpleName, it.qualifiedName) }
+                    .distinct()
+            errorTrackingConfig.inAppExcludes = errorTrackingConfig.inAppExcludes + errorTracking.inAppExcludes
+            errorTrackingConfig.inAppByDefault = errorTracking.inAppByDefault
+        }
+
+        // The native SDK's top-level metadata globals are not exposed through Objective-C.
+        // Enrich every event here before running the user-provided KMP callbacks instead.
+        setBeforeSend(listOf(BoxedBeforeSendBlock { event -> processBeforeSend(config, event) }))
+    }
+
+    PostHogSDK.shared.setup(nativeConfig)
     configureUnhandledKotlinExceptionCapture(
         enabled = config.errorTracking?.autoCapture == true,
         debug = config.debug
     )
 }
 
-private fun processBeforeSend(config: PostHogConfig, event: Map<Any?, *>?): Map<Any?, *>? {
+private fun processBeforeSend(config: PostHogConfig, event: NativePostHogEvent?): NativePostHogEvent? {
     event ?: return null
-    val postHogEvent = event.toPostHogEvent() ?: return null
-    val processed = config.runBeforeSend(postHogEvent) {
+    val properties = event.properties
+        .filterKeys { it is String }
+        .mapKeys { it.key as String }
+        .filterValues { it != null }
+        .toMutableMap()
+        .apply {
+            this["\$lib"] = "posthog-kmp"
+            this["\$lib_version"] = PostHogKmpVersion.VERSION
+        }
+
+    val processed = config.runBeforeSend(
+        PostHogEvent(event.event, event.distinctId, properties)
+    ) {
         if (config.debug) NSLog("[PostHog] Before-send callback failed; event was dropped.")
     } ?: return null
-    return mapOf(
-        "event" to processed.event,
-        "distinctId" to processed.distinctId,
-        "properties" to processed.properties.filterValues { it != null }
-    )
-}
 
-private fun Map<Any?, *>.toPostHogEvent(): PostHogEvent? {
-    val eventName = this["event"] as? String ?: return null
-    val distinctId = this["distinctId"] as? String ?: return null
-    val nativeProperties = this["properties"] as? Map<*, *> ?: return null
-    val properties = buildMap {
-        for ((key, value) in nativeProperties) {
-            if (key is String && value != null) put(key, value)
-        }
-    }
-    return PostHogEvent(eventName, distinctId, properties)
+    event.event = processed.event
+    event.distinctId = processed.distinctId
+    event.properties = processed.properties.filterValues { it != null }
+    return event
 }
 
 internal actual fun platformCapture(
@@ -95,9 +110,12 @@ internal actual fun platformCapture(
     timestamp: Long?
 ) {
     @Suppress("UNCHECKED_CAST")
-    PostHogBridge.shared().captureWithEvent(
-        event,
+    PostHogSDK.shared.captureWithEvent(
+        event = event,
+        distinctId = null,
         properties = properties as? Map<Any?, *>,
+        userProperties = null,
+        userPropertiesSetOnce = null,
         groups = groups as? Map<Any?, *>,
         timestamp = timestamp?.toNSDate()
     )
@@ -107,7 +125,7 @@ internal fun Long.toNSDate(): NSDate = NSDate.dateWithTimeIntervalSince1970(toDo
 
 internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?) {
     @Suppress("UNCHECKED_CAST")
-    PostHogBridge.shared().screenWithTitle(screenName, properties = properties as? Map<Any?, *>)
+    PostHogSDK.shared.screenWithTitle(screenName, properties = properties as? Map<Any?, *>)
 }
 
 internal actual fun platformCaptureException(
@@ -115,7 +133,7 @@ internal actual fun platformCaptureException(
     additionalProperties: Map<String, Any>?
 ) {
     @Suppress("UNCHECKED_CAST")
-    PostHogBridge.shared().captureExceptionWithException(
+    PostHogSDK.shared.captureExceptionWithNSException(
         exception = throwable.toNSException(),
         properties = additionalProperties as? Map<Any?, *>
     )
@@ -127,7 +145,7 @@ internal actual fun platformIdentify(
     userPropertiesSetOnce: Map<String, Any>?
 ) {
     @Suppress("UNCHECKED_CAST")
-    PostHogBridge.shared().identifyWithDistinctId(
+    PostHogSDK.shared.identifyWithDistinctId(
         distinctId,
         userProperties = userProperties as? Map<Any?, *>,
         userPropertiesSetOnce = userPropertiesSetOnce as? Map<Any?, *>
@@ -135,23 +153,21 @@ internal actual fun platformIdentify(
 }
 
 internal actual fun platformAlias(alias: String) {
-    PostHogBridge.shared().aliasWithAlias(alias)
+    PostHogSDK.shared.alias(alias)
 }
 
 internal actual fun platformReset() {
-    PostHogBridge.shared().reset()
+    PostHogSDK.shared.reset()
 }
 
-internal actual fun platformGetDistinctId(): String? {
-    return PostHogBridge.shared().getDistinctId()
-}
+internal actual fun platformGetDistinctId(): String? = PostHogSDK.shared.getDistinctId()
 
 internal actual fun platformRegister(key: String, value: Any) {
-    PostHogBridge.shared().registerWithKey(key, value = value)
+    PostHogSDK.shared.registerProperties(mapOf(key to value))
 }
 
 internal actual fun platformUnregister(key: String) {
-    PostHogBridge.shared().unregisterWithKey(key)
+    PostHogSDK.shared.unregisterProperties(key)
 }
 
 internal actual fun platformGroup(
@@ -160,13 +176,13 @@ internal actual fun platformGroup(
     groupProperties: Map<String, Any>?
 ) {
     @Suppress("UNCHECKED_CAST")
-    PostHogBridge.shared().groupWithType(type, key = key, groupProperties = groupProperties as? Map<Any?, *>)
+    PostHogSDK.shared.groupWithType(type, key, groupProperties as? Map<Any?, *>)
 }
 
 internal actual fun platformIsFeatureEnabled(key: String, defaultValue: Boolean, sendFeatureFlagEvent: Boolean): Boolean {
     // getFeatureFlag fires $feature_flag_called even for absent flags (matching Android) and lets us
     // honor defaultValue; the iOS SDK's isFeatureEnabled has no defaultValue parameter.
-    val flagValue = PostHogBridge.shared().getFeatureFlag(key, sendFeatureFlagEvent = sendFeatureFlagEvent)
+    val flagValue = PostHogSDK.shared.getFeatureFlagWithKey(key, sendFeatureFlagEvent)
     return when (flagValue) {
         null -> defaultValue
         is String -> true
@@ -174,85 +190,67 @@ internal actual fun platformIsFeatureEnabled(key: String, defaultValue: Boolean,
     }
 }
 
-internal actual fun platformGetFeatureFlag(key: String, sendFeatureFlagEvent: Boolean): Any? {
-    return PostHogBridge.shared().getFeatureFlag(key, sendFeatureFlagEvent = sendFeatureFlagEvent)
-}
+internal actual fun platformGetFeatureFlag(key: String, sendFeatureFlagEvent: Boolean): Any? =
+    PostHogSDK.shared.getFeatureFlagWithKey(key, sendFeatureFlagEvent)
 
-internal actual fun platformGetAllFeatureFlags(): Map<String, FeatureFlagResult> {
-    val results = PostHogBridge.shared().getAllFeatureFlags() ?: return emptyMap()
-    val map = mutableMapOf<String, FeatureFlagResult>()
-    for (entry in results) {
-        val resultDict = entry as? Map<*, *> ?: continue
-        val flagKey = resultDict["key"] as? String ?: continue
-        map[flagKey] = FeatureFlagResult(
-            key = flagKey,
-            enabled = resultDict["enabled"] as? Boolean ?: false,
-            variant = resultDict["variant"] as? String,
-            payload = resultDict["payload"]
-        )
-    }
-    return map
-}
+internal actual fun platformGetAllFeatureFlags(): Map<String, FeatureFlagResult> =
+    PostHogSDK.shared.getAllFeatureFlags()
+        ?.filterIsInstance<NativeFeatureFlagResult>()
+        ?.associate { result -> result.key to result.toFeatureFlagResult() }
+        ?: emptyMap()
 
 internal actual fun platformReloadFeatureFlags(callback: (() -> Unit)?) {
     if (callback != null) {
-        PostHogBridge.shared().reloadFeatureFlagsWithCallbackWithCallback {
-            callback()
-        }
+        PostHogSDK.shared.reloadFeatureFlagsWithCallback(callback)
     } else {
-        PostHogBridge.shared().reloadFeatureFlags()
+        PostHogSDK.shared.reloadFeatureFlags()
     }
 }
 
-internal actual fun platformGetFeatureFlagResult(key: String, sendFeatureFlagEvent: Boolean): FeatureFlagResult? {
-    val resultDict = PostHogBridge.shared().getFeatureFlagResult(key, sendFeatureFlagEvent) ?: return null
-    return FeatureFlagResult(
-        key = resultDict["key"] as? String ?: key,
-        enabled = resultDict["enabled"] as? Boolean ?: false,
-        variant = resultDict["variant"] as? String,
-        payload = resultDict["payload"]
-    )
-}
+internal actual fun platformGetFeatureFlagResult(key: String, sendFeatureFlagEvent: Boolean): FeatureFlagResult? =
+    PostHogSDK.shared.getFeatureFlagResultWithKey(key, sendFeatureFlagEvent)?.toFeatureFlagResult()
 
-internal actual fun platformGetAnonymousId(): String? {
-    return PostHogBridge.shared().getAnonymousId()
-}
+private fun NativeFeatureFlagResult.toFeatureFlagResult(): FeatureFlagResult = FeatureFlagResult(
+    key = key,
+    enabled = enabled,
+    variant = variant,
+    payload = payload
+)
 
-internal actual fun platformGetSessionId(): String? {
-    return PostHogBridge.shared().getSessionId()
-}
+internal actual fun platformGetAnonymousId(): String? = PostHogSDK.shared.getAnonymousId()
+
+internal actual fun platformGetSessionId(): String? = PostHogSDK.shared.getSessionId()
 
 internal actual fun platformOptOut() {
-    PostHogBridge.shared().optOut()
+    PostHogSDK.shared.optOut()
 }
 
 internal actual fun platformOptIn() {
-    PostHogBridge.shared().optIn()
+    PostHogSDK.shared.optIn()
 }
 
-internal actual fun platformIsOptedOut(): Boolean {
-    return PostHogBridge.shared().isOptedOut()
-}
+internal actual fun platformIsOptedOut(): Boolean = PostHogSDK.shared.isOptOut()
 
 internal actual fun platformFlush() {
-    PostHogBridge.shared().flush()
+    PostHogSDK.shared.flush()
 }
 
 internal actual fun platformClose() {
     configureUnhandledKotlinExceptionCapture(false)
-    PostHogBridge.shared().close()
+    PostHogSDK.shared.close()
 }
 
 internal actual fun platformSetDebug(enabled: Boolean) {
-    PostHogBridge.shared().setDebugWithEnabled(enabled)
+    PostHogSDK.shared.debug(enabled)
 }
 
 internal actual fun platformSetPersonProperties(
     userProperties: Map<String, Any>?,
     userPropertiesSetOnce: Map<String, Any>?
 ) {
-    PostHogBridge.shared().setPersonPropertiesWithUserProperties(
+    @Suppress("UNCHECKED_CAST")
+    PostHogSDK.shared.setPersonPropertiesWithUserPropertiesToSet(
         userProperties as? Map<Any?, *>,
-        userPropertiesSetOnce = userPropertiesSetOnce as? Map<Any?, *>
+        userPropertiesToSetOnce = userPropertiesSetOnce as? Map<Any?, *>
     )
 }

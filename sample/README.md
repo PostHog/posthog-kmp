@@ -45,6 +45,16 @@ To verify symbolication, install the minified release build and run it without a
 3. After an unhandled exception, launch the app again and initialize PostHog with the same token so the SDK can send the pending crash report.
 4. Check the exception and uploaded mapping in PostHog Error Tracking.
 
+## iOS integration
+
+The Xcode project uses Kotlin's direct framework integration and the generated `KotlinMultiplatformLinkedPackage` to link the transitive `posthog-ios` Swift package and copy its privacy manifests into the app. If the SwiftPM dependencies or Gradle project structure change, regenerate and commit the linkage package and Xcode project changes:
+
+```bash
+XCODEPROJ_PATH="$PWD/sample/iosApp/iosApp.xcodeproj" \
+GRADLE_PROJECT_PATH=':sample' \
+./gradlew :sample:integrateEmbedAndSign :sample:integrateLinkagePackage
+```
+
 ## iOS error tracking
 
 The iOS app target generates dSYMs for Debug and Release builds. Its `Upload PostHog dSYMs` post-build action calls [`scripts/upload-posthog-dsyms.sh`](iosApp/scripts/upload-posthog-dsyms.sh) after Xcode finishes generating the dSYM. Uploads are opt-in so normal sample and CI builds do not require PostHog credentials.

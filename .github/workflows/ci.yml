@@ -152,6 +152,35 @@ jobs:
       - name: Build iOS
         run: ./gradlew :posthog-kmp:compileKotlinIosArm64 --no-daemon
 
+      - name: Regenerate iOS linkage package
+        env:
+          XCODEPROJ_PATH: ${{ github.workspace }}/sample/iosApp/iosApp.xcodeproj
+          GRADLE_PROJECT_PATH: ':sample'
+        run: ./gradlew :sample:integrateLinkagePackage --no-daemon
+
+      - name: Build iOS sample through Xcode
+        run: |
+          derived_data="$RUNNER_TEMP/posthog-kmp-xcode-derived-data"
+          xcodebuild \
+            -project sample/iosApp/iosApp.xcodeproj \
+            -scheme iosApp \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$derived_data" \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=YES \
+            build
+          test -f "$derived_data/Build/Products/Debug-iphonesimulator/iosApp.app/PostHog_PostHog.bundle/PrivacyInfo.xcprivacy"
+          test -f "$derived_data/Build/Products/Debug-iphonesimulator/iosApp.app/PostHog_PHPLCrashReporter.bundle/PrivacyInfo.xcprivacy"
+
+      - name: Verify committed iOS linkage files
+        run: |
+          git diff --exit-code -- \
+            .swiftpm-locks/default/swiftImport/Package.resolved \
+            sample/iosApp/KotlinMultiplatformLinkedPackage \
+            sample/iosApp/iosApp.xcodeproj/project.pbxproj \
+            sample/iosApp/iosApp.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+
       - name: Build macOS desktop sample release
         run: ./gradlew :sample:packageReleaseDmg --no-daemon
 

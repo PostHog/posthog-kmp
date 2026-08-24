@@ -9,6 +9,8 @@ It's a thin wrapper that delegates to the official PostHog SDKs on each target, 
 
 Installation instructions, usage examples, and code snippets live in the official documentation so they stay up to date.
 
+On iOS, the KMP SDK imports `posthog-ios` with Kotlin's SwiftPM integration. KMP applications should use [direct integration](https://kotlinlang.org/docs/multiplatform/multiplatform-direct-integration.html) and add the generated SwiftPM linkage package to their Xcode project; CocoaPods is not required.
+
 ## Documentation
 
 - [Kotlin Multiplatform library docs](https://posthog.com/docs/libraries/kmp)
