@@ -5,7 +5,10 @@ package com.posthog.kmp
 import kotlinx.cinterop.ExperimentalForeignApi
 import platform.Foundation.NSDate
 import platform.Foundation.NSLog
+import platform.Foundation.NSMutableDictionary
+import platform.Foundation.addEntriesFromDictionary
 import platform.Foundation.dateWithTimeIntervalSince1970
+import platform.Foundation.setValue
 import swiftPMImport.com.posthog.posthog.kmp.BoxedBeforeSendBlock
 import swiftPMImport.com.posthog.posthog.kmp.PostHogConfig as NativePostHogConfig
 import swiftPMImport.com.posthog.posthog.kmp.PostHogEvent as NativePostHogEvent
@@ -81,6 +84,14 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
 
 private fun processBeforeSend(config: PostHogConfig, event: NativePostHogEvent?): NativePostHogEvent? {
     event ?: return null
+    if (config.beforeSend.isEmpty()) {
+        // Nothing to hand to Kotlin, so stamp the metadata on the native dictionary instead of
+        // rebuilding it. Reading the properties into Kotlin and writing them back re-boxes every
+        // boolean the native SDK set (`$is_identified`, `$feature/<flag>`, ...) as a KotlinBoolean.
+        event.properties = event.properties.withSdkMetadata()
+        return event
+    }
+
     val properties = event.properties
         .filterKeys { it is String }
         .mapKeys { it.key as String }
@@ -99,8 +110,18 @@ private fun processBeforeSend(config: PostHogConfig, event: NativePostHogEvent?)
 
     event.event = processed.event
     event.distinctId = processed.distinctId
-    event.properties = processed.properties.filterValues { it != null }
+    event.properties = processed.properties.filterValues { it != null }.toNativeProperties()
     return event
+}
+
+/** Adds the KMP SDK metadata to [this] without reading any of its values into Kotlin. */
+internal fun Map<Any?, *>.withSdkMetadata(): Map<Any?, *> {
+    val stamped = NSMutableDictionary()
+    stamped.addEntriesFromDictionary(this)
+    stamped.setValue("posthog-kmp", forKey = "\$lib")
+    stamped.setValue(PostHogKmpVersion.VERSION, forKey = "\$lib_version")
+    @Suppress("UNCHECKED_CAST")
+    return stamped.copy() as Map<Any?, *>
 }
 
 internal actual fun platformCapture(
@@ -113,7 +134,7 @@ internal actual fun platformCapture(
     PostHogSDK.shared.captureWithEvent(
         event = event,
         distinctId = null,
-        properties = properties as? Map<Any?, *>,
+        properties = properties?.toNativeProperties(),
         userProperties = null,
         userPropertiesSetOnce = null,
         groups = groups as? Map<Any?, *>,
@@ -124,18 +145,16 @@ internal actual fun platformCapture(
 internal fun Long.toNSDate(): NSDate = NSDate.dateWithTimeIntervalSince1970(toDouble() / 1000.0)
 
 internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?) {
-    @Suppress("UNCHECKED_CAST")
-    PostHogSDK.shared.screenWithTitle(screenName, properties = properties as? Map<Any?, *>)
+    PostHogSDK.shared.screenWithTitle(screenName, properties = properties?.toNativeProperties())
 }
 
 internal actual fun platformCaptureException(
     throwable: Throwable,
     additionalProperties: Map<String, Any>?
 ) {
-    @Suppress("UNCHECKED_CAST")
     PostHogSDK.shared.captureExceptionWithNSException(
         exception = throwable.toNSException(),
-        properties = additionalProperties as? Map<Any?, *>
+        properties = additionalProperties?.toNativeProperties()
     )
 }
 
@@ -144,11 +163,10 @@ internal actual fun platformIdentify(
     userProperties: Map<String, Any>?,
     userPropertiesSetOnce: Map<String, Any>?
 ) {
-    @Suppress("UNCHECKED_CAST")
     PostHogSDK.shared.identifyWithDistinctId(
         distinctId,
-        userProperties = userProperties as? Map<Any?, *>,
-        userPropertiesSetOnce = userPropertiesSetOnce as? Map<Any?, *>
+        userProperties = userProperties?.toNativeProperties(),
+        userPropertiesSetOnce = userPropertiesSetOnce?.toNativeProperties()
     )
 }
 
@@ -163,7 +181,8 @@ internal actual fun platformReset() {
 internal actual fun platformGetDistinctId(): String? = PostHogSDK.shared.getDistinctId()
 
 internal actual fun platformRegister(key: String, value: Any) {
-    PostHogSDK.shared.registerProperties(mapOf(key to value))
+    // Super properties are persisted as JSON, so a re-boxed boolean stays a number for good.
+    PostHogSDK.shared.registerProperties(mapOf(key to value).toNativeProperties())
 }
 
 internal actual fun platformUnregister(key: String) {
@@ -175,8 +194,7 @@ internal actual fun platformGroup(
     key: String,
     groupProperties: Map<String, Any>?
 ) {
-    @Suppress("UNCHECKED_CAST")
-    PostHogSDK.shared.groupWithType(type, key, groupProperties as? Map<Any?, *>)
+    PostHogSDK.shared.groupWithType(type, key, groupProperties?.toNativeProperties())
 }
 
 internal actual fun platformIsFeatureEnabled(key: String, defaultValue: Boolean, sendFeatureFlagEvent: Boolean): Boolean {
@@ -248,9 +266,8 @@ internal actual fun platformSetPersonProperties(
     userProperties: Map<String, Any>?,
     userPropertiesSetOnce: Map<String, Any>?
 ) {
-    @Suppress("UNCHECKED_CAST")
     PostHogSDK.shared.setPersonPropertiesWithUserPropertiesToSet(
-        userProperties as? Map<Any?, *>,
-        userPropertiesToSetOnce = userPropertiesSetOnce as? Map<Any?, *>
+        userProperties?.toNativeProperties(),
+        userPropertiesToSetOnce = userPropertiesSetOnce?.toNativeProperties()
     )
 }
