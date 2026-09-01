@@ -101,7 +101,7 @@ private fun processBeforeSend(config: PostHogConfig, event: NativePostHogEvent?)
         }
 
     val processed = config.runBeforeSend(
-        PostHogEvent(event.event, event.distinctId, properties)
+        PostHogEvent(event.event, event.distinctId, properties.toMap())
     ) {
         if (config.debug) NSLog("[PostHog] Before-send callback failed; event was dropped.")
     } ?: return null
@@ -110,11 +110,23 @@ private fun processBeforeSend(config: PostHogConfig, event: NativePostHogEvent?)
     event.distinctId = processed.distinctId
     // Only what the callback actually replaced is rebuilt. Carrying the rest over as the native
     // objects they already are keeps a $snapshot payload off the main thread's critical path.
-    event.properties = event.properties.withSdkMetadata(
-        removedKeys = properties.keys - processed.properties.keys,
-        changedValues = processed.properties.filter { (key, value) -> properties[key] !== value }
-    )
+    val (removedKeys, changedValues) = propertyDelta(properties, processed.properties)
+    event.properties = event.properties.withSdkMetadata(removedKeys, changedValues)
     return event
+}
+
+/**
+ * The keys a before-send callback removed, and the entries it added or replaced. Values are compared
+ * by identity: the map handed to the callback holds each value once, so anything it did not replace
+ * comes back as the same reference.
+ */
+internal fun propertyDelta(
+    before: Map<String, Any?>,
+    after: Map<String, Any?>
+): Pair<Set<String>, Map<String, Any?>> {
+    // An added key reads back as null from [before], so absence is tested apart from the value.
+    val changed = after.filter { (key, value) -> key !in before || before[key] !== value }
+    return (before.keys - after.keys) to changed
 }
 
 /**
@@ -127,9 +139,9 @@ internal fun Map<Any?, *>.withSdkMetadata(
 ): Map<Any?, *> {
     val stamped = NSMutableDictionary()
     stamped.addEntriesFromDictionary(this)
-    removedKeys.forEach { stamped.removeObjectForKey(it) }
     stamped.setValue("posthog-kmp", forKey = "\$lib")
     stamped.setValue(PostHogKmpVersion.VERSION, forKey = "\$lib_version")
+    removedKeys.forEach { stamped.removeObjectForKey(it) }
     if (changedValues.isNotEmpty()) {
         stamped.addEntriesFromDictionary(changedValues.toNativeProperties())
     }

@@ -103,6 +103,37 @@ class NativePropertiesTest {
     }
 
     @Test
+    fun testPropertyDeltaFindsWhatTheCallbackChanged() {
+        val before = mapOf("kept" to "a", "replaced" to "old", "dropped" to 1)
+
+        val (removed, changed) = propertyDelta(before, before - "dropped" + mapOf("replaced" to "new", "added" to true))
+
+        assertEquals(setOf("dropped"), removed)
+        assertEquals(mapOf("replaced" to "new", "added" to true), changed)
+    }
+
+    @Test
+    fun testPropertyDeltaKeepsAValueAddedAsNull() {
+        val before = mapOf("kept" to "a")
+
+        val (removed, changed) = propertyDelta(before, before + ("added" to null))
+
+        assertEquals(emptySet(), removed)
+        assertEquals(mapOf("added" to null), changed)
+    }
+
+    @Test
+    fun testCallbackCanRemoveSdkMetadata() {
+        @Suppress("UNCHECKED_CAST")
+        val nativeProperties = parse("""{"kept":true}""") as Map<Any?, *>
+
+        assertEquals(
+            """{"kept":true}""",
+            json(nativeProperties.withSdkMetadata(removedKeys = setOf("${'$'}lib", "${'$'}lib_version")))
+        )
+    }
+
+    @Test
     fun testSdkMetadataStampAppliesCallbackChanges() {
         @Suppress("UNCHECKED_CAST")
         val nativeProperties = parse("""{"kept":true,"dropped":1,"replaced":"old"}""") as Map<Any?, *>
