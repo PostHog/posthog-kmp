@@ -85,9 +85,8 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
 private fun processBeforeSend(config: PostHogConfig, event: NativePostHogEvent?): NativePostHogEvent? {
     event ?: return null
     if (config.beforeSend.isEmpty()) {
-        // Nothing to hand to Kotlin, so stamp the metadata on the native dictionary instead of
-        // rebuilding it. Reading the properties into Kotlin and writing them back re-boxes every
-        // boolean the native SDK set (`$is_identified`, `$feature/<flag>`, ...) as a KotlinBoolean.
+        // Reading the properties into Kotlin and writing them back re-boxes every boolean the
+        // native SDK set, so stamp the metadata natively when no callback needs them in Kotlin.
         event.properties = event.properties.withSdkMetadata()
         return event
     }

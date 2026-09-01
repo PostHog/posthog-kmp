@@ -17,15 +17,13 @@ import platform.Foundation.dictionaryWithObjects
 
 /**
  * Kotlin/Native bridges a boxed Kotlin [Boolean] as `KotlinBoolean`, an `NSNumber` subclass that is
- * not one of the `CFBoolean` singletons. `JSONSerialization` writes `true`/`false` only for
- * `CFBoolean` and serializes every other `NSNumber` numerically, so a boolean property handed to the
- * native SDK from Kotlin reaches PostHog as `1`/`0` while the same common code on Android sends
- * `true`/`false`.
+ * not one of the `CFBoolean` singletons, and `JSONSerialization` writes `true`/`false` only for
+ * `CFBoolean`. Boolean properties therefore reach PostHog as `1`/`0` from iOS while the same common
+ * code on Android sends `true`/`false`.
  *
  * A `CFBoolean` cannot be held in Kotlin: `NSNumber.numberWithBool`, `kCFBooleanTrue` and a boolean
- * parsed out of JSON are all converted back to a Kotlin [Boolean] the moment they cross into Kotlin,
- * and are re-boxed as `KotlinBoolean` on the way out again. The containers are therefore assembled on
- * the Objective-C side from [trueBox]/[falseBox] and the boolean values are never read back.
+ * parsed out of JSON all convert back to a Kotlin [Boolean] on arrival and re-box on the way out.
+ * The containers are assembled on the Objective-C side instead, and the values are never read back.
  */
 private val trueBox: List<*>? = parseJsonArray("[true]")
 private val falseBox: List<*>? = parseJsonArray("[false]")
@@ -36,17 +34,15 @@ private fun parseJsonArray(literal: String): List<*>? {
 }
 
 /**
- * The deepest structure `JSONSerialization` accepts, so anything past it is already unusable to the
- * native SDK. Nesting beyond this is handed over as-is instead of being recursed into — booleans
- * below that point stay `1`/`0`, which is why the bound tracks Foundation's rather than sitting
- * under it. Without any bound a self-referential property value recurses until the stack runs out,
- * where the native SDK's own validation drops the event and logs.
+ * Matches the deepest structure `JSONSerialization` accepts: past it the payload is already unusable
+ * to the native SDK, and stopping any earlier would leave booleans below the bound as `1`/`0`.
+ * Without a bound, a self-referential property value recurses until the stack runs out.
  */
 private const val MAX_DEPTH = 512
 
 /**
- * Rebuilds the property map as an Objective-C dictionary in which Kotlin booleans, including those
- * nested in maps and lists, are real `CFBoolean`s. All other values are passed through unchanged.
+ * Rebuilds the map so Kotlin booleans, including those nested in maps and lists, become real
+ * `CFBoolean`s. Every other value is passed through untouched.
  */
 internal fun Map<String, Any?>.toNativeProperties(): Map<Any?, *> = toNativeDictionary(0)
 
@@ -72,8 +68,7 @@ private fun NSMutableArray.appendNative(value: Any?, depth: Int) {
     when {
         value == null -> addObject(NSNull())
         value is Boolean -> {
-            // Copying out of a Foundation-built array keeps the CFBoolean singleton; falling back to
-            // the boxed Kotlin value only restores the 1/0 behaviour, it never fails.
+            // The fallback only restores the 1/0 behaviour; it never fails.
             val box = if (value) trueBox else falseBox
             if (box != null) addObjectsFromArray(box) else addObject(value)
         }
