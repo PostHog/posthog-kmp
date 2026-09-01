@@ -152,6 +152,9 @@ jobs:
       - name: Build iOS
         run: ./gradlew :posthog-kmp:compileKotlinIosArm64 --no-daemon
 
+      - name: Run iOS unit tests
+        run: ./gradlew :posthog-kmp:iosSimulatorArm64Test --no-daemon
+
       - name: Regenerate iOS linkage package
         env:
           XCODEPROJ_PATH: ${{ github.workspace }}/sample/iosApp/iosApp.xcodeproj
