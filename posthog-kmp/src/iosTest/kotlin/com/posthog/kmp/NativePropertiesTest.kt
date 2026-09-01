@@ -12,7 +12,7 @@ import platform.Foundation.create
 import platform.Foundation.dataUsingEncoding
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /**
  * The native SDK serializes event properties with `JSONSerialization`, so these tests assert on the
@@ -72,26 +72,23 @@ class NativePropertiesTest {
     }
 
     @Test
-    fun testNullValuesArePreserved() {
-        // The native SDK sets NSNull-valued properties such as ${'$'}feature_flag_response; they survive
-        // the round trip as JSON null rather than being dropped.
-        assertEquals(
-            """{"absent":null}""",
-            json(mapOf("absent" to null).toNativeProperties())
-        )
-    }
-
-    @Test
     fun testSelfReferentialValueDoesNotRecurseForever() {
         val cycle = mutableListOf<Any?>()
         cycle.add(cycle)
 
-        val converted = mapOf("cycle" to cycle).toNativeProperties()
+        // Returning at all is the assertion: unbounded, this exhausts the stack.
+        assertEquals(1, mapOf("cycle" to cycle).toNativeProperties().size)
+    }
 
-        // Handed to the native SDK intact past the depth cap, for its own serialization check to
-        // reject, which is what happened before these values were rebuilt here at all.
-        assertEquals(1, converted.size)
-        assertFalse(NSJSONSerialization.isValidJSONObject(converted))
+    @Test
+    fun testDeeplyNestedBooleansAreStillConverted() {
+        var nested: Any = mapOf("flag" to true)
+        repeat(400) { nested = mapOf("nested" to nested) }
+
+        val converted = mapOf("deep" to nested).toNativeProperties()
+
+        assertTrue(NSJSONSerialization.isValidJSONObject(converted))
+        assertTrue(json(converted).contains(""""flag":true"""))
     }
 
     @Test

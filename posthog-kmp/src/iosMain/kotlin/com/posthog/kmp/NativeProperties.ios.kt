@@ -36,12 +36,13 @@ private fun parseJsonArray(literal: String): List<*>? {
 }
 
 /**
- * Nesting deeper than this is handed to the native SDK as-is rather than rebuilt. Real payloads are
- * tens of levels deep at most, so the only things this stops are pathological ones — a self
- * referential property value would otherwise recurse until the stack runs out, where the native
- * SDK's own `JSONSerialization` validation drops it and logs.
+ * The deepest structure `JSONSerialization` accepts, so anything past it is already unusable to the
+ * native SDK. Nesting beyond this is handed over as-is instead of being recursed into — booleans
+ * below that point stay `1`/`0`, which is why the bound tracks Foundation's rather than sitting
+ * under it. Without any bound a self-referential property value recurses until the stack runs out,
+ * where the native SDK's own validation drops the event and logs.
  */
-private const val MAX_DEPTH = 64
+private const val MAX_DEPTH = 512
 
 /**
  * Rebuilds the property map as an Objective-C dictionary in which Kotlin booleans, including those

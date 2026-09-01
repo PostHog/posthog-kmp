@@ -109,8 +109,8 @@ private fun processBeforeSend(config: PostHogConfig, event: NativePostHogEvent?)
 
     event.event = processed.event
     event.distinctId = processed.distinctId
-    // Rebuilding the whole tree costs ~10ms for a $snapshot payload. Skipping subtrees without
-    // booleans measures worse on real replay data, so this stays until it needs a cheaper answer.
+    // Rebuilding the whole tree costs ~10ms for a $snapshot payload; skipping subtrees without
+    // booleans measured worse on real replay data.
     event.properties = processed.properties.toNativeProperties()
     return event
 }
