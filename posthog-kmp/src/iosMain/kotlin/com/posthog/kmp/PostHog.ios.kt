@@ -95,7 +95,6 @@ private fun processBeforeSend(config: PostHogConfig, event: NativePostHogEvent?)
     val properties = event.properties
         .filterKeys { it is String }
         .mapKeys { it.key as String }
-        .filterValues { it != null }
         .toMutableMap()
         .apply {
             this["\$lib"] = "posthog-kmp"
@@ -110,7 +109,9 @@ private fun processBeforeSend(config: PostHogConfig, event: NativePostHogEvent?)
 
     event.event = processed.event
     event.distinctId = processed.distinctId
-    event.properties = processed.properties.filterValues { it != null }.toNativeProperties()
+    // Rebuilding the whole tree costs ~10ms for a $snapshot payload. Skipping subtrees without
+    // booleans measures worse on real replay data, so this stays until it needs a cheaper answer.
+    event.properties = processed.properties.toNativeProperties()
     return event
 }
 
@@ -137,6 +138,7 @@ internal actual fun platformCapture(
         properties = properties?.toNativeProperties(),
         userProperties = null,
         userPropertiesSetOnce = null,
+        // Group values are strings; only booleans need rebuilding on the Objective-C side.
         groups = groups as? Map<Any?, *>,
         timestamp = timestamp?.toNSDate()
     )

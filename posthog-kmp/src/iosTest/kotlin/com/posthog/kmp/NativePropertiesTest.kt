@@ -12,6 +12,7 @@ import platform.Foundation.create
 import platform.Foundation.dataUsingEncoding
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 
 /**
  * The native SDK serializes event properties with `JSONSerialization`, so these tests assert on the
@@ -67,6 +68,40 @@ class NativePropertiesTest {
         assertEquals(
             """{"byte":1,"double":1.5,"int":2,"long":3,"null":null,"string":"yes"}""",
             json(properties.toNativeProperties())
+        )
+    }
+
+    @Test
+    fun testNullValuesArePreserved() {
+        // The native SDK sets NSNull-valued properties such as ${'$'}feature_flag_response; they survive
+        // the round trip as JSON null rather than being dropped.
+        assertEquals(
+            """{"absent":null}""",
+            json(mapOf("absent" to null).toNativeProperties())
+        )
+    }
+
+    @Test
+    fun testSelfReferentialValueDoesNotRecurseForever() {
+        val cycle = mutableListOf<Any?>()
+        cycle.add(cycle)
+
+        val converted = mapOf("cycle" to cycle).toNativeProperties()
+
+        // Handed to the native SDK intact past the depth cap, for its own serialization check to
+        // reject, which is what happened before these values were rebuilt here at all.
+        assertEquals(1, converted.size)
+        assertFalse(NSJSONSerialization.isValidJSONObject(converted))
+    }
+
+    @Test
+    fun testSdkMetadataStampOverwritesNativeSdkValues() {
+        @Suppress("UNCHECKED_CAST")
+        val nativeProperties = parse("""{"${'$'}lib":"posthog-ios","${'$'}lib_version":"3.64.1"}""") as Map<Any?, *>
+
+        assertEquals(
+            """{"${'$'}lib":"posthog-kmp","${'$'}lib_version":"${PostHogKmpVersion.VERSION}"}""",
+            json(nativeProperties.withSdkMetadata())
         )
     }
 
