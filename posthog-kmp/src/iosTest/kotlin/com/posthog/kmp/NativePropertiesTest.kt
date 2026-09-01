@@ -137,13 +137,30 @@ class NativePropertiesTest {
     }
 
     @Test
-    fun testPropertyDeltaKeepsAValueAddedAsNull() {
-        val before = mapOf("kept" to "a")
+    fun testPropertyDeltaTreatsANulledValueAsRemoved() {
+        val before = mapOf("kept" to "a", "nulled" to "b")
 
-        val (removed, changed) = propertyDelta(before, before + ("added" to null))
+        val (removed, changed) = propertyDelta(before, before + mapOf("nulled" to null, "added" to null))
+
+        assertEquals(setOf("nulled", "added"), removed)
+        assertEquals(emptyMap(), changed)
+    }
+
+    @Test
+    fun testPropertyDeltaKeepsNativeNullsTheCallbackHandsBack() {
+        @Suppress("UNCHECKED_CAST")
+        val native = parse("""{"${'$'}feature_flag_response":null,"kept":true}""") as Map<Any?, *>
+        val before = native.mapKeys { it.key as String }
+
+        val (removed, changed) = propertyDelta(before, before.toMap())
 
         assertEquals(emptySet(), removed)
-        assertEquals(mapOf("added" to null), changed)
+        assertEquals(emptyMap(), changed)
+        assertEquals(
+            """{"${'$'}feature_flag_response":null,"${'$'}lib":"posthog-kmp",""" +
+                """"${'$'}lib_version":"${PostHogKmpVersion.VERSION}","kept":true}""",
+            json(native.withSdkMetadata(removed, changed))
+        )
     }
 
     @Test

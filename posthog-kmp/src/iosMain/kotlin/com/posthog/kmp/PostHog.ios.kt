@@ -119,6 +119,9 @@ private fun processBeforeSend(config: PostHogConfig, event: NativePostHogEvent?)
  * The keys a before-send callback removed, and the entries it added or replaced. Values are compared
  * by identity: the map handed to the callback holds each value once, so anything it did not replace
  * comes back as the same reference.
+ *
+ * Setting a property to null removes it, as on Android and the JVM. Properties the native SDK set to
+ * `NSNull` are not replaced by that, since the callback hands them straight back.
  */
 internal fun propertyDelta(
     before: Map<String, Any?>,
@@ -126,7 +129,8 @@ internal fun propertyDelta(
 ): Pair<Set<String>, Map<String, Any?>> {
     // An added key reads back as null from [before], so absence is tested apart from the value.
     val changed = after.filter { (key, value) -> key !in before || before[key] !== value }
-    return (before.keys - after.keys) to changed
+    val nulled = changed.filterValues { it == null }.keys
+    return ((before.keys - after.keys) + nulled) to (changed - nulled)
 }
 
 /**
