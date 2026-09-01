@@ -81,6 +81,30 @@ class NativePropertiesTest {
     }
 
     @Test
+    fun testBranchingCycleDoesNotCopyExponentially() {
+        val cycle = mutableListOf<Any?>()
+        cycle.add(cycle)
+        cycle.add(cycle)
+        val nested = mutableMapOf<String, Any?>()
+        nested["self"] = nested
+        nested["also"] = mapOf("back" to nested)
+
+        // Returning promptly is the assertion: bounded only by depth, each of these branches at
+        // every level and never finishes.
+        assertEquals(2, mapOf("list" to cycle, "map" to nested).toNativeProperties().size)
+    }
+
+    @Test
+    fun testRepeatedValueOutsideACycleIsStillConverted() {
+        val shared = mapOf("on" to true)
+
+        assertEquals(
+            """{"a":{"on":true},"b":{"on":true}}""",
+            json(mapOf("a" to shared, "b" to shared).toNativeProperties())
+        )
+    }
+
+    @Test
     fun testDeeplyNestedBooleansAreStillConverted() {
         var nested: Any = mapOf("flag" to true)
         repeat(400) { nested = mapOf("nested" to nested) }

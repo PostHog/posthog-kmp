@@ -36,7 +36,6 @@ private fun parseJsonArray(literal: String): List<*>? {
 /**
  * Matches the deepest structure `JSONSerialization` accepts: past it the payload is already unusable
  * to the native SDK, and stopping any earlier would leave booleans below the bound as `1`/`0`.
- * Without a bound, a self-referential property value recurses until the stack runs out.
  */
 private const val MAX_DEPTH = 512
 
@@ -44,27 +43,32 @@ private const val MAX_DEPTH = 512
  * Rebuilds the map so Kotlin booleans, including those nested in maps and lists, become real
  * `CFBoolean`s. Every other value is passed through untouched.
  */
-internal fun Map<String, Any?>.toNativeProperties(): Map<Any?, *> = toNativeDictionary(0)
+internal fun Map<String, Any?>.toNativeProperties(): Map<Any?, *> = toNativeDictionary(ArrayList())
 
-private fun Map<*, *>.toNativeDictionary(depth: Int): Map<Any?, *> {
+private fun Map<*, *>.toNativeDictionary(ancestors: ArrayList<Any>): Map<Any?, *> {
     val keys = ArrayList<Any?>(size)
     val values = NSMutableArray()
     for ((key, value) in this) {
         keys.add(key)
-        values.appendNative(value, depth)
+        values.appendNative(value, ancestors)
     }
     return NSDictionary.dictionaryWithObjects(values.copy() as List<*>, forKeys = keys)
 }
 
-private fun List<*>.toNativeArray(depth: Int): List<*> {
+private fun List<*>.toNativeArray(ancestors: ArrayList<Any>): List<*> {
     val values = NSMutableArray()
     for (value in this) {
-        values.appendNative(value, depth)
+        values.appendNative(value, ancestors)
     }
     return values.copy() as List<*>
 }
 
-private fun NSMutableArray.appendNative(value: Any?, depth: Int) {
+/**
+ * [ancestors] holds the containers currently being copied, innermost last. Depth alone does not
+ * bound a cycle: a container holding itself twice branches at every level, so it would be copied
+ * `2^MAX_DEPTH` times before the depth bound could stop it.
+ */
+private fun NSMutableArray.appendNative(value: Any?, ancestors: ArrayList<Any>) {
     when {
         value == null -> addObject(NSNull())
         value is Boolean -> {
@@ -72,9 +76,25 @@ private fun NSMutableArray.appendNative(value: Any?, depth: Int) {
             val box = if (value) trueBox else falseBox
             if (box != null) addObjectsFromArray(box) else addObject(value)
         }
-        depth >= MAX_DEPTH -> addObject(value)
-        value is Map<*, *> -> addObject(value.toNativeDictionary(depth + 1))
-        value is List<*> -> addObject(value.toNativeArray(depth + 1))
-        else -> addObject(value)
+        value !is Map<*, *> && value !is List<*> -> addObject(value)
+        // Handed over uncopied, for posthog-ios to reject as it did before this conversion existed.
+        ancestors.size >= MAX_DEPTH || ancestors.holds(value) -> addObject(value)
+        else -> {
+            ancestors.add(value)
+            val container = if (value is Map<*, *>) {
+                value.toNativeDictionary(ancestors)
+            } else {
+                (value as List<*>).toNativeArray(ancestors)
+            }
+            ancestors.removeAt(ancestors.size - 1)
+            addObject(container)
+        }
     }
+}
+
+private fun ArrayList<Any>.holds(value: Any): Boolean {
+    for (ancestor in this) {
+        if (ancestor === value) return true
+    }
+    return false
 }
