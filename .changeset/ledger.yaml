@@ -30,3 +30,7 @@ posthog-kmp@0.5.0:
   dir: ""
   intents:
     - swift-packages-link
+posthog-kmp@0.5.1:
+  dir: ""
+  intents:
+    - ios-boolean-properties
