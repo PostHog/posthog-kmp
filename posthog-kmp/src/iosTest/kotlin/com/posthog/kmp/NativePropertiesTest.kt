@@ -103,6 +103,23 @@ class NativePropertiesTest {
     }
 
     @Test
+    fun testSdkMetadataStampAppliesCallbackChanges() {
+        @Suppress("UNCHECKED_CAST")
+        val nativeProperties = parse("""{"kept":true,"dropped":1,"replaced":"old"}""") as Map<Any?, *>
+
+        val result = nativeProperties.withSdkMetadata(
+            removedKeys = setOf("dropped"),
+            changedValues = mapOf("replaced" to false, "added" to true)
+        )
+
+        assertEquals(
+            """{"${'$'}lib":"posthog-kmp","${'$'}lib_version":"${PostHogKmpVersion.VERSION}",""" +
+                """"added":true,"kept":true,"replaced":false}""",
+            json(result)
+        )
+    }
+
+    @Test
     fun testSdkMetadataStampKeepsNativeBooleans() {
         @Suppress("UNCHECKED_CAST")
         val nativeProperties = parse("""{"${'$'}is_identified":true,"${'$'}feature/beta":false}""") as Map<Any?, *>

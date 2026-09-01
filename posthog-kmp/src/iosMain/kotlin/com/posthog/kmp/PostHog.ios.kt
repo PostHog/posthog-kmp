@@ -108,18 +108,31 @@ private fun processBeforeSend(config: PostHogConfig, event: NativePostHogEvent?)
 
     event.event = processed.event
     event.distinctId = processed.distinctId
-    // Rebuilding the whole tree costs ~10ms for a $snapshot payload; skipping subtrees without
-    // booleans measured worse on real replay data.
-    event.properties = processed.properties.toNativeProperties()
+    // Only what the callback actually replaced is rebuilt. Carrying the rest over as the native
+    // objects they already are keeps a $snapshot payload off the main thread's critical path.
+    event.properties = event.properties.withSdkMetadata(
+        removedKeys = properties.keys - processed.properties.keys,
+        changedValues = processed.properties.filter { (key, value) -> properties[key] !== value }
+    )
     return event
 }
 
-/** Adds the KMP SDK metadata to [this] without reading any of its values into Kotlin. */
-internal fun Map<Any?, *>.withSdkMetadata(): Map<Any?, *> {
+/**
+ * Adds the KMP SDK metadata to [this], along with whatever a before-send callback removed or
+ * replaced, without reading the values it already holds into Kotlin.
+ */
+internal fun Map<Any?, *>.withSdkMetadata(
+    removedKeys: Set<String> = emptySet(),
+    changedValues: Map<String, Any?> = emptyMap()
+): Map<Any?, *> {
     val stamped = NSMutableDictionary()
     stamped.addEntriesFromDictionary(this)
+    removedKeys.forEach { stamped.removeObjectForKey(it) }
     stamped.setValue("posthog-kmp", forKey = "\$lib")
     stamped.setValue(PostHogKmpVersion.VERSION, forKey = "\$lib_version")
+    if (changedValues.isNotEmpty()) {
+        stamped.addEntriesFromDictionary(changedValues.toNativeProperties())
+    }
     @Suppress("UNCHECKED_CAST")
     return stamped.copy() as Map<Any?, *>
 }
