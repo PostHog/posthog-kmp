@@ -10,7 +10,7 @@ plugins {
 kotlin {
     android {
         namespace = "com.posthog.kmp.sample.shared"
-        compileSdk = libs.versions.android.compileSdk.get().toInt()
+        compileSdk = libs.versions.android.sampleCompileSdk.get().toInt()
         minSdk = 24
 
         compilerOptions {
