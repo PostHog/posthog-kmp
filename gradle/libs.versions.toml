@@ -2,6 +2,7 @@
 kotlin = "2.4.10"
 agp = "9.4.0"
 android-compileSdk = "36"
+android-sampleCompileSdk = "37"
 compose-multiplatform = "1.12.0"
 compose-material3 = "1.9.0"
 androidx-activity-compose = "1.13.0"

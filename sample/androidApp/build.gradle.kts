@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.posthog.kmp.sample"
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
+    compileSdk = libs.versions.android.sampleCompileSdk.get().toInt()
 
     defaultConfig {
         applicationId = "com.posthog.kmp.sample"
