@@ -159,7 +159,11 @@ class ComplianceAdapterTest {
                     val capture = JsonParser.parseString(adapter.handle("/capture", """{
                         "distinct_id":"test-user", "event":"timestamp-event",
                         "timestamp":"2025-01-02T08:34:05+05:30",
-                        "properties":{"timestamp_like":"2025-01-02T08:34:05+05:30","custom":42}
+                        "properties":{
+                            "timestamp_like":"2025-01-02T08:34:05+05:30", "custom":42,
+                            "large_integer":9007199254740993,
+                            "nested":{"large_integer":9007199254740993}, "omit_me":null
+                        }
                     }""")).asJsonObject
                     assertFalse(capture.has("uuid"))
                     val flush = JsonParser.parseString(adapter.handle("/flush", "")).asJsonObject
@@ -172,6 +176,11 @@ class ComplianceAdapterTest {
                     assertEquals("2025-01-02T03:04:05.000Z", event.get("timestamp").asString)
                     assertEquals("posthog-kmp", event.getAsJsonObject("properties").get("\$lib").asString)
                     assertEquals("2025-01-02T08:34:05+05:30", event.getAsJsonObject("properties").get("timestamp_like").asString)
+                    val properties = event.getAsJsonObject("properties")
+                    assertTrue(properties.getAsJsonPrimitive("large_integer").isNumber)
+                    assertEquals(9007199254740993L, properties.get("large_integer").asLong)
+                    assertEquals(9007199254740993L, properties.getAsJsonObject("nested").get("large_integer").asLong)
+                    assertFalse(properties.has("omit_me"))
                     assertTrue(event.get("uuid").asString.isNotBlank())
                     val flag = JsonParser.parseString(adapter.handle("/get_feature_flag", """{
                         "distinct_id":"test-user", "key":"test-flag", "force_remote":true

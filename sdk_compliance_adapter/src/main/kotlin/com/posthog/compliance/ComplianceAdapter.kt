@@ -3,6 +3,7 @@ package com.posthog.compliance
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import com.google.gson.ToNumberPolicy
 import com.google.gson.reflect.TypeToken
 import com.posthog.kmp.CaptureOptions
 import com.posthog.kmp.PostHog
@@ -18,7 +19,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 internal class ComplianceAdapter(private val observer: WireObserver) : AutoCloseable {
-    private val gson = GsonBuilder().serializeNulls().create()
+    private val gson = GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE).serializeNulls().create()
     private var initialized = false
     private val home = Files.createTempDirectory("posthog-kmp-compliance-").toFile()
     private val previousHome = System.getProperty("user.home")
@@ -114,7 +115,9 @@ internal class ComplianceAdapter(private val observer: WireObserver) : AutoClose
 
     private fun featureFlag(input: JsonObject): Map<String, Any?> {
         identify(input.get("distinct_id").asString)
-        properties(input, "person_properties")?.let { PostHog.setPersonProperties(it) }
+        properties(input, "person_properties")?.let { properties ->
+            PostHog.setPersonProperties(properties.mapNotNull { (key, value) -> value?.let { key to it } }.toMap())
+        }
         val groupProperties = input.getAsJsonObject("group_properties")
         input.getAsJsonObject("groups")?.entrySet()?.forEach { (type, key) ->
             PostHog.group(type, key.asString, groupProperties?.let { properties(it, type) })
@@ -145,10 +148,9 @@ internal class ComplianceAdapter(private val observer: WireObserver) : AutoClose
         )
     }
 
-    private fun properties(input: JsonObject, key: String): Map<String, Any>? {
+    private fun properties(input: JsonObject, key: String): Map<String, Any?>? {
         val value = input.get(key)?.takeUnless { it.isJsonNull } ?: return null
-        val properties: Map<String, Any?> = gson.fromJson(value, object : TypeToken<Map<String, Any?>>() {}.type)
-        return properties.mapNotNull { (name, property) -> property?.let { name to it } }.toMap()
+        return gson.fromJson(value, object : TypeToken<Map<String, Any?>>() {}.type)
     }
 
     private fun reset() {
