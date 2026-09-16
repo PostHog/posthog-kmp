@@ -1,0 +1,81 @@
+name: KMP JVM SDK compliance
+
+on:
+  pull_request:
+    paths:
+      - 'posthog-kmp/**'
+      - 'sdk_compliance_adapter/**'
+      - 'gradle/**'
+      - '*.gradle.kts'
+      - 'gradle.properties'
+      - 'version.properties'
+      - '.github/workflows/sdk-compliance-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'posthog-kmp/**'
+      - 'sdk_compliance_adapter/**'
+      - 'gradle/**'
+      - '*.gradle.kts'
+      - 'gradle.properties'
+      - 'version.properties'
+      - '.github/workflows/sdk-compliance-tests.yml'
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  jvm:
+    name: KMP JVM facade (V0 gzip, stateful reload)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c
+        with:
+          distribution: zulu
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb
+      - name: Build actual KMP JVM entry and test adapter
+        run: |
+          ./gradlew :sdk_compliance_adapter:installDist :sdk_compliance_adapter:test --no-daemon
+          python3 -m unittest discover -s sdk_compliance_adapter -p 'test_*.py'
+      - name: Start process-isolated adapter
+        run: |
+          mkdir -p report
+          python3 sdk_compliance_adapter/adapter.py > report/kmp-jvm-adapter.log 2>&1 &
+          echo $! > report/adapter.pid
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:18320/health > report/kmp-jvm-health.json; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: Pull harness 1.0.0
+        run: docker pull ghcr.io/posthog/sdk-test-harness:1.0.0@sha256:7bec9a7d43752b9587e0d993eba58a45bcae0a3613e083f262a405256478ab1f
+      - name: Run all 47 JVM cases (advisory assertions)
+        continue-on-error: true
+        run: |
+          docker run --rm --network host \
+            -v "$PWD/report:/report" \
+            ghcr.io/posthog/sdk-test-harness:1.0.0@sha256:7bec9a7d43752b9587e0d993eba58a45bcae0a3613e083f262a405256478ab1f \
+            run --adapter-url http://127.0.0.1:18320 \
+            --mock-port 19320 --mock-url http://127.0.0.1:19320 \
+            --sdk-type server --suite capture --suite feature_flags \
+            --report /report/kmp-jvm.json > report/kmp-jvm-harness.log 2>&1
+      - name: Require exact nonempty inventory and show failures
+        if: always()
+        run: python3 sdk_compliance_adapter/check_report.py report/kmp-jvm.json
+      - name: Stop owned adapter and worker
+        if: always()
+        run: |
+          if [ -f report/adapter.pid ]; then kill "$(cat report/adapter.pid)"; fi
+      - name: Upload JVM evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: sdk-compliance-kmp-jvm-v0-gzip
+          if-no-files-found: error
+          path: |
+            report/
+            sdk_compliance_adapter/build/test-results/test/

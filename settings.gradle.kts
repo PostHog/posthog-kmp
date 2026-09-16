@@ -16,5 +16,6 @@ dependencyResolutionManagement {
 rootProject.name = "posthog-kmp"
 
 include(":posthog-kmp")
+include(":sdk_compliance_adapter")
 include(":sample")
 include(":sample:androidApp")
