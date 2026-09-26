@@ -3,7 +3,8 @@ package com.posthog.kmp
 import com.posthog.internal.PostHogPreferences.Companion.ANONYMOUS_ID
 import com.posthog.internal.PostHogPreferences.Companion.GROUPS
 import java.io.File
-import java.nio.file.Files
+import org.junit.Rule
+import org.junit.rules.TemporaryFolder
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -14,11 +15,10 @@ class PostHogFilePreferencesTest {
 
     private val config = com.posthog.PostHogConfig(apiKey = "test-key")
 
-    private fun tempFile(): File {
-        val dir = Files.createTempDirectory("posthog-kmp-prefs").toFile()
-        dir.deleteOnExit()
-        return File(dir, "preferences.json")
-    }
+    @get:Rule
+    val tempFolder = TemporaryFolder()
+
+    private fun tempFile(): File = File(tempFolder.newFolder(), "preferences.json")
 
     @Test
     fun returnsDefaultWhenMissing() {
@@ -53,6 +53,8 @@ class PostHogFilePreferencesTest {
         val file = tempFile()
         val prefs = PostHogFilePreferences(file, config)
         prefs.setValue("key", "value")
+        prefs.awaitPendingWrites()
+        assertEquals("value", PostHogFilePreferences(file, config).getValue("key"))
         prefs.remove("key")
         prefs.awaitPendingWrites()
 
@@ -66,6 +68,8 @@ class PostHogFilePreferencesTest {
         val prefs = PostHogFilePreferences(file, config)
         prefs.setValue(ANONYMOUS_ID, "anon-123")
         prefs.setValue("other", "value")
+        prefs.awaitPendingWrites()
+        assertEquals("value", PostHogFilePreferences(file, config).getValue("other"))
 
         prefs.clear(except = listOf(ANONYMOUS_ID))
         prefs.awaitPendingWrites()
@@ -83,10 +87,59 @@ class PostHogFilePreferencesTest {
         val prefs = PostHogFilePreferences(tempFile(), config)
         prefs.setValue(ANONYMOUS_ID, "anon-123")
         prefs.setValue("custom", "value")
+        prefs.awaitPendingWrites()
 
         val all = prefs.getAll()
         assertFalse(all.containsKey(ANONYMOUS_ID))
         assertEquals("value", all["custom"])
+    }
+
+    @Test
+    fun clearWithoutExceptionsRemovesPersistedValues() {
+        val file = tempFile()
+        val prefs = PostHogFilePreferences(file, config)
+        prefs.setValue(ANONYMOUS_ID, "anon")
+        prefs.setValue("custom", "value")
+        prefs.awaitPendingWrites()
+        prefs.clear()
+        prefs.awaitPendingWrites()
+
+        val reloaded = PostHogFilePreferences(file, config)
+        assertNull(reloaded.getValue(ANONYMOUS_ID))
+        assertEquals(emptyMap(), reloaded.getAll())
+    }
+
+    @Test
+    fun nonObjectJsonFallsBackToEmptyPreferences() {
+        for (json in listOf("[]", "null", "42")) {
+            val file = tempFile().apply { writeText(json) }
+            val prefs = PostHogFilePreferences(file, config)
+            assertEquals("fallback", prefs.getValue("key", "fallback"), json)
+            prefs.setValue("key", "recovered")
+            prefs.awaitPendingWrites()
+            assertEquals("recovered", PostHogFilePreferences(file, config).getValue("key"), json)
+        }
+    }
+
+    @Test
+    fun writeFailurePreservesInMemoryStateAndLogsWarning() {
+        val parent = tempFolder.newFile()
+        val warnings = mutableListOf<String>()
+        val failingConfig = com.posthog.PostHogConfig(apiKey = "key").apply {
+            logger = object : com.posthog.internal.PostHogLogger {
+                override fun log(message: String) {
+                    warnings.add(message)
+                }
+                override fun isEnabled(): Boolean = true
+            }
+        }
+        val prefs = PostHogFilePreferences(File(parent, "preferences.json"), failingConfig)
+        prefs.setValue("key", "value")
+        prefs.awaitPendingWrites()
+
+        assertEquals("value", prefs.getValue("key"))
+        assertTrue(warnings.any { it.contains("Failed to persist preferences") })
+        assertTrue(parent.isFile)
     }
 
     @Test

@@ -17,6 +17,22 @@ cd posthog-kmp
 
 The `sample/` directory contains a Compose Multiplatform demo app that exercises the SDK.
 
+### JVM code coverage
+
+```bash
+./gradlew -I scripts/jvm-coverage.gradle :posthog-kmp:auditCoverage
+```
+
+JaCoCo XML and HTML reports are written to `posthog-kmp/build/reports/jacoco/auditCoverage/`.
+This measures the SDK classes compiled for JVM (common, JVM-shared, and JVM sources),
+not native dependencies, sample code, or the Android/iOS/JS/Wasm implementations.
+Use the same command and class scope for before/after comparisons. Run `detekt`
+separately from native build tasks to avoid Gradle's overlapping-output validation.
+
+The sample iOS UI tests are manual, live-project smoke tests, not backend-delivery
+assertions. They require an explicitly approved test project and `POSTHOG_API_KEY`;
+do not use them as proof that events arrived at PostHog.
+
 ## Public API changes
 
 Public API is hard to change once it ships, so agree on it before writing the implementation. Our [SDK guidelines](https://posthog.com/handbook/engineering/sdks/guidelines) explain how we design it.

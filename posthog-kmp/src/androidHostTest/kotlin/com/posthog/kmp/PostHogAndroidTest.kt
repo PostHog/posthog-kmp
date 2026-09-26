@@ -7,6 +7,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.test.BeforeTest
+import kotlin.test.AfterTest
+import kotlin.test.assertNull
 
 class PostHogAndroidTest {
 
@@ -19,21 +21,22 @@ class PostHogAndroidTest {
         currentConfig = null
     }
 
+    @AfterTest
+    fun tearDown() {
+        postHogInstance = null
+        currentConfig = null
+    }
+
     private fun assertMethodCalled(methodName: String, vararg args: Any?) {
-        val call = fakeInterface.calledMethods.find { it.first == methodName }
-        assertTrue(call != null, "Method $methodName was not called")
-        
-        args.forEachIndexed { index, expectedArg ->
-            if (expectedArg != null) {
-                assertEquals(expectedArg, call.second.getOrNull(index), "Argument at index $index mismatch for $methodName")
-            }
-        }
+        val calls = fakeInterface.calledMethods.filter { it.first == methodName }
+        assertEquals(1, calls.size, "Expected one call to $methodName")
+        assertEquals(args.toList(), calls.single().second, "Arguments for $methodName")
     }
 
     @Test
     fun testCaptureRoutesCorrectly() {
         PostHog.capture("test_event", mapOf("prop" to "value"))
-        assertMethodCalled("capture", "test_event", null, mapOf("prop" to "value"))
+        assertMethodCalled("capture", "test_event", null, mapOf("prop" to "value"), null, null, null, null)
     }
 
     @Test
@@ -51,7 +54,8 @@ class PostHogAndroidTest {
             mapOf("prop" to "value"),
             null,
             null,
-            mapOf("company" to "acme")
+            mapOf("company" to "acme"),
+            null
         )
     }
 
@@ -76,13 +80,13 @@ class PostHogAndroidTest {
     @Test
     fun testCaptureDropsNullPropertyValues() {
         PostHog.capture("test_event", mapOf("keep" to 1, "drop" to null))
-        assertMethodCalled("capture", "test_event", null, mapOf("keep" to 1))
+        assertMethodCalled("capture", "test_event", null, mapOf("keep" to 1), null, null, null, null)
     }
 
     @Test
     fun testIdentifyRoutesCorrectly() {
         PostHog.identify("user_123", mapOf("email" to "test@example.com"))
-        assertMethodCalled("identify", "user_123", mapOf("email" to "test@example.com"))
+        assertMethodCalled("identify", "user_123", mapOf("email" to "test@example.com"), null)
     }
 
     @Test
@@ -135,7 +139,7 @@ class PostHogAndroidTest {
 
     @Test
     fun testIsFeatureEnabledRoutesCorrectly() {
-        PostHog.isFeatureEnabled("test_flag", defaultValue = true)
+        assertEquals(false, PostHog.isFeatureEnabled("test_flag", defaultValue = true))
         assertMethodCalled("isFeatureEnabled", "test_flag", true, true)
     }
 
@@ -153,20 +157,51 @@ class PostHogAndroidTest {
 
     @Test
     fun testGetFeatureFlagRoutesCorrectly() {
-        PostHog.getFeatureFlag("test_flag")
-        assertMethodCalled("getFeatureFlag", "test_flag")
+        fakeInterface.featureFlag = "variant-a"
+        assertEquals("variant-a", PostHog.getFeatureFlag("test_flag"))
+        assertMethodCalled("getFeatureFlag", "test_flag", null, true)
     }
 
     @Test
     fun testReloadFeatureFlagsRoutesCorrectly() {
         PostHog.reloadFeatureFlags()
-        assertMethodCalled("reloadFeatureFlags")
+        assertMethodCalled("reloadFeatureFlags", null)
     }
 
     @Test
     fun testGetFeatureFlagResultRoutesCorrectly() {
-        PostHog.getFeatureFlagResult("test_flag")
-        assertMethodCalled("getFeatureFlagResult", "test_flag")
+        fakeInterface.featureFlagResult = com.posthog.FeatureFlagResult("test_flag", true, "blue", mapOf("color" to "blue"))
+        assertEquals(
+            FeatureFlagResult("test_flag", true, "blue", mapOf("color" to "blue")),
+            PostHog.getFeatureFlagResult("test_flag")
+        )
+        assertMethodCalled("getFeatureFlagResult", "test_flag", true)
+    }
+
+    @Test
+    fun testAllFeatureFlagsPreserveDisabledAndVariantResults() {
+        fakeInterface.featureFlags = listOf(
+            com.posthog.FeatureFlagResult("disabled", false, null, null),
+            com.posthog.FeatureFlagResult("checkout", true, "blue", listOf("one", "two"))
+        )
+        assertEquals(
+            mapOf(
+                "disabled" to FeatureFlagResult("disabled", false),
+                "checkout" to FeatureFlagResult("checkout", true, "blue", listOf("one", "two"))
+            ),
+            PostHog.getAllFeatureFlags()
+        )
+        assertMethodCalled("getAllFeatureFlags")
+    }
+
+    @Test
+    fun testReloadCallbackWaitsForNativeCompletion() {
+        var completions = 0
+        PostHog.reloadFeatureFlags { completions++ }
+        assertEquals(0, completions)
+        val callback = fakeInterface.calledMethods.single().second.single() as com.posthog.PostHogOnFeatureFlags
+        callback.loaded()
+        assertEquals(1, completions)
     }
 
     @Test
@@ -197,7 +232,8 @@ class PostHogAndroidTest {
 
     @Test
     fun testIsOptedOutRoutesCorrectly() {
-        PostHog.isOptedOut()
+        fakeInterface.optedOut = true
+        assertTrue(PostHog.isOptedOut())
         assertMethodCalled("isOptOut")
     }
 
@@ -211,6 +247,10 @@ class PostHogAndroidTest {
     fun testCloseRoutesCorrectly() {
         PostHog.close()
         assertMethodCalled("close")
+        PostHog.capture("after_close")
+        PostHog.close()
+        assertEquals(listOf("close"), fakeInterface.calledMethods.map { it.first })
+        assertNull(PostHog.getDistinctId())
     }
 
     @Test

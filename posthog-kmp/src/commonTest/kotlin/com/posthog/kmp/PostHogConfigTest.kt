@@ -3,6 +3,7 @@ package com.posthog.kmp
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 
 class PostHogConfigTest {
 
@@ -58,6 +59,13 @@ class PostHogConfigTest {
     }
 
     @Test
+    fun beforeSendWithoutCallbacksPreservesEvent() {
+        val event = PostHogEvent("checkout", "user-1", mapOf("plan" to "paid"))
+        val config = PostHogConfig(apiKey = "key")
+        assertSame(event, config.runBeforeSend(event))
+    }
+
+    @Test
     fun beforeSendCallbacksRunInOrder() {
         val config = PostHogConfig(
             apiKey = "phc_test",
@@ -88,11 +96,12 @@ class PostHogConfigTest {
     fun beforeSendDropsTransformedEventAndStopsAfterCallbackException() {
         var errorCount = 0
         var sentinelCalled = false
+        val failure = IllegalStateException("failed")
         val config = PostHogConfig(
             apiKey = "phc_test",
             beforeSend = listOf(
                 PostHogBeforeSend { it.copy(event = "transformed") },
-                PostHogBeforeSend { throw IllegalStateException("failed") },
+                PostHogBeforeSend { throw failure },
                 PostHogBeforeSend {
                     sentinelCalled = true
                     it
@@ -101,6 +110,7 @@ class PostHogConfigTest {
         )
 
         val result = config.runBeforeSend(PostHogEvent("checkout", "user-1", emptyMap())) {
+            assertSame(failure, it)
             errorCount++
         }
 

@@ -7,6 +7,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.test.BeforeTest
+import kotlin.test.AfterTest
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 
 class PostHogJsTest {
 
@@ -25,6 +28,12 @@ class PostHogJsTest {
         setupMiscMethods(fakeJs)
 
         mockPostHogJs = fakeJs
+    }
+
+    @AfterTest
+    fun tearDown() {
+        mockPostHogJs = null
+        currentConfig = null
     }
 
     private fun setupCoreMethods(fakeJs: dynamic) {
@@ -126,9 +135,9 @@ class PostHogJsTest {
     }
 
     private fun getCall(methodName: String): Array<dynamic> {
-        val call = calledMethods.find { it.first == methodName }
-        assertTrue(call != null, "Method $methodName was not called")
-        return call.second
+        val calls = calledMethods.filter { it.first == methodName }
+        assertEquals(1, calls.size, "Expected one call to $methodName")
+        return calls.single().second
     }
 
     @Test
@@ -168,7 +177,7 @@ class PostHogJsTest {
         PostHog.capture("test_event", mapOf("keep" to 1, "drop" to null))
         val call = getCall("capture")
         assertEquals(1, call[1]["keep"] as Int)
-        assertTrue(call[1]["drop"] == null, "null-valued properties must be dropped")
+        assertFalse(hasOwnProperty(call[1], "drop"), "null-valued properties must be absent, not null")
     }
 
     @Test
@@ -237,7 +246,7 @@ class PostHogJsTest {
 
     @Test
     fun testIsFeatureEnabledRoutesCorrectly() {
-        PostHog.isFeatureEnabled("test_flag", defaultValue = true)
+        assertTrue(PostHog.isFeatureEnabled("test_flag", defaultValue = false))
         val call = getCall("isFeatureEnabled")
         assertEquals("test_flag", call[0] as String)
         assertEquals(true, call[1]["send_event"] as Boolean)
@@ -245,7 +254,7 @@ class PostHogJsTest {
 
     @Test
     fun testGetFeatureFlagRoutesCorrectly() {
-        PostHog.getFeatureFlag("test_flag")
+        assertEquals("variant-a", PostHog.getFeatureFlag("test_flag"))
         val call = getCall("getFeatureFlag")
         assertEquals("test_flag", call[0] as String)
         assertEquals(true, call[1]["send_event"] as Boolean)
@@ -272,11 +281,13 @@ class PostHogJsTest {
         getCall("reloadFeatureFlags")
         assertEquals(0, callbackCount, "callback must not fire with pre-reload flags")
 
-        handler?.invoke()
+        val registeredHandler = assertNotNull(handler)
+        registeredHandler()
         assertEquals(1, callbackCount)
+        assertNull(handler, "reload must unsubscribe")
 
-        handler?.invoke()
-        assertEquals(1, callbackCount, "callback must fire at most once and unsubscribe")
+        registeredHandler()
+        assertEquals(1, callbackCount, "an already queued notification must not fire the callback twice")
     }
 
     @Test
@@ -360,7 +371,7 @@ class PostHogJsTest {
     }
 
     @Test
-    fun testBeforeSendContainsCallbackAndConversionExceptions() {
+    fun testBeforeSendContainsCallbackExceptions() {
         var sentinelCalled = false
         fakeJs.init = { _: String, options: dynamic ->
             calledMethods.add("init" to arrayOf<dynamic>(options))
@@ -385,15 +396,70 @@ class PostHogJsTest {
 
         assertNull(result)
         assertEquals(false, sentinelCalled)
+    }
+
+    @Test
+    fun testBeforeSendContainsPropertyConversionExceptions() {
+        var callbackCalled = false
+        fakeJs.init = { _: String, options: dynamic ->
+            calledMethods.add("init" to arrayOf<dynamic>(options))
+        }
+        PostHog.setup(
+            PostHogConfig(apiKey = "key", beforeSend = listOf(PostHogBeforeSend {
+                callbackCalled = true
+                it
+            })),
+            PostHogContext()
+        )
+        val callback = getCall("init")[0]["before_send"]
         assertNull(callback(createThrowingCaptureResult()))
+        assertFalse(callbackCalled)
     }
 
     @Test
     fun testGetFeatureFlagResultRoutesCorrectly() {
-        PostHog.getFeatureFlagResult("test_flag")
+        assertNull(PostHog.getFeatureFlagResult("test_flag"))
         val call = getCall("getFeatureFlagResult")
         assertEquals("test_flag", call[0] as String)
         assertEquals(true, call[1]["send_event"] as Boolean)
+    }
+
+    @Test
+    fun testFeatureFlagResultPreservesFields() {
+        fakeJs.getFeatureFlagResult = { _: String, _: dynamic ->
+            js("({ key: 'checkout', enabled: true, variant: 'blue', payload: 'payload' })")
+        }
+        assertEquals(
+            FeatureFlagResult("checkout", true, "blue", "payload"),
+            PostHog.getFeatureFlagResult("checkout")
+        )
+        fakeJs.getFeatureFlagResult = { _: String, _: dynamic -> js("({ key: 'disabled', enabled: false })") }
+        val disabled = assertNotNull(PostHog.getFeatureFlagResult("disabled"))
+        assertFalse(disabled.enabled)
+        assertNull(disabled.variant)
+    }
+
+    @Test
+    fun testAllFeatureFlagsPreserveResultsAndHandleUnavailableCache() {
+        fakeJs.getAllFeatureFlags = {
+            js("[{ key: 'checkout', enabled: true, variant: 'blue', payload: 'payload' }, { key: 'disabled', enabled: false }]")
+        }
+        val flags = PostHog.getAllFeatureFlags()
+        assertEquals(setOf("checkout", "disabled"), flags.keys)
+        assertEquals(FeatureFlagResult("checkout", true, "blue", "payload"), flags["checkout"])
+        assertEquals(false, flags["disabled"]?.enabled)
+        assertNull(flags["disabled"]?.variant)
+        fakeJs.getAllFeatureFlags = { undefined }
+        assertEquals(emptyMap(), PostHog.getAllFeatureFlags())
+    }
+
+    @Test
+    fun testFeatureEnabledUsesDefaultOnlyWhenUnavailable() {
+        fakeJs.isFeatureEnabled = { _: String, _: dynamic -> false }
+        assertFalse(PostHog.isFeatureEnabled("disabled", defaultValue = true))
+        fakeJs.isFeatureEnabled = { _: String, _: dynamic -> undefined }
+        assertTrue(PostHog.isFeatureEnabled("missing", defaultValue = true))
+        assertFalse(PostHog.isFeatureEnabled("missing", defaultValue = false))
     }
 
     @Test
@@ -427,8 +493,10 @@ class PostHogJsTest {
 
     @Test
     fun testIsOptedOutRoutesCorrectly() {
-        PostHog.isOptedOut()
+        assertFalse(PostHog.isOptedOut())
         getCall("has_opted_out_capturing")
+        fakeJs.has_opted_out_capturing = { true }
+        assertTrue(PostHog.isOptedOut())
     }
 
     @Test

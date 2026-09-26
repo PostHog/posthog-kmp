@@ -19,11 +19,13 @@ class PostHogWasmJsTest {
     fun setUp() {
         fakePostHog = createFakePostHog()
         mockPostHogWasmJs = fakePostHog
+        currentConfig = null
     }
 
     @AfterTest
     fun tearDown() {
         mockPostHogWasmJs = null
+        currentConfig = null
     }
 
     @Test
@@ -90,7 +92,7 @@ class PostHogWasmJsTest {
     }
 
     @Test
-    fun beforeSendContainsCallbackAndConversionExceptions() {
+    fun beforeSendContainsCallbackExceptions() {
         var sentinelCalled = false
         PostHog.setup(
             PostHogConfig(
@@ -109,7 +111,28 @@ class PostHogWasmJsTest {
 
         assertNull(invokeBeforeSend(fakePostHog))
         assertFalse(sentinelCalled)
+    }
+
+    @Test
+    fun beforeSendContainsPropertyConversionExceptions() {
+        var callbackCalled = false
+        PostHog.setup(
+            PostHogConfig(apiKey = "key", beforeSend = listOf(PostHogBeforeSend {
+                callbackCalled = true
+                it
+            })),
+            PostHogContext()
+        )
+
         assertNull(invokeBeforeSendWithThrowingGetter(fakePostHog))
+        assertFalse(callbackCalled)
+    }
+
+    @Test
+    fun captureDropsNullPropertyKeys() {
+        PostHog.capture("checkout", mapOf("keep" to true, "drop" to null))
+        assertTrue(readNestedBoolean(fakePostHog, "properties", "keep"))
+        assertFalse(hasNestedProperty(fakePostHog, "properties", "drop"))
     }
 
     @Test
@@ -188,9 +211,16 @@ class PostHogWasmJsTest {
 
         PostHog.reloadFeatureFlags { callbackCount++ }
 
-        assertEquals(1, callbackCount)
+        assertEquals(0, callbackCount, "registration must not deliver stale flags")
         assertEquals(1.0, readNumber(fakePostHog, "reloadCount"))
+        assertFalse(readBoolean(fakePostHog, "unsubscribed"))
+
+        notifyFeatureFlags(fakePostHog)
+        assertEquals(1, callbackCount)
         assertTrue(readBoolean(fakePostHog, "unsubscribed"))
+
+        notifyFeatureFlags(fakePostHog)
+        assertEquals(1, callbackCount, "an already queued notification must not fire twice")
     }
 
     @Test
@@ -205,6 +235,42 @@ class PostHogWasmJsTest {
         mockPostHogWasmJs = createUninitializedFakePostHog()
 
         assertEquals(null, PostHog.getDistinctId())
+    }
+
+    @Test
+    fun unknownFeatureFlagReturnsNoResult() {
+        mockPostHogWasmJs = createUninitializedFakePostHog()
+        assertNull(PostHog.getFeatureFlagResult("missing"))
+    }
+
+    @Test
+    fun featureFlagDefaultsAndConfiguredEventOptionAreForwarded() {
+        currentConfig = PostHogConfig(apiKey = "key", sendFeatureFlagEvent = false)
+        assertFalse(PostHog.isFeatureEnabled("disabled", defaultValue = true))
+        assertFalse(readNestedBoolean(fakePostHog, "featureFlagOptions", "send_event"))
+        assertTrue(
+            PostHog.isFeatureEnabled("missing", defaultValue = true, sendFeatureFlagEvent = true),
+            "an undefined JS flag must use the caller's true default"
+        )
+        assertTrue(readNestedBoolean(fakePostHog, "featureFlagOptions", "send_event"), "per-call override")
+        assertFalse(PostHog.isFeatureEnabled("missing"))
+        assertTrue(PostHog.isFeatureEnabled("enabled", defaultValue = false))
+        assertTrue(PostHog.isFeatureEnabled("null", defaultValue = true))
+        assertFalse(PostHog.isFeatureEnabled("null", defaultValue = false))
+        assertEquals("blue", PostHog.getFeatureFlag("checkout"))
+        assertFalse(readNestedBoolean(fakePostHog, "featureFlagOptions", "send_event"))
+    }
+
+    @Test
+    fun identityAndPrivacyGettersReturnNativeValues() {
+        assertEquals("user-42", PostHog.getDistinctId())
+        assertEquals("anon-42", PostHog.getAnonymousId())
+        assertEquals("session-42", PostHog.getSessionId())
+        assertFalse(PostHog.isOptedOut())
+        PostHog.optOut()
+        assertTrue(PostHog.isOptedOut())
+        PostHog.optIn()
+        assertFalse(PostHog.isOptedOut())
     }
 
     @Test
@@ -241,8 +307,24 @@ private fun createFakePostHog(): PostHogJsApi = js(
                 this.sdkName = sdkName;
                 this.sdkVersion = sdkVersion;
             },
+            optedOut: false,
             opt_out_capturing() { this.optedOut = true; },
-            opt_in_capturing() { this.optedIn = true; },
+            opt_in_capturing() { this.optedIn = true; this.optedOut = false; },
+            has_opted_out_capturing() { return this.optedOut; },
+            get_distinct_id() { return 'user-42'; },
+            get_property(key) { return key === '${'$'}device_id' ? 'anon-42' : undefined; },
+            get_session_id() { return 'session-42'; },
+            isFeatureEnabled(key, options) {
+                this.featureFlagOptions = options;
+                if (key === 'disabled') return false;
+                if (key === 'enabled') return true;
+                if (key === 'null') return null;
+                return undefined;
+            },
+            getFeatureFlag(key, options) {
+                this.featureFlagOptions = options;
+                return key === 'checkout' ? 'blue' : undefined;
+            },
             reset() { this.resetCalls = (this.resetCalls || 0) + 1; },
             capture(event, properties, options) {
                 this.event = event;
@@ -254,6 +336,7 @@ private fun createFakePostHog(): PostHogJsApi = js(
                 this.userProperties = userProperties;
                 this.userPropertiesSetOnce = userPropertiesSetOnce;
             },
+            unsubscribed: false,
             onFeatureFlags(callback) {
                 this.flagsCallback = callback;
                 callback();
@@ -261,7 +344,6 @@ private fun createFakePostHog(): PostHogJsApi = js(
             },
             reloadFeatureFlags() {
                 this.reloadCount = (this.reloadCount || 0) + 1;
-                if (this.flagsCallback) this.flagsCallback();
             },
             getFeatureFlagResult(key, options) {
                 this.featureFlagOptions = options;
@@ -282,7 +364,7 @@ private fun createFakePostHog(): PostHogJsApi = js(
 )
 
 private fun createUninitializedFakePostHog(): PostHogJsApi = js(
-    "({ getAllFeatureFlags() { return undefined; }, get_distinct_id() { return undefined; } })"
+    "({ getAllFeatureFlags() { return undefined; }, get_distinct_id() { return undefined; }, getFeatureFlagResult() { return undefined; } })"
 )
 
 private fun readString(target: PostHogJsApi, key: String): String = js("target[key]")
@@ -320,4 +402,8 @@ private fun readDeepJsArrayString(
 private fun readDeepJsDateTime(target: JsAny, parent: String, key: String): Double =
     js("target[parent][key].getTime()")
 private fun invokeBeforeSendWithThrowingGetter(target: PostHogJsApi): JsAny? =
-    js("target.options.before_send(new Proxy({}, { get() { throw Error() } }))")
+    js("target.options.before_send(new Proxy({ event: 'checkout' }, " +
+        "{ get(target, key) { if (key === 'properties') throw Error('failed'); return target[key]; } }))")
+private fun notifyFeatureFlags(target: PostHogJsApi): Unit = js("{ target.flagsCallback(); }")
+private fun hasNestedProperty(target: PostHogJsApi, parent: String, key: String): Boolean =
+    js("Object.prototype.hasOwnProperty.call(target[parent], key)")

@@ -19,6 +19,10 @@ class FakePostHogInterface {
     var currentSessionId: String? = "00000000-0000-0000-0000-000000000123"
     var currentDistinctId: String = "test-distinct-id"
     var currentAnonymousId: String = "anon-id"
+    var featureFlag: Any? = null
+    var featureFlagResult: com.posthog.FeatureFlagResult? = null
+    var featureFlags: List<com.posthog.FeatureFlagResult> = emptyList()
+    var optedOut = false
 
     val proxy: PostHogInterface = Proxy.newProxyInstance(
         PostHogInterface::class.java.classLoader,
@@ -62,10 +66,10 @@ class FakePostHogInterface {
             "distinctId" -> currentDistinctId
             "getAnonymousId" -> currentAnonymousId
             "isFeatureEnabled" -> false
-            "getFeatureFlag" -> null
-            "getFeatureFlagResult" -> null
-            "getAllFeatureFlags" -> emptyList<Any>()
-            "isOptOut" -> false
+            "getFeatureFlag" -> featureFlag
+            "getFeatureFlagResult" -> featureFlagResult
+            "getAllFeatureFlags" -> featureFlags
+            "isOptOut" -> optedOut
             else -> {
                 val returnType = method.returnType
                 when {
