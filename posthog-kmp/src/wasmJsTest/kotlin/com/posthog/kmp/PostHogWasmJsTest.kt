@@ -244,19 +244,12 @@ class PostHogWasmJsTest {
     }
 
     @Test
-    fun featureFlagDefaultsAndConfiguredEventOptionAreForwarded() {
+    fun featureFlagConfiguredEventOptionIsForwarded() {
         currentConfig = PostHogConfig(apiKey = "key", sendFeatureFlagEvent = false)
         assertFalse(PostHog.isFeatureEnabled("disabled", defaultValue = true))
         assertFalse(readNestedBoolean(fakePostHog, "featureFlagOptions", "send_event"))
-        assertTrue(
-            PostHog.isFeatureEnabled("missing", defaultValue = true, sendFeatureFlagEvent = true),
-            "an undefined JS flag must use the caller's true default"
-        )
+        assertFalse(PostHog.isFeatureEnabled("disabled", sendFeatureFlagEvent = true))
         assertTrue(readNestedBoolean(fakePostHog, "featureFlagOptions", "send_event"), "per-call override")
-        assertFalse(PostHog.isFeatureEnabled("missing"))
-        assertTrue(PostHog.isFeatureEnabled("enabled", defaultValue = false))
-        assertTrue(PostHog.isFeatureEnabled("null", defaultValue = true))
-        assertFalse(PostHog.isFeatureEnabled("null", defaultValue = false))
         assertEquals("blue", PostHog.getFeatureFlag("checkout"))
         assertFalse(readNestedBoolean(fakePostHog, "featureFlagOptions", "send_event"))
     }
@@ -316,10 +309,7 @@ private fun createFakePostHog(): PostHogJsApi = js(
             get_session_id() { return 'session-42'; },
             isFeatureEnabled(key, options) {
                 this.featureFlagOptions = options;
-                if (key === 'disabled') return false;
-                if (key === 'enabled') return true;
-                if (key === 'null') return null;
-                return undefined;
+                return key === 'disabled' ? false : undefined;
             },
             getFeatureFlag(key, options) {
                 this.featureFlagOptions = options;

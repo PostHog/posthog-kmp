@@ -18,7 +18,7 @@ internal external interface PostHogJsApi : JsAny {
     fun register(properties: JsAny)
     fun unregister(key: String)
     fun group(type: String, key: String, groupProperties: JsAny? = definedExternally)
-    fun isFeatureEnabled(key: String, options: JsAny? = definedExternally): JsAny?
+    fun isFeatureEnabled(key: String, options: JsAny? = definedExternally): Boolean?
     fun getFeatureFlag(key: String, options: JsAny? = definedExternally): JsAny?
     fun getAllFeatureFlags(): JsAny?
     fun reloadFeatureFlags()

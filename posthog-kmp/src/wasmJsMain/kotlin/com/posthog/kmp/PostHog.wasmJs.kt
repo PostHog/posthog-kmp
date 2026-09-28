@@ -132,7 +132,7 @@ internal actual fun platformIsFeatureEnabled(
     sendFeatureFlagEvent: Boolean
 ): Boolean {
     val options = featureFlagOptions(sendFeatureFlagEvent)
-    return PostHogJs.isFeatureEnabled(key, options)?.toKotlinBoolean() ?: defaultValue
+    return PostHogJs.isFeatureEnabled(key, options) ?: defaultValue
 }
 
 internal actual fun platformGetFeatureFlag(key: String, sendFeatureFlagEvent: Boolean): Any? {
