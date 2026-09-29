@@ -77,14 +77,16 @@ final class FullTests: XCTestCase {
     }
 
     func testAnonAndReset() throws {
+        let projectKey = try TestConfig.requireAPIKey()
         app.launch()
 
         let apiKey = app.textViews.element(boundBy: 0)
         XCTAssertTrue(apiKey.waitForExistence(timeout: 30))
-        clearAndType(apiKey, TestConfig.apiKey)
+        clearAndType(apiKey, projectKey)
         tapButton("Initialize")
         sleep(3)
         log("ar_initialize")
+        XCTAssertTrue(app.buttons["Capture Event"].isEnabled)
 
         tapButton("Anon ID")
         sleep(1)
@@ -99,6 +101,7 @@ final class FullTests: XCTestCase {
         tapButton("Dist ID")
         sleep(1)
         log("ar_dist_before_reset")
+        XCTAssertEqual(status, "Dist: kmp-ios-full-test")
 
         tapButton("Reset")
         sleep(1)
@@ -112,6 +115,9 @@ final class FullTests: XCTestCase {
         tapButton("Dist ID")
         sleep(1)
         log("ar_dist_after_reset_retry")
+        XCTAssertTrue(status.hasPrefix("Dist: "))
+        XCTAssertNotEqual(status, "Dist: kmp-ios-full-test")
+        XCTAssertNotEqual(status, "Dist: null")
 
         // Capture after reset: its server-side distinct_id must be a fresh anon UUID
         clearAndType(app.textViews.element(boundBy: 1), "kmp_ios_post_reset")
@@ -125,11 +131,12 @@ final class FullTests: XCTestCase {
     }
 
     func testTailButtons() throws {
+        let projectKey = try TestConfig.requireAPIKey()
         app.launch()
 
         let apiKey = app.textViews.element(boundBy: 0)
         XCTAssertTrue(apiKey.waitForExistence(timeout: 30))
-        clearAndType(apiKey, TestConfig.apiKey)
+        clearAndType(apiKey, projectKey)
         tapButton("Initialize")
         sleep(3)
         log("tail_initialize")
@@ -168,13 +175,14 @@ final class FullTests: XCTestCase {
     }
 
     func testAllButtons() throws {
+        let projectKey = try TestConfig.requireAPIKey()
         app.launch()
 
         let apiKey = app.textViews.element(boundBy: 0)
         XCTAssertTrue(apiKey.waitForExistence(timeout: 30))
 
         // 1. Initialize
-        clearAndType(apiKey, TestConfig.apiKey)
+        clearAndType(apiKey, projectKey)
         tapButton("Initialize")
         sleep(3)
         log("initialize")
@@ -243,11 +251,14 @@ final class FullTests: XCTestCase {
         log("opt_out")
         tapButton("Opt Status")
         log("opt_status_after_optout")
+        XCTAssertEqual(status, "Opted out: true")
         clearAndType(app.textViews.element(boundBy: 1), "kmp_ios_optout_event")
         tapButton("Capture Event")
         log("capture_while_opted_out")
         tapButton("Opt In")
         log("opt_in")
+        tapButton("Opt Status")
+        XCTAssertEqual(status, "Opted out: false")
         clearAndType(app.textViews.element(boundBy: 1), "kmp_ios_optin_event")
         tapButton("Capture Event")
         log("capture_after_optin")

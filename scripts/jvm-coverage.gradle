@@ -1,0 +1,23 @@
+allprojects { project ->
+    if (project.path == ':posthog-kmp') {
+        apply plugin: 'jacoco'
+        jacoco { toolVersion = '0.8.14' }
+
+        afterEvaluate {
+            tasks.register('auditCoverage', JacocoReport) {
+                dependsOn tasks.named('jvmTest')
+                executionData tasks.named('jvmTest').get()
+                classDirectories.setFrom(layout.buildDirectory.dir('classes/kotlin/jvm/main'))
+                sourceDirectories.setFrom(files(
+                    'src/commonMain/kotlin',
+                    'src/jvmCommonMain/kotlin',
+                    'src/jvmMain/kotlin'
+                ))
+                reports {
+                    xml.required = true
+                    html.required = true
+                }
+            }
+        }
+    }
+}

@@ -29,13 +29,15 @@ class KotlinThrowableNSExceptionTest {
         val cause = IllegalArgumentException("invalid cart")
         val throwable = IllegalStateException("checkout failed", cause)
 
+        val rootOnly = throwable.toNSException(appendCauses = false).callStackReturnAddresses
         val exception = throwable.toNSException()
 
         assertEquals(
             "checkout failed\nCaused by: kotlin.IllegalArgumentException: invalid cart",
             exception.reason
         )
-        assertTrue(exception.callStackReturnAddresses.isNotEmpty())
+        assertEquals(rootOnly, exception.callStackReturnAddresses.take(rootOnly.size))
+        assertTrue(exception.callStackReturnAddresses.size > rootOnly.size, "cause addresses must be appended")
     }
 
     @Test
@@ -77,7 +79,7 @@ class KotlinThrowableNSExceptionTest {
             "kfun:sample.App#main(){}"
         )
 
-        assertSame(addresses, addresses.dropConstructorAddresses("sample.CustomException", stackTrace))
+        assertEquals(addresses, addresses.dropConstructorAddresses("sample.CustomException", stackTrace))
     }
 
     @Test
@@ -86,7 +88,7 @@ class KotlinThrowableNSExceptionTest {
         val addresses = listOf<Long>(8, 7, 6, 2, 1, 0)
 
         assertEquals(listOf<Long>(8, 7, 6), addresses.dropCommonAddresses(commonAddresses))
-        assertSame(addresses, addresses.dropCommonAddresses(emptyList()))
+        assertEquals(addresses, addresses.dropCommonAddresses(emptyList()))
     }
 
     @Test

@@ -1,9 +1,13 @@
 import Foundation
+import XCTest
 
 enum TestConfig {
-    /// PostHog project API key used by the UI tests.
-    /// Set via: xcodebuild test ... TEST_RUNNER_POSTHOG_API_KEY=phc_your_key
-    static var apiKey: String {
-        ProcessInfo.processInfo.environment["POSTHOG_API_KEY"] ?? "phc_YOUR_PROJECT_API_KEY"
+    static func requireAPIKey() throws -> String {
+        guard let key = ProcessInfo.processInfo.environment["POSTHOG_API_KEY"],
+              !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              key != "phc_YOUR_PROJECT_API_KEY" else {
+            throw XCTSkip("Live-project smoke tests require an explicitly configured POSTHOG_API_KEY")
+        }
+        return key
     }
 }
