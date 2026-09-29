@@ -1,5 +1,11 @@
 # posthog-kmp
 
+## 0.5.2
+
+### Patch Changes
+
+- Fix Wasm isFeatureEnabled ignoring a true defaultValue when the JavaScript flag value is undefined.
+
 ## 0.5.1
 
 ### Patch Changes

@@ -34,3 +34,7 @@ posthog-kmp@0.5.1:
   dir: ""
   intents:
     - ios-boolean-properties
+posthog-kmp@0.5.2:
+  dir: ""
+  intents:
+    - slow-peaches-drive
