@@ -19,18 +19,14 @@ import swiftPMImport.com.posthog.posthog.kmp.PostHogPersonProfilesNever
 import swiftPMImport.com.posthog.posthog.kmp.PostHogSDK
 
 /**
- * iOS implementation using the native PostHog iOS SDK imported through SwiftPM.
- *
- * This implementation provides full access to native PostHog features including:
- * - Session recording
- * - Autocapture
- * - Native networking and caching
+ * Apple implementation using posthog-ios imported through SwiftPM.
+ * Networking and storage are delegated to the native SDK; replay and UIKit
+ * interaction autocapture are configured only on iOS.
  */
 
 
 @Suppress("UNUSED_PARAMETER")
 internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext) {
-    val sessionConfig = config.sessionRecording
     val nativeConfig = NativePostHogConfig(projectToken = config.apiKey, host = config.host).apply {
         debug = config.debug
         captureApplicationLifecycleEvents = config.captureApplicationLifecycleEvents
@@ -48,16 +44,7 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
             PersonProfiles.IDENTIFIED_ONLY -> PostHogPersonProfilesIdentifiedOnly
         }
         setDefaultPersonProperties = true
-        captureElementInteractions = config.autocapture
-
-        if (sessionConfig?.enabled == true) {
-            sessionReplay = true
-            sessionReplayConfig.maskAllTextInputs = sessionConfig.maskAllTextInputs
-            sessionReplayConfig.maskAllImages = sessionConfig.maskAllImages
-            sessionReplayConfig.captureNetworkTelemetry = sessionConfig.captureNetworkTelemetry
-            sessionReplayConfig.captureLogs = sessionConfig.captureLogs
-            sessionReplayConfig.screenshotMode = sessionConfig.screenshot
-        }
+        configurePlatformCapture(config)
 
         config.errorTracking?.let { errorTracking ->
             errorTrackingConfig.autoCapture = errorTracking.autoCapture

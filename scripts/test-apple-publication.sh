@@ -2,6 +2,12 @@
 set -euo pipefail
 
 root_dir=$(cd "$(dirname "$0")/.." && pwd)
+target=${1:-iosSimulatorArm64}
+case "$target" in
+    iosSimulatorArm64) framework_task=linkDebugFrameworkIosSimulatorArm64 ;;
+    macosArm64) framework_task=linkDebugFrameworkMacosArm64 ;;
+    *) echo "Usage: $0 [iosSimulatorArm64|macosArm64]" >&2; exit 1 ;;
+esac
 version="$(sed -n 's/^VERSION_MAJOR=//p' "$root_dir/version.properties").$(sed -n 's/^VERSION_MINOR=//p' "$root_dir/version.properties").$(sed -n 's/^VERSION_PATCH=//p' "$root_dir/version.properties")"
 kotlin_version=$(sed -n 's/^kotlin = "\([^"]*\)"/\1/p' "$root_dir/gradle/libs.versions.toml")
 posthog_ios_version=$(sed -n 's/^posthog-ios = "\([^"]*\)"/\1/p' "$root_dir/gradle/libs.versions.toml")
@@ -13,6 +19,8 @@ consumer="$tmp_dir/consumer"
 "$root_dir/gradlew" -p "$root_dir" \
     :posthog-kmp:publishKotlinMultiplatformPublicationToMavenLocal \
     :posthog-kmp:publishIosSimulatorArm64PublicationToMavenLocal \
+    :posthog-kmp:publishIosArm64PublicationToMavenLocal \
+    :posthog-kmp:publishMacosArm64PublicationToMavenLocal \
     -Dmaven.repo.local="$local_repo" \
     --no-daemon \
     --no-configuration-cache
@@ -43,9 +51,9 @@ PY
 
 # Ensure the consumer cannot accidentally use producer-local SwiftPM outputs referenced by
 # the generated cinterop KLIB. The published SwiftPM metadata must recreate them independently.
-rm -rf "$root_dir/posthog-kmp/build/kotlin"
+rm -rf "$root_dir/posthog-kmp/build/kotlin" "$root_dir/build/kotlin"
 
-mkdir -p "$consumer/src/commonTest/kotlin"
+mkdir -p "$consumer/src/commonMain/kotlin" "$consumer/src/commonTest/kotlin"
 cat > "$consumer/settings.gradle.kts" <<EOF
 pluginManagement {
     repositories {
@@ -61,7 +69,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "posthog-kmp-ios-link-test"
+rootProject.name = "posthog-kmp-apple-link-test"
 EOF
 
 cat > "$consumer/build.gradle.kts" <<EOF
@@ -70,7 +78,9 @@ plugins {
 }
 
 kotlin {
-    iosSimulatorArm64()
+    iosArm64()
+    iosSimulatorArm64 { binaries.framework() }
+    macosArm64 { binaries.framework() }
 
     sourceSets {
         commonMain.dependencies {
@@ -83,29 +93,54 @@ kotlin {
 }
 EOF
 
+cat > "$consumer/src/commonMain/kotlin/Analytics.kt" <<'EOF'
+import com.posthog.kmp.PostHog
+
+fun captureFromSharedCode() {
+    PostHog.capture("native_consumer_event")
+}
+EOF
+
 cat > "$consumer/src/commonTest/kotlin/PostHogLinkTest.kt" <<'EOF'
 import com.posthog.kmp.PostHog
 import com.posthog.kmp.PostHogConfig
 import com.posthog.kmp.PostHogContext
+import com.posthog.kmp.PostHogBeforeSend
 import kotlin.test.Test
+import kotlin.test.assertTrue
 
 class PostHogLinkTest {
     @Test
-    fun linksPostHogIosSwiftPackage() {
+    fun linksPostHogSwiftPackage() {
+        var captured = false
         PostHog.setup(
-            config = PostHogConfig(apiKey = "test", preloadFeatureFlags = false),
+            config = PostHogConfig(
+                apiKey = "test",
+                host = "http://127.0.0.1:9",
+                preloadFeatureFlags = false,
+                captureApplicationLifecycleEvents = false,
+                beforeSend = listOf(PostHogBeforeSend { event ->
+                    if (event.event == "native_consumer_event") captured = true
+                    null
+                }),
+            ),
             context = PostHogContext(),
         )
-        PostHog.close()
+        try {
+            captureFromSharedCode()
+            assertTrue(captured)
+        } finally {
+            PostHog.close()
+        }
     }
 }
 EOF
 
-"$root_dir/gradlew" -p "$consumer" iosSimulatorArm64Test --no-daemon --console=plain
+"$root_dir/gradlew" -p "$consumer" compileAppleMainKotlinMetadata "$framework_task" "${target}Test" --no-daemon --console=plain
 
-test_binary="$consumer/build/bin/iosSimulatorArm64/debugTest/test.kexe"
+test_binary="$consumer/build/bin/$target/debugTest/test.kexe"
 if /usr/bin/nm -m "$test_binary" | grep -Eq '\(undefined\).*(PostHog|swiftCompatibility)'; then
-    echo "Published iOS library leaves PostHog or Swift compatibility symbols unresolved:" >&2
+    echo "Published $target library leaves PostHog or Swift compatibility symbols unresolved:" >&2
     /usr/bin/nm -m "$test_binary" | grep -E 'PostHog|swiftCompatibility' >&2
     exit 1
 fi

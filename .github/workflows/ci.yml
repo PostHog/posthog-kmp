@@ -152,8 +152,8 @@ jobs:
       - name: Build iOS
         run: ./gradlew :posthog-kmp:compileKotlinIosArm64 --no-daemon
 
-      - name: Run iOS unit tests
-        run: ./gradlew :posthog-kmp:iosSimulatorArm64Test --no-daemon
+      - name: Run Apple unit tests
+        run: ./gradlew :posthog-kmp:iosSimulatorArm64Test :posthog-kmp:macosArm64Test --no-daemon
 
       - name: Regenerate iOS linkage package
         env:
@@ -250,4 +250,7 @@ jobs:
             ${{ runner.os }}-konan-
 
       - name: Test published iOS library
-        run: ./scripts/test-ios-publication.sh
+        run: ./scripts/test-apple-publication.sh iosSimulatorArm64
+
+      - name: Test published macOS library
+        run: ./scripts/test-apple-publication.sh macosArm64
