@@ -31,7 +31,7 @@ import swiftPMImport.com.posthog.posthog.kmp.PostHogSDK
 @Suppress("UNUSED_PARAMETER")
 internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext) {
     val sessionConfig = config.sessionRecording
-    val nativeConfig = NativePostHogConfig(apiKey = config.apiKey, host = config.host).apply {
+    val nativeConfig = NativePostHogConfig(projectToken = config.apiKey, host = config.host).apply {
         debug = config.debug
         captureApplicationLifecycleEvents = config.captureApplicationLifecycleEvents
         captureScreenViews = config.captureScreenViews
