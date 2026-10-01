@@ -9,4 +9,7 @@ internal actual fun NativePostHogConfig.configurePlatformCapture(config: PostHog
     if (config.debug && config.sessionRecording?.enabled == true) {
         NSLog("[PostHog] Session recording is not supported on native macOS. This setting will be ignored.")
     }
+    if (config.debug && config.autocapture) {
+        NSLog("[PostHog] Autocapture is not supported on native macOS. This setting will be ignored.")
+    }
 }
