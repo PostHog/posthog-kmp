@@ -1,5 +1,11 @@
 # posthog-kmp
 
+## 0.6.0
+
+### Minor Changes
+
+- Add native Apple Silicon macOS support through the macosArm64 target.
+
 ## 0.5.2
 
 ### Patch Changes

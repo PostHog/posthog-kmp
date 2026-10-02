@@ -38,3 +38,7 @@ posthog-kmp@0.5.2:
   dir: ""
   intents:
     - slow-peaches-drive
+posthog-kmp@0.6.0:
+  dir: ""
+  intents:
+    - clear-snails-teach

@@ -62,10 +62,12 @@ kotlin {
     iosX64()
     iosArm64()
     iosSimulatorArm64()
+    macosArm64()
 
     swiftPMDependencies {
         discoverClangModulesImplicitly = false
         iosMinimumDeploymentTarget.set("15.0")
+        macosMinimumDeploymentTarget.set("10.15")
         swiftPackage(
             url = url("https://github.com/PostHog/posthog-ios.git"),
             version = exact(libs.versions.posthog.ios.get()),
@@ -122,12 +124,20 @@ kotlin {
             }
         }
 
-        val iosMain = create("iosMain") {
+        val appleMain = create("appleMain") {
             dependsOn(commonMain)
         }
-        val iosTest = create("iosTest") {
+        val iosMain = create("iosMain") {
+            dependsOn(appleMain)
+        }
+        getByName("macosArm64Main") { dependsOn(appleMain) }
+        val appleTest = create("appleTest") {
             dependsOn(commonTest)
         }
+        val iosTest = create("iosTest") {
+            dependsOn(appleTest)
+        }
+        getByName("macosArm64Test") { dependsOn(appleTest) }
 
         getByName("iosX64Main") { dependsOn(iosMain) }
         getByName("iosX64Test") { dependsOn(iosTest) }
