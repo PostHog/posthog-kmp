@@ -94,7 +94,7 @@ fun App(postHogContext: PostHogContext) {
                             isInitialized = true
                             PostHog.setup(
                                 config = PostHogConfig(
-                                    apiKey = apiKey,
+                                    projectToken = apiKey,
                                     debug = true,
                                     errorTracking = ErrorTrackingConfig(
                                         autoCapture = true,

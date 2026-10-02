@@ -166,7 +166,7 @@ class PostHogJvmTest {
 
     @Test
     fun testSendFeatureFlagEventFallsBackToConfig() {
-        currentConfig = PostHogConfig(apiKey = "key", sendFeatureFlagEvent = false)
+        currentConfig = PostHogConfig(projectToken = "key", sendFeatureFlagEvent = false)
 
         PostHog.isFeatureEnabled("test_flag")
         assertMethodCalled("isFeatureEnabled", "test_flag", false, false)
@@ -323,7 +323,7 @@ class PostHogJvmTest {
     @Test
     fun testBeforeSendWithoutCallbacksLeavesNativeHookUnset() {
         val nativeConfig = com.posthog.PostHogConfig(apiKey = "key")
-        nativeConfig.configureBeforeSend(PostHogConfig(apiKey = "key"))
+        nativeConfig.configureBeforeSend(PostHogConfig(projectToken = "key"))
         assertTrue(nativeConfig.beforeSendList.isEmpty())
     }
 
@@ -331,7 +331,7 @@ class PostHogJvmTest {
     fun testNativeBeforeSendDropsEventsAndContainsCallbackFailures() {
         for (callback in listOf(PostHogBeforeSend { null }, PostHogBeforeSend { error("failed") })) {
             val nativeConfig = com.posthog.PostHogConfig(apiKey = "key")
-            nativeConfig.configureBeforeSend(PostHogConfig(apiKey = "key", beforeSend = listOf(callback)))
+            nativeConfig.configureBeforeSend(PostHogConfig(projectToken = "key", beforeSend = listOf(callback)))
             assertNull(nativeConfig.beforeSendList.single().run(
                 com.posthog.PostHogEvent("secret", "user", mutableMapOf("email" to "private"))
             ))
@@ -341,7 +341,7 @@ class PostHogJvmTest {
     @Test
     fun testBeforeSendDelegatesToNativeConfigAndPreservesMetadata() {
         val wrapperConfig = PostHogConfig(
-            apiKey = "key",
+            projectToken = "key",
             beforeSend = listOf(
                 PostHogBeforeSend {
                     it.copy(

@@ -17,7 +17,7 @@ class PostHogAppleTest {
         val events = mutableListOf<PostHogEvent>()
         PostHog.setup(
             PostHogConfig(
-                apiKey = "apple-unit-test",
+                projectToken = "apple-unit-test",
                 host = "http://127.0.0.1:9",
                 preloadFeatureFlags = false,
                 captureApplicationLifecycleEvents = false,

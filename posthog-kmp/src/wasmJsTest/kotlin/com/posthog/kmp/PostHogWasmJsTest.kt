@@ -32,7 +32,7 @@ class PostHogWasmJsTest {
     fun setupDelegatesConfigurationToPostHogJs() {
         PostHog.setup(
             PostHogConfig(
-                apiKey = "phc_test",
+                projectToken = "phc_test",
                 host = "https://example.com",
                 debug = true,
                 captureScreenViews = true,
@@ -63,7 +63,7 @@ class PostHogWasmJsTest {
     fun setupMapsBeforeSendToPostHogJs() {
         PostHog.setup(
             PostHogConfig(
-                apiKey = "phc_test",
+                projectToken = "phc_test",
                 beforeSend = listOf(
                     PostHogBeforeSend {
                         it.copy(
@@ -96,7 +96,7 @@ class PostHogWasmJsTest {
         var sentinelCalled = false
         PostHog.setup(
             PostHogConfig(
-                apiKey = "phc_test",
+                projectToken = "phc_test",
                 beforeSend = listOf(
                     PostHogBeforeSend { it.copy(event = "transformed") },
                     PostHogBeforeSend { throw IllegalStateException("failed") },
@@ -117,7 +117,7 @@ class PostHogWasmJsTest {
     fun beforeSendContainsPropertyConversionExceptions() {
         var callbackCalled = false
         PostHog.setup(
-            PostHogConfig(apiKey = "key", beforeSend = listOf(PostHogBeforeSend {
+            PostHogConfig(projectToken = "key", beforeSend = listOf(PostHogBeforeSend {
                 callbackCalled = true
                 it
             })),
@@ -245,7 +245,7 @@ class PostHogWasmJsTest {
 
     @Test
     fun featureFlagConfiguredEventOptionIsForwarded() {
-        currentConfig = PostHogConfig(apiKey = "key", sendFeatureFlagEvent = false)
+        currentConfig = PostHogConfig(projectToken = "key", sendFeatureFlagEvent = false)
         assertFalse(PostHog.isFeatureEnabled("disabled", defaultValue = true))
         assertFalse(readNestedBoolean(fakePostHog, "featureFlagOptions", "send_event"))
         assertFalse(PostHog.isFeatureEnabled("disabled", sendFeatureFlagEvent = true))

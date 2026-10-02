@@ -33,7 +33,7 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
     }
     config.sessionRecording?.takeIf { it.enabled }?.let { configureSessionRecording(options, it) }
 
-    PostHogJs.init(config.apiKey, options)
+    PostHogJs.init(config.projectToken, options)
     overrideSdkInfo(PostHogJs, "posthog-kmp", PostHogKmpVersion.VERSION)
 
     if (config.optOut) {

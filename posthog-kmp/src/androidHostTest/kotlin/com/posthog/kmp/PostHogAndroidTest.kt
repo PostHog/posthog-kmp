@@ -145,7 +145,7 @@ class PostHogAndroidTest {
 
     @Test
     fun testSendFeatureFlagEventFallsBackToConfig() {
-        currentConfig = PostHogConfig(apiKey = "key", sendFeatureFlagEvent = false)
+        currentConfig = PostHogConfig(projectToken = "key", sendFeatureFlagEvent = false)
 
         PostHog.isFeatureEnabled("test_flag")
         assertMethodCalled("isFeatureEnabled", "test_flag", false, false)
