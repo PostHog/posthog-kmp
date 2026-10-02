@@ -231,8 +231,8 @@ public enum class PersonProfiles {
  * @property autoCapture Automatically capture unhandled exceptions
  * @property inAppIncludes Additional package or bundle prefixes to mark as in-app frames (Android/JVM/iOS)
  * @property ignoredExceptionTypes Throwable types that should not be captured
- * @property inAppExcludes Package or bundle prefixes to mark as external frames (iOS only)
- * @property inAppByDefault Whether unmatched stack frames should be considered in-app (iOS only)
+ * @property inAppExcludes Package or bundle prefixes to mark as external frames (iOS and macOS only)
+ * @property inAppByDefault Whether unmatched stack frames should be considered in-app (iOS and macOS only)
  *
  * TODO: Add exceptionSteps when PostHog.addExceptionStep is available in the common API.
  * TODO: Add support for configuring individual Web exception autocapture sources.
@@ -259,9 +259,9 @@ public data class ErrorTrackingConfig(
      * Mach exception types cannot be represented by [KClass] and are not filtered by this setting.
      */
     val ignoredExceptionTypes: List<KClass<out Throwable>> = emptyList(),
-    /** iOS only. */
+    /** iOS and macOS only. */
     val inAppExcludes: List<String> = emptyList(),
-    /** iOS only. */
+    /** iOS and macOS only. */
     val inAppByDefault: Boolean = true
 )
 

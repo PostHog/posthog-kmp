@@ -17,6 +17,20 @@ cd posthog-kmp
 
 The `sample/` directory contains a Compose Multiplatform demo app that exercises the SDK.
 
+### Apple targets
+
+On an Apple Silicon Mac with Xcode installed:
+
+```bash
+./gradlew :posthog-kmp:macosArm64Test :posthog-kmp:iosSimulatorArm64Test
+./scripts/test-apple-publication.sh macosArm64
+./scripts/test-apple-publication.sh iosSimulatorArm64
+```
+
+The publication checks use an isolated local Maven repository and a separate
+consumer with iOS and macOS targets. They compile shared Apple metadata and run
+against the published artifacts, including their transitive SwiftPM dependency.
+
 ### JVM code coverage
 
 ```bash
