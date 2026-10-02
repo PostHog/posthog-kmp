@@ -11,7 +11,7 @@ import kotlin.concurrent.Volatile
  *
  * ```kotlin
  * // Initialize PostHog
- * PostHog.setup(PostHogConfig(apiKey = "phc_your_api_key"), PostHogContext())
+ * PostHog.setup(PostHogConfig(projectToken = "phc_your_project_token"), PostHogContext())
  *
  * // Capture events
  * PostHog.capture("button_clicked", mapOf("button_name" to "submit"))

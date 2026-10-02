@@ -5,7 +5,9 @@ import kotlin.reflect.KClass
 /**
  * Configuration options for PostHog SDK initialization.
  *
- * @property apiKey Your PostHog project API key (required)
+ * @property projectToken Your PostHog project token (required), which starts with `phc_`.
+ *   Find it in your project settings: https://us.posthog.com/settings/project-details#variables.
+ *   Formerly named `apiKey`. Example: `PostHogConfig(projectToken = "phc_your_project_token")`.
  * @property host PostHog instance URL (defaults to US cloud)
  * @property debug Enable debug logging
  * @property captureApplicationLifecycleEvents Automatically capture app lifecycle events
@@ -25,7 +27,7 @@ import kotlin.reflect.KClass
  * @property errorTracking Error tracking configuration (platform dependent)
  */
 public data class PostHogConfig(
-    val apiKey: String,
+    val projectToken: String,
     val host: String = "https://us.i.posthog.com",
     val debug: Boolean = false,
     val captureApplicationLifecycleEvents: Boolean = true,
@@ -64,7 +66,7 @@ public data class PostHogConfig(
         autocapture: Boolean = false,
         beforeSend: List<PostHogBeforeSend> = emptyList()
     ) : this(
-        apiKey = apiKey,
+        projectToken = apiKey,
         host = host,
         debug = debug,
         captureApplicationLifecycleEvents = captureApplicationLifecycleEvents,
@@ -103,7 +105,7 @@ public data class PostHogConfig(
         sessionRecording: SessionRecordingConfig? = null,
         autocapture: Boolean = false
     ) : this(
-        apiKey = apiKey,
+        projectToken = apiKey,
         host = host,
         debug = debug,
         captureApplicationLifecycleEvents = captureApplicationLifecycleEvents,
@@ -125,7 +127,7 @@ public data class PostHogConfig(
 
     @Deprecated("Retained for binary compatibility", level = DeprecationLevel.HIDDEN)
     public fun copy(
-        apiKey: String = this.apiKey,
+        apiKey: String = this.projectToken,
         host: String = this.host,
         debug: Boolean = this.debug,
         captureApplicationLifecycleEvents: Boolean = this.captureApplicationLifecycleEvents,
@@ -143,7 +145,7 @@ public data class PostHogConfig(
         autocapture: Boolean = this.autocapture,
         beforeSend: List<PostHogBeforeSend> = this.beforeSend
     ): PostHogConfig = PostHogConfig(
-        apiKey = apiKey,
+        projectToken = apiKey,
         host = host,
         debug = debug,
         captureApplicationLifecycleEvents = captureApplicationLifecycleEvents,
@@ -165,7 +167,7 @@ public data class PostHogConfig(
 
     @Deprecated("Retained for binary compatibility", level = DeprecationLevel.HIDDEN)
     public fun copy(
-        apiKey: String = this.apiKey,
+        apiKey: String = this.projectToken,
         host: String = this.host,
         debug: Boolean = this.debug,
         captureApplicationLifecycleEvents: Boolean = this.captureApplicationLifecycleEvents,
@@ -182,7 +184,7 @@ public data class PostHogConfig(
         sessionRecording: SessionRecordingConfig? = this.sessionRecording,
         autocapture: Boolean = this.autocapture
     ): PostHogConfig = PostHogConfig(
-        apiKey = apiKey,
+        projectToken = apiKey,
         host = host,
         debug = debug,
         captureApplicationLifecycleEvents = captureApplicationLifecycleEvents,
@@ -202,12 +204,63 @@ public data class PostHogConfig(
         errorTracking = errorTracking
     )
 
+    /** Deprecated alias for [projectToken]. */
+    @Deprecated(
+        "Deprecated in favor of projectToken. This will be removed in the next major version.",
+        ReplaceWith("projectToken")
+    )
+    val apiKey: String get() = projectToken
+
     public companion object {
         /** PostHog US Cloud instance */
         public const val HOST_US: String = "https://us.i.posthog.com"
 
         /** PostHog EU Cloud instance */
         public const val HOST_EU: String = "https://eu.i.posthog.com"
+
+        /** Deprecated named-argument form of the [PostHogConfig] constructor that takes `apiKey`. */
+        @Deprecated(
+            "Deprecated in favor of projectToken. This will be removed in the next major version."
+        )
+        public operator fun invoke(
+            apiKey: String,
+            host: String = "https://us.i.posthog.com",
+            debug: Boolean = false,
+            captureApplicationLifecycleEvents: Boolean = true,
+            captureScreenViews: Boolean = false,
+            captureDeepLinks: Boolean = true,
+            sendFeatureFlagEvent: Boolean = true,
+            preloadFeatureFlags: Boolean = true,
+            flushAt: Int = 20,
+            flushIntervalSeconds: Int = 30,
+            maxQueueSize: Int = 1000,
+            maxBatchSize: Int = 50,
+            optOut: Boolean = false,
+            personProfiles: PersonProfiles = PersonProfiles.IDENTIFIED_ONLY,
+            sessionRecording: SessionRecordingConfig? = null,
+            autocapture: Boolean = false,
+            beforeSend: List<PostHogBeforeSend> = emptyList(),
+            errorTracking: ErrorTrackingConfig? = null
+        ): PostHogConfig = PostHogConfig(
+            projectToken = apiKey,
+            host = host,
+            debug = debug,
+            captureApplicationLifecycleEvents = captureApplicationLifecycleEvents,
+            captureScreenViews = captureScreenViews,
+            captureDeepLinks = captureDeepLinks,
+            sendFeatureFlagEvent = sendFeatureFlagEvent,
+            preloadFeatureFlags = preloadFeatureFlags,
+            flushAt = flushAt,
+            flushIntervalSeconds = flushIntervalSeconds,
+            maxQueueSize = maxQueueSize,
+            maxBatchSize = maxBatchSize,
+            optOut = optOut,
+            personProfiles = personProfiles,
+            sessionRecording = sessionRecording,
+            autocapture = autocapture,
+            beforeSend = beforeSend,
+            errorTracking = errorTracking
+        )
     }
 }
 
