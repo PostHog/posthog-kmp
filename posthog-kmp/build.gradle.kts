@@ -66,7 +66,7 @@ kotlin {
 
     swiftPMDependencies {
         discoverClangModulesImplicitly = false
-        iosMinimumDeploymentTarget.set("13.0")
+        iosMinimumDeploymentTarget.set("15.0")
         macosMinimumDeploymentTarget.set("10.15")
         swiftPackage(
             url = url("https://github.com/PostHog/posthog-ios.git"),

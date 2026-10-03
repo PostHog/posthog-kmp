@@ -29,7 +29,7 @@ kotlin {
     }
 
     swiftPMDependencies {
-        iosMinimumDeploymentTarget.set("13.0")
+        iosMinimumDeploymentTarget.set("15.0")
     }
 
     js {

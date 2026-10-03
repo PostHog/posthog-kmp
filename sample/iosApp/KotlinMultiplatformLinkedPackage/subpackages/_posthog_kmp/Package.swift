@@ -3,7 +3,7 @@ import PackageDescription
 let package = Package(
   name: "_posthog_kmp",
   platforms: [
-    .iOS("13.0")
+    .iOS("15.0")
   ],
   products: [
     .library(
