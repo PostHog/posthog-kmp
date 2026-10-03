@@ -1,5 +1,11 @@
 # posthog-kmp
 
+## 0.7.0
+
+### Minor Changes
+
+- **Breaking:** bump minimum iOS deployment target from 13.0 to 15.0
+
 ## 0.6.0
 
 ### Minor Changes

@@ -42,3 +42,7 @@ posthog-kmp@0.6.0:
   dir: ""
   intents:
     - clear-snails-teach
+posthog-kmp@0.7.0:
+  dir: ""
+  intents:
+    - min-ios-15
