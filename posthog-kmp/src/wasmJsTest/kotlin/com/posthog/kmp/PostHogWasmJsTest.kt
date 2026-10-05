@@ -185,6 +185,13 @@ class PostHogWasmJsTest {
     }
 
     @Test
+    fun screenNameWinsOverProperty() {
+        PostHog.screen(screenName = "Checkout", properties = mapOf("\$screen_name" to "Override"))
+
+        assertEquals("Checkout", readNestedString(fakePostHog, "properties", "\$screen_name"))
+    }
+
+    @Test
     fun identifyRoutesDistinctIdAndProperties() {
         PostHog.identify(
             distinctId = "user_42",

@@ -70,11 +70,12 @@ public object PostHog {
      *
      * Properties with null values are dropped so all platforms send the same event shape.
      *
-     * @param screenName The name of the screen or page
+     * @param screenName The name of the screen or page. It takes precedence over a
+     *   `$screen_name` key in [properties].
      * @param properties Optional additional properties
      */
     public fun screen(screenName: String, properties: Map<String, Any?>? = null) {
-        platformScreen(screenName, properties?.dropNullValues())
+        platformScreen(screenName, properties?.minus("\$screen_name")?.dropNullValues())
     }
 
     // ==================== User Identification ====================
