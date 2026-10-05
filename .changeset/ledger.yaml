@@ -46,3 +46,7 @@ posthog-kmp@0.7.0:
   dir: ""
   intents:
     - min-ios-15
+posthog-kmp@0.7.1:
+  dir: ""
+  intents:
+    - eleven-pianos-push

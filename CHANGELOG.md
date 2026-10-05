@@ -1,5 +1,11 @@
 # posthog-kmp
 
+## 0.7.1
+
+### Patch Changes
+
+- Update the PostHog JavaScript SDK to 1.435.8 for JS and Wasm targets.
+
 ## 0.7.0
 
 ### Minor Changes
