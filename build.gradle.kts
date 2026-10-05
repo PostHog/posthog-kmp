@@ -30,7 +30,7 @@ plugins.withType<org.jetbrains.kotlin.gradle.targets.js.yarn.YarnPlugin> {
         resolution("brace-expansion", "2.1.2")
         resolution("fast-uri", "3.1.4")
         resolution("body-parser", "1.20.6")
-        resolution("dompurify", "3.4.12")
+        resolution("dompurify", "3.4.16")
     }
 }
 
