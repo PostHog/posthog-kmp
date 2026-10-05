@@ -53,6 +53,33 @@ class PostHogAppleTest {
     }
 
     @Test
+    fun testScreenNameWinsOverProperty() {
+        val events = mutableListOf<PostHogEvent>()
+        PostHog.setup(
+            PostHogConfig(
+                apiKey = "apple-unit-test",
+                host = "http://127.0.0.1:9",
+                preloadFeatureFlags = false,
+                captureApplicationLifecycleEvents = false,
+                beforeSend = listOf(PostHogBeforeSend { event ->
+                    events.add(event)
+                    null
+                }),
+            ),
+            PostHogContext(),
+        )
+        try {
+            PostHog.screen("Home", mapOf("\$screen_name" to "Override", "tab" to "feed"))
+            val event = events.single { it.event == "\$screen" }
+            assertEquals("Home", event.properties["\$screen_name"])
+            assertEquals("feed", event.properties["tab"])
+        } finally {
+            PostHog.reset()
+            PostHog.close()
+        }
+    }
+
+    @Test
     fun testTimestampConversionPreservesUtcInstant() {
         val timestamp = 1_704_164_645_678L
 
