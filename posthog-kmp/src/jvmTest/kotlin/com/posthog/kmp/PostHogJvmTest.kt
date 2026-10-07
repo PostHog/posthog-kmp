@@ -115,6 +115,12 @@ class PostHogJvmTest {
         PostHog.screen("Home", mapOf("tab" to "feed"))
         assertMethodCalled("screen", "Home", mapOf("tab" to "feed"))
     }
+
+    @Test
+    fun testScreenNameWinsOverProperty() {
+        PostHog.screen("Home", mapOf("\$screen_name" to "Override", "tab" to "feed"))
+        assertMethodCalled("screen", "Home", mapOf("tab" to "feed"))
+    }
     
     @Test
     fun testSessionIdRoutesCorrectly() {

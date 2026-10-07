@@ -196,6 +196,13 @@ class PostHogJsTest {
         assertEquals("Home", call[1]["\$screen_name"] as String)
         assertEquals("feed", call[1]["tab"] as String)
     }
+
+    @Test
+    fun testScreenNameWinsOverProperty() {
+        PostHog.screen("Home", mapOf("\$screen_name" to "Override"))
+        val call = getCall("capture")
+        assertEquals("Home", call[1]["\$screen_name"] as String)
+    }
     
     @Test
     fun testSessionIdRoutesCorrectly() {
