@@ -1,5 +1,11 @@
 # posthog-kmp
 
+## 0.8.0
+
+### Minor Changes
+
+- **Breaking:** rename `PostHogConfig.apiKey` to `projectToken`; `apiKey` still compiles with a deprecation warning, but `copy(apiKey = ...)` must change to `copy(projectToken = ...)`
+
 ## 0.7.2
 
 ### Patch Changes
