@@ -29,7 +29,7 @@ jobs:
           java-version: '17'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6
 
       - name: Run detekt
         run: ./gradlew detekt --no-daemon
@@ -49,7 +49,7 @@ jobs:
           java-version: '17'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6
 
       - name: Run unit tests and build Android sample
         run: ./gradlew :posthog-kmp:testAndroid :sample:androidApp:assembleDebug --no-daemon
@@ -69,7 +69,7 @@ jobs:
           java-version: '17'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6
 
       - name: Run JVM tests
         run: ./gradlew :posthog-kmp:jvmTest --no-daemon
@@ -94,7 +94,7 @@ jobs:
           node-version: '20'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6
 
       - name: Build JS
         run: ./gradlew :posthog-kmp:compileKotlinJs kotlinStoreYarnLock --no-daemon
@@ -119,7 +119,7 @@ jobs:
           node-version: '20'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6
 
       - name: Build and test Wasm
         run: ./gradlew :posthog-kmp:wasmJsBrowserTest :sample:wasmJsBrowserDistribution kotlinWasmStoreYarnLock --no-daemon
@@ -139,7 +139,7 @@ jobs:
           java-version: '17'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6
 
       - name: Cache Kotlin Native
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
@@ -207,7 +207,7 @@ jobs:
           node-version: '20'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6
 
       # Mirror the release workflow (version bump, build, tests, artifact
       # assembly) without credentials or side effects. iOS targets are
@@ -239,7 +239,7 @@ jobs:
           java-version: '17'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6
 
       - name: Cache Kotlin Native
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
