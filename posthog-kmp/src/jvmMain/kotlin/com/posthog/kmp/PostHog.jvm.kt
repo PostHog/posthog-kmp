@@ -13,10 +13,7 @@ import java.io.File
  */
 @Suppress("UNUSED_PARAMETER")
 internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext) {
-    val coreConfig = com.posthog.PostHogConfig(
-        apiKey = config.projectToken,
-        host = config.host
-    ).apply {
+    val coreConfig = com.posthog.PostHogConfig(config.projectToken, config.host).apply {
         sdkName = SDK_NAME
         sdkVersion = PostHogKmpVersion.VERSION
 

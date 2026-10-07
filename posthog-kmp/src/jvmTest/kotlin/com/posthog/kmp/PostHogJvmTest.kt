@@ -36,7 +36,7 @@ class PostHogJvmTest {
 
     @Test
     fun testConfigureErrorTracking() {
-        val nativeConfig = com.posthog.PostHogConfig(apiKey = "key")
+        val nativeConfig = com.posthog.PostHogConfig("key")
 
         nativeConfig.configureErrorTracking(
             ErrorTrackingConfig(
@@ -322,7 +322,7 @@ class PostHogJvmTest {
 
     @Test
     fun testBeforeSendWithoutCallbacksLeavesNativeHookUnset() {
-        val nativeConfig = com.posthog.PostHogConfig(apiKey = "key")
+        val nativeConfig = com.posthog.PostHogConfig("key")
         nativeConfig.configureBeforeSend(PostHogConfig(projectToken = "key"))
         assertTrue(nativeConfig.beforeSendList.isEmpty())
     }
@@ -330,7 +330,7 @@ class PostHogJvmTest {
     @Test
     fun testNativeBeforeSendDropsEventsAndContainsCallbackFailures() {
         for (callback in listOf(PostHogBeforeSend { null }, PostHogBeforeSend { error("failed") })) {
-            val nativeConfig = com.posthog.PostHogConfig(apiKey = "key")
+            val nativeConfig = com.posthog.PostHogConfig("key")
             nativeConfig.configureBeforeSend(PostHogConfig(projectToken = "key", beforeSend = listOf(callback)))
             assertNull(nativeConfig.beforeSendList.single().run(
                 com.posthog.PostHogEvent("secret", "user", mutableMapOf("email" to "private"))
@@ -352,7 +352,7 @@ class PostHogJvmTest {
                 }
             )
         )
-        val nativeConfig = com.posthog.PostHogConfig(apiKey = "key")
+        val nativeConfig = com.posthog.PostHogConfig("key")
         nativeConfig.configureBeforeSend(wrapperConfig)
         val timestamp = Date(1234)
         val uuid = UUID.randomUUID()

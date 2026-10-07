@@ -13,7 +13,7 @@ import kotlin.test.assertTrue
 
 class PostHogFilePreferencesTest {
 
-    private val config = com.posthog.PostHogConfig(apiKey = "test-key")
+    private val config = com.posthog.PostHogConfig("test-key")
 
     @get:Rule
     val tempFolder = TemporaryFolder()
@@ -125,7 +125,7 @@ class PostHogFilePreferencesTest {
     fun writeFailurePreservesInMemoryStateAndLogsWarning() {
         val parent = tempFolder.newFile()
         val warnings = mutableListOf<String>()
-        val failingConfig = com.posthog.PostHogConfig(apiKey = "key").apply {
+        val failingConfig = com.posthog.PostHogConfig("key").apply {
             logger = object : com.posthog.internal.PostHogLogger {
                 override fun log(message: String) {
                     warnings.add(message)
