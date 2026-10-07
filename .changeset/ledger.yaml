@@ -50,3 +50,7 @@ posthog-kmp@0.7.1:
   dir: ""
   intents:
     - eleven-pianos-push
+posthog-kmp@0.7.2:
+  dir: ""
+  intents:
+    - screen-name-wins

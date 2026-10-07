@@ -1,5 +1,11 @@
 # posthog-kmp
 
+## 0.7.2
+
+### Patch Changes
+
+- Use the screen name argument when properties also contain `$screen_name`.
+
 ## 0.7.1
 
 ### Patch Changes
