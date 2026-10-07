@@ -299,7 +299,7 @@ class PostHogJsTest {
 
     @Test
     fun testSendFeatureFlagEventFallsBackToConfig() {
-        currentConfig = PostHogConfig(apiKey = "key", sendFeatureFlagEvent = false)
+        currentConfig = PostHogConfig(projectToken = "key", sendFeatureFlagEvent = false)
 
         PostHog.getFeatureFlag("test_flag")
         val call = getCall("getFeatureFlag")
@@ -315,7 +315,7 @@ class PostHogJsTest {
         fakeJs.init = { apiKey: String, options: dynamic ->
             calledMethods.add("init" to arrayOf<dynamic>(apiKey, options))
         }
-        PostHog.setup(PostHogConfig(apiKey = "key", preloadFeatureFlags = false), PostHogContext())
+        PostHog.setup(PostHogConfig(projectToken = "key", preloadFeatureFlags = false), PostHogContext())
 
         val call = getCall("init")
         assertEquals("key", call[0] as String)
@@ -330,7 +330,7 @@ class PostHogJsTest {
             calledMethods.add("init" to arrayOf<dynamic>(apiKey, options))
         }
         PostHog.setup(
-            PostHogConfig(apiKey = "key", errorTracking = ErrorTrackingConfig(autoCapture = true)),
+            PostHogConfig(projectToken = "key", errorTracking = ErrorTrackingConfig(autoCapture = true)),
             PostHogContext()
         )
 
@@ -344,7 +344,7 @@ class PostHogJsTest {
         }
         PostHog.setup(
             PostHogConfig(
-                apiKey = "key",
+                projectToken = "key",
                 beforeSend = listOf(
                     PostHogBeforeSend {
                         it.copy(
@@ -385,7 +385,7 @@ class PostHogJsTest {
         }
         PostHog.setup(
             PostHogConfig(
-                apiKey = "key",
+                projectToken = "key",
                 beforeSend = listOf(
                     PostHogBeforeSend { it.copy(event = "transformed") },
                     PostHogBeforeSend { throw IllegalStateException("failed") },
@@ -412,7 +412,7 @@ class PostHogJsTest {
             calledMethods.add("init" to arrayOf<dynamic>(options))
         }
         PostHog.setup(
-            PostHogConfig(apiKey = "key", beforeSend = listOf(PostHogBeforeSend {
+            PostHogConfig(projectToken = "key", beforeSend = listOf(PostHogBeforeSend {
                 callbackCalled = true
                 it
             })),

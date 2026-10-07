@@ -69,7 +69,7 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
     // advanced_disable_feature_flags (without _on_first_load) would disable flag evaluation permanently
     options["advanced_disable_feature_flags_on_first_load"] = !config.preloadFeatureFlags
 
-    PostHogJs.init(config.apiKey, options)
+    PostHogJs.init(config.projectToken, options)
 
     val instance: dynamic = PostHogJs
     if (instance._overrideSDKInfo != null) {

@@ -5,10 +5,7 @@ import com.posthog.android.PostHogAndroidConfig
 import com.posthog.android.replay.PostHogSessionReplayConfig
 
 internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext) {
-    val androidConfig = PostHogAndroidConfig(
-        apiKey = config.apiKey,
-        host = config.host
-    ).apply {
+    val androidConfig = PostHogAndroidConfig(config.projectToken, config.host).apply {
         sdkName = SDK_NAME
         sdkVersion = PostHogKmpVersion.VERSION
 
