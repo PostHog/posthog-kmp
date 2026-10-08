@@ -46,6 +46,13 @@ On merge, the `Release` workflow runs:
    Central, then creates the Git tag (e.g. `0.1.0`, no `v` prefix) and a GitHub
    Release.
 
+A run whose trigger commit is no longer the tip of `main` (a duplicate push
+event, or a run superseded by a newer merge) skips itself instead of failing
+when a newer commit touched `.changeset/*.md`, since that commit's run (or the
+version bump) owns the release. If no newer commit did and releasable change
+intents are pending, the run fails so they aren't stranded; re-run `Release`
+via `workflow_dispatch`.
+
 Build and tests are intentionally **not** re-run during release — CI already
 gates every PR and push to `main`; the release publishes the approved commit.
 
