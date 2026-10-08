@@ -39,15 +39,20 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Runs are serialized by the `release` concurrency group, so a duplicate
-          # push event or a superseded run only starts after the earlier run has
-          # finished. If main has moved on since this run was triggered, the
-          # earlier run already handled (or consumed) these change intents.
+          # Runs are serialized by the `release` concurrency group. A stale run is
+          # only safe to skip when a newer commit touched a change intent: that
+          # commit has its own Release run or is the version bump that consumed them.
           main_sha=$(gh api "repos/$REPOSITORY/git/ref/heads/main" --jq '.object.sha')
+          stale=false
           if [ "$main_sha" != "$TRIGGER_SHA" ]; then
-            echo "has-changesets=false" >> "$GITHUB_OUTPUT"
-            echo "main is at $main_sha, not $TRIGGER_SHA; skipping stale run"
-            exit 0
+            newer_change_intents=$(gh api "repos/$REPOSITORY/compare/$TRIGGER_SHA...$main_sha" \
+              --jq '[.files[]?.filename | select(test("^\\.changeset/[^/]+\\.md$"))] | length')
+            if [ "$newer_change_intents" -gt 0 ]; then
+              echo "has-changesets=false" >> "$GITHUB_OUTPUT"
+              echo "main is at $main_sha, not $TRIGGER_SHA; a newer run owns these change intents, skipping"
+              exit 0
+            fi
+            stale=true
           fi
 
           shopt -s nullglob
@@ -63,7 +68,10 @@ jobs:
             fi
           done
 
-          if [ "$releasable_count" -gt 0 ]; then
+          if [ "$releasable_count" -gt 0 ] && [ "$stale" = true ]; then
+            echo "::error::main moved from $TRIGGER_SHA to $main_sha without touching a change intent, so no newer Release run will publish $releasable_count releasable change intent(s). Re-run Release via workflow_dispatch." >&2
+            exit 1
+          elif [ "$releasable_count" -gt 0 ]; then
             echo "has-changesets=true" >> "$GITHUB_OUTPUT"
             echo "Found $releasable_count releasable change intent(s)"
           else
@@ -449,7 +457,7 @@ jobs:
     name: Send failure event to PostHog
     needs: [check-changesets, prepare-release-candidate, verify-release-candidate, release]
     runs-on: ubuntu-latest
-    if: always() && (needs.prepare-release-candidate.result == 'failure' || needs.verify-release-candidate.result == 'failure' || needs.release.result == 'failure')
+    if: always() && (needs.check-changesets.result == 'failure' || needs.prepare-release-candidate.result == 'failure' || needs.verify-release-candidate.result == 'failure' || needs.release.result == 'failure')
     steps:
       - name: Send failure event to PostHog
         continue-on-error: true
@@ -464,7 +472,7 @@ jobs:
               "ref": "${{ github.ref }}",
               "repository": "${{ github.repository }}",
               "sdk": "posthog-kmp",
-              "jobName": "${{ needs.release.result == 'failure' && 'release' || needs.verify-release-candidate.result == 'failure' && 'verify-release-candidate' || 'prepare-release-candidate' }}",
+              "jobName": "${{ needs.release.result == 'failure' && 'release' || needs.verify-release-candidate.result == 'failure' && 'verify-release-candidate' || needs.prepare-release-candidate.result == 'failure' && 'prepare-release-candidate' || 'check-changesets' }}",
               "packageName": "posthog-kmp",
               "packageVersion": "${{ needs.prepare-release-candidate.outputs.new-version || 'unknown' }}",
               "actionUrl": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",

@@ -47,8 +47,11 @@ On merge, the `Release` workflow runs:
    Release.
 
 A run whose trigger commit is no longer the tip of `main` (a duplicate push
-event, or a run superseded by a newer merge) skips itself instead of failing;
-the newer run owns the release.
+event, or a run superseded by a newer merge) skips itself instead of failing
+when a newer commit touched `.changeset/*.md`, since that commit's run (or the
+version bump) owns the release. If no newer commit did and releasable change
+intents are pending, the run fails so they aren't stranded; re-run `Release`
+via `workflow_dispatch`.
 
 Build and tests are intentionally **not** re-run during release — CI already
 gates every PR and push to `main`; the release publishes the approved commit.
