@@ -5,7 +5,12 @@ import com.posthog.android.PostHogAndroidConfig
 import com.posthog.android.replay.PostHogSessionReplayConfig
 
 internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext) {
-    val androidConfig = PostHogAndroidConfig(config.projectToken, config.host).apply {
+    postHogInstance = PostHogAndroid.with(context.application, config.toAndroidConfig())
+}
+
+internal fun PostHogConfig.toAndroidConfig(): PostHogAndroidConfig {
+    val config = this
+    return PostHogAndroidConfig(config.projectToken, config.host).apply {
         sdkName = SDK_NAME
         sdkVersion = PostHogKmpVersion.VERSION
 
@@ -13,6 +18,8 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         captureApplicationLifecycleEvents = config.captureApplicationLifecycleEvents
         captureScreenViews = config.captureScreenViews
         captureDeepLinks = config.captureDeepLinks
+        capturePushNotificationSubscriptions = config.capturePushNotificationSubscriptions
+        capturePushNotificationOpened = config.capturePushNotificationOpened
         sendFeatureFlagEvent = config.sendFeatureFlagEvent
         preloadFeatureFlags = config.preloadFeatureFlags
 
@@ -38,6 +45,4 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
             )
         }
     }
-
-    postHogInstance = PostHogAndroid.with(context.application, androidConfig)
 }
