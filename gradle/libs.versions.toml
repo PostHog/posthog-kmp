@@ -1,15 +1,15 @@
 [versions]
-kotlin = "2.4.20"
+kotlin = "2.4.21"
 agp = "9.4.1"
 android-compileSdk = "36"
 android-sampleCompileSdk = "37"
 compose-multiplatform = "1.12.1"
 compose-material3 = "1.9.0"
 androidx-activity-compose = "1.13.0"
-posthog-android = "3.72.0"
+posthog-android = "3.72.2"
 posthog-android-gradle-plugin = "1.7.0"
 # Pure-JVM core that posthog-android is built on (versioned independently of posthog-android)
-posthog-core = "6.47.0"
+posthog-core = "6.47.1"
 okio = "3.18.2"
 posthog-ios = "3.64.1"
 posthog-js = "1.435.8"
@@ -18,7 +18,7 @@ detekt = "1.23.8"
 
 # Testing
 junit = "4.13.2"
-kotlin-test = "2.4.20"
+kotlin-test = "2.4.21"
 
 [libraries]
 # AndroidX
