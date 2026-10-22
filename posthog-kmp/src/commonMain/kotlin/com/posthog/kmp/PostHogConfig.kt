@@ -25,6 +25,10 @@ import kotlin.reflect.KClass
  * @property autocapture Enable automatic event capture (platform dependent)
  * @property beforeSend Synchronous callbacks that can modify or drop events before they are queued
  * @property errorTracking Error tracking configuration (platform dependent)
+ * @property capturePushNotificationSubscriptions Auto-register the FCM token at startup when Firebase
+ *   Messaging is available (Android only, defaults to true).
+ * @property capturePushNotificationOpened Capture push notification opens automatically
+ *   (Android only, defaults to true).
  */
 public data class PostHogConfig(
     val projectToken: String,
@@ -44,8 +48,53 @@ public data class PostHogConfig(
     val sessionRecording: SessionRecordingConfig? = null,
     val autocapture: Boolean = false,
     val beforeSend: List<PostHogBeforeSend> = emptyList(),
-    val errorTracking: ErrorTrackingConfig? = null
+    val errorTracking: ErrorTrackingConfig? = null,
+    val capturePushNotificationSubscriptions: Boolean = true,
+    val capturePushNotificationOpened: Boolean = true
 ) {
+    /** Retains the constructor signature used by existing JVM consumers. */
+    public constructor(
+        projectToken: String,
+        host: String = "https://us.i.posthog.com",
+        debug: Boolean = false,
+        captureApplicationLifecycleEvents: Boolean = true,
+        captureScreenViews: Boolean = false,
+        captureDeepLinks: Boolean = true,
+        sendFeatureFlagEvent: Boolean = true,
+        preloadFeatureFlags: Boolean = true,
+        flushAt: Int = 20,
+        flushIntervalSeconds: Int = 30,
+        maxQueueSize: Int = 1000,
+        maxBatchSize: Int = 50,
+        optOut: Boolean = false,
+        personProfiles: PersonProfiles = PersonProfiles.IDENTIFIED_ONLY,
+        sessionRecording: SessionRecordingConfig? = null,
+        autocapture: Boolean = false,
+        beforeSend: List<PostHogBeforeSend> = emptyList(),
+        errorTracking: ErrorTrackingConfig? = null
+    ) : this(
+        projectToken = projectToken,
+        host = host,
+        debug = debug,
+        captureApplicationLifecycleEvents = captureApplicationLifecycleEvents,
+        captureScreenViews = captureScreenViews,
+        captureDeepLinks = captureDeepLinks,
+        sendFeatureFlagEvent = sendFeatureFlagEvent,
+        preloadFeatureFlags = preloadFeatureFlags,
+        flushAt = flushAt,
+        flushIntervalSeconds = flushIntervalSeconds,
+        maxQueueSize = maxQueueSize,
+        maxBatchSize = maxBatchSize,
+        optOut = optOut,
+        personProfiles = personProfiles,
+        sessionRecording = sessionRecording,
+        autocapture = autocapture,
+        beforeSend = beforeSend,
+        errorTracking = errorTracking,
+        capturePushNotificationSubscriptions = true,
+        capturePushNotificationOpened = true
+    )
+
     @Deprecated("Retained for binary compatibility", level = DeprecationLevel.HIDDEN)
     public constructor(
         apiKey: String,
@@ -125,6 +174,49 @@ public data class PostHogConfig(
         errorTracking = null
     )
 
+    /** Retains the copy signature used by existing JVM consumers. */
+    public fun copy(
+        projectToken: String = this.projectToken,
+        host: String = this.host,
+        debug: Boolean = this.debug,
+        captureApplicationLifecycleEvents: Boolean = this.captureApplicationLifecycleEvents,
+        captureScreenViews: Boolean = this.captureScreenViews,
+        captureDeepLinks: Boolean = this.captureDeepLinks,
+        sendFeatureFlagEvent: Boolean = this.sendFeatureFlagEvent,
+        preloadFeatureFlags: Boolean = this.preloadFeatureFlags,
+        flushAt: Int = this.flushAt,
+        flushIntervalSeconds: Int = this.flushIntervalSeconds,
+        maxQueueSize: Int = this.maxQueueSize,
+        maxBatchSize: Int = this.maxBatchSize,
+        optOut: Boolean = this.optOut,
+        personProfiles: PersonProfiles = this.personProfiles,
+        sessionRecording: SessionRecordingConfig? = this.sessionRecording,
+        autocapture: Boolean = this.autocapture,
+        beforeSend: List<PostHogBeforeSend> = this.beforeSend,
+        errorTracking: ErrorTrackingConfig? = this.errorTracking
+    ): PostHogConfig = PostHogConfig(
+        projectToken = projectToken,
+        host = host,
+        debug = debug,
+        captureApplicationLifecycleEvents = captureApplicationLifecycleEvents,
+        captureScreenViews = captureScreenViews,
+        captureDeepLinks = captureDeepLinks,
+        sendFeatureFlagEvent = sendFeatureFlagEvent,
+        preloadFeatureFlags = preloadFeatureFlags,
+        flushAt = flushAt,
+        flushIntervalSeconds = flushIntervalSeconds,
+        maxQueueSize = maxQueueSize,
+        maxBatchSize = maxBatchSize,
+        optOut = optOut,
+        personProfiles = personProfiles,
+        sessionRecording = sessionRecording,
+        autocapture = autocapture,
+        beforeSend = beforeSend,
+        errorTracking = errorTracking,
+        capturePushNotificationSubscriptions = capturePushNotificationSubscriptions,
+        capturePushNotificationOpened = capturePushNotificationOpened
+    )
+
     @Deprecated("Retained for binary compatibility", level = DeprecationLevel.HIDDEN)
     public fun copy(
         apiKey: String = this.projectToken,
@@ -162,7 +254,9 @@ public data class PostHogConfig(
         sessionRecording = sessionRecording,
         autocapture = autocapture,
         beforeSend = beforeSend,
-        errorTracking = errorTracking
+        errorTracking = errorTracking,
+        capturePushNotificationSubscriptions = capturePushNotificationSubscriptions,
+        capturePushNotificationOpened = capturePushNotificationOpened
     )
 
     @Deprecated("Retained for binary compatibility", level = DeprecationLevel.HIDDEN)
@@ -201,7 +295,9 @@ public data class PostHogConfig(
         sessionRecording = sessionRecording,
         autocapture = autocapture,
         beforeSend = beforeSend,
-        errorTracking = errorTracking
+        errorTracking = errorTracking,
+        capturePushNotificationSubscriptions = capturePushNotificationSubscriptions,
+        capturePushNotificationOpened = capturePushNotificationOpened
     )
 
     /** Deprecated alias for [projectToken]. */
@@ -218,7 +314,6 @@ public data class PostHogConfig(
         /** PostHog EU Cloud instance */
         public const val HOST_EU: String = "https://eu.i.posthog.com"
 
-        /** Deprecated named-argument form of the [PostHogConfig] constructor that takes `apiKey`. */
         @Deprecated(
             "Deprecated in favor of projectToken. This will be removed in the next major version."
         )
@@ -260,6 +355,54 @@ public data class PostHogConfig(
             autocapture = autocapture,
             beforeSend = beforeSend,
             errorTracking = errorTracking
+        )
+
+        /** Deprecated named-argument form of the [PostHogConfig] constructor that takes `apiKey`. */
+        @Deprecated(
+            "Deprecated in favor of projectToken. This will be removed in the next major version."
+        )
+        public operator fun invoke(
+            apiKey: String,
+            host: String = "https://us.i.posthog.com",
+            debug: Boolean = false,
+            captureApplicationLifecycleEvents: Boolean = true,
+            captureScreenViews: Boolean = false,
+            captureDeepLinks: Boolean = true,
+            sendFeatureFlagEvent: Boolean = true,
+            preloadFeatureFlags: Boolean = true,
+            flushAt: Int = 20,
+            flushIntervalSeconds: Int = 30,
+            maxQueueSize: Int = 1000,
+            maxBatchSize: Int = 50,
+            optOut: Boolean = false,
+            personProfiles: PersonProfiles = PersonProfiles.IDENTIFIED_ONLY,
+            sessionRecording: SessionRecordingConfig? = null,
+            autocapture: Boolean = false,
+            beforeSend: List<PostHogBeforeSend> = emptyList(),
+            errorTracking: ErrorTrackingConfig? = null,
+            capturePushNotificationSubscriptions: Boolean = true,
+            capturePushNotificationOpened: Boolean = true
+        ): PostHogConfig = PostHogConfig(
+            projectToken = apiKey,
+            host = host,
+            debug = debug,
+            captureApplicationLifecycleEvents = captureApplicationLifecycleEvents,
+            captureScreenViews = captureScreenViews,
+            captureDeepLinks = captureDeepLinks,
+            sendFeatureFlagEvent = sendFeatureFlagEvent,
+            preloadFeatureFlags = preloadFeatureFlags,
+            flushAt = flushAt,
+            flushIntervalSeconds = flushIntervalSeconds,
+            maxQueueSize = maxQueueSize,
+            maxBatchSize = maxBatchSize,
+            optOut = optOut,
+            personProfiles = personProfiles,
+            sessionRecording = sessionRecording,
+            autocapture = autocapture,
+            beforeSend = beforeSend,
+            errorTracking = errorTracking,
+            capturePushNotificationSubscriptions = capturePushNotificationSubscriptions,
+            capturePushNotificationOpened = capturePushNotificationOpened
         )
     }
 }

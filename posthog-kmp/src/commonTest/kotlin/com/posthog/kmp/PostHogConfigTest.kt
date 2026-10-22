@@ -29,6 +29,45 @@ class PostHogConfigTest {
     }
 
     @Test
+    fun pushNotificationCaptureDefaultsToEnabled() {
+        val config = PostHogConfig(projectToken = "phc_test")
+
+        assertEquals(true, config.capturePushNotificationSubscriptions)
+        assertEquals(true, config.capturePushNotificationOpened)
+    }
+
+    @Test
+    fun copyPreservesPushNotificationCaptureOptions() {
+        for (subscriptions in listOf(false, true)) {
+            for (opened in listOf(false, true)) {
+                val config = PostHogConfig(
+                    projectToken = "phc_test",
+                    capturePushNotificationSubscriptions = subscriptions,
+                    capturePushNotificationOpened = opened
+                )
+
+                val copy = config.copy(debug = true)
+
+                assertEquals(subscriptions, copy.capturePushNotificationSubscriptions)
+                assertEquals(opened, copy.capturePushNotificationOpened)
+            }
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun deprecatedApiKeySupportsPushNotificationCaptureOptions() {
+        val config = PostHogConfig(
+            apiKey = "phc_test",
+            capturePushNotificationSubscriptions = false,
+            capturePushNotificationOpened = false
+        )
+
+        assertEquals(false, config.capturePushNotificationSubscriptions)
+        assertEquals(false, config.capturePushNotificationOpened)
+    }
+
+    @Test
     fun defaultsErrorTrackingToNull() {
         assertNull(PostHogConfig(projectToken = "phc_test").errorTracking)
     }
