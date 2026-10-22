@@ -1,5 +1,11 @@
 # posthog-kmp
 
+## 0.9.0
+
+### Minor Changes
+
+- Expose Android push notification subscription and open capture options in PostHogConfig.
+
 ## 0.8.0
 
 ### Minor Changes

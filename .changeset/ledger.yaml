@@ -58,3 +58,7 @@ posthog-kmp@0.8.0:
   dir: ""
   intents:
     - project-token-rename
+posthog-kmp@0.9.0:
+  dir: ""
+  intents:
+    - jolly-coats-say
