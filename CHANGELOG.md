@@ -1,5 +1,11 @@
 # posthog-kmp
 
+## 0.9.1
+
+### Patch Changes
+
+- Upgrade the Android SDK to 3.72.9 and the JVM core to 6.47.5, which pull in OkHttp 4.12.1 to block the compromised eMudhra intermediate certificates.
+
 ## 0.9.0
 
 ### Minor Changes

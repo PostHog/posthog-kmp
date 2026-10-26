@@ -62,3 +62,7 @@ posthog-kmp@0.9.0:
   dir: ""
   intents:
     - jolly-coats-say
+posthog-kmp@0.9.1:
+  dir: ""
+  intents:
+    - android-okhttp-4-12-1
