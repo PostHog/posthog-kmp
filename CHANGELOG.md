@@ -1,5 +1,11 @@
 # posthog-kmp
 
+## 0.10.0
+
+### Minor Changes
+
+- Expose the experimental Android screenshot mask-alignment verification option through SessionRecordingConfig.
+
 ## 0.9.1
 
 ### Patch Changes

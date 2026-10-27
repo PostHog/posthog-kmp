@@ -1,3 +1,7 @@
+posthog-kmp@0.10.0:
+  dir: ""
+  intents:
+    - puny-sloths-stay
 posthog-kmp@0.2.0:
   dir: ""
   intents:
