@@ -104,6 +104,18 @@ class PostHogConfigTest {
         assertEquals(false, config.captureLogs)
         assertEquals(true, config.captureLogcat)
         assertEquals(1000L, config.debouncerDelayMs)
+        assertEquals(false, config.verifyScreenshotMaskAlignment)
+    }
+
+    @Test
+    fun copyPreservesScreenshotMaskAlignmentVerification() {
+        val config = SessionRecordingConfig(verifyScreenshotMaskAlignment = true)
+
+        val copy = config.copy(screenshot = true)
+
+        assertEquals(true, copy.screenshot)
+        assertEquals(true, copy.verifyScreenshotMaskAlignment)
+        assertEquals(false, copy.copy(verifyScreenshotMaskAlignment = false).verifyScreenshotMaskAlignment)
     }
 
     @Test

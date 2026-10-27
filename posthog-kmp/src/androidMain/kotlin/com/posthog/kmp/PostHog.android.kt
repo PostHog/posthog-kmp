@@ -42,7 +42,9 @@ internal fun PostHogConfig.toAndroidConfig(): PostHogAndroidConfig {
                 captureLogcat = sessionConfig.captureLogcat,
                 screenshot = sessionConfig.screenshot,
                 debouncerDelayMs = sessionConfig.debouncerDelayMs
-            )
+            ).apply {
+                verifyScreenshotMaskAlignment = sessionConfig.verifyScreenshotMaskAlignment
+            }
         }
     }
 }

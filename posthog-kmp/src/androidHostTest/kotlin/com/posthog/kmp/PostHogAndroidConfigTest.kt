@@ -6,6 +6,35 @@ import kotlin.test.assertEquals
 class PostHogAndroidConfigTest {
 
     @Test
+    fun screenshotMaskAlignmentVerificationDefaultsToDisabled() {
+        for (sessionRecording in listOf(null, SessionRecordingConfig())) {
+            val nativeConfig = PostHogConfig(
+                projectToken = "phc_test",
+                sessionRecording = sessionRecording
+            ).toAndroidConfig()
+
+            assertEquals(false, nativeConfig.sessionReplayConfig.verifyScreenshotMaskAlignment)
+        }
+    }
+
+    @Test
+    fun mapsScreenshotMaskAlignmentVerification() {
+        for (verify in listOf(false, true)) {
+            val nativeConfig = PostHogConfig(
+                projectToken = "phc_test",
+                sessionRecording = SessionRecordingConfig(
+                    screenshot = true,
+                    verifyScreenshotMaskAlignment = verify
+                )
+            ).toAndroidConfig()
+
+            assertEquals(true, nativeConfig.sessionReplay)
+            assertEquals(true, nativeConfig.sessionReplayConfig.screenshot)
+            assertEquals(verify, nativeConfig.sessionReplayConfig.verifyScreenshotMaskAlignment)
+        }
+    }
+
+    @Test
     fun pushNotificationCaptureDefaultsMatchNativeSdk() {
         val nativeConfig = PostHogConfig(projectToken = "phc_test").toAndroidConfig()
 
