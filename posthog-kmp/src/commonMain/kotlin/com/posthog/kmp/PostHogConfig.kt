@@ -476,6 +476,10 @@ public data class ErrorTrackingConfig(
  *                       WARNING: Screenshots may contain sensitive information - ensure proper masking.
  * @property captureLogcat Capture Android logcat output (Android only)
  * @property debouncerDelayMs Delay in milliseconds for debouncing touch events (Android only)
+ * @property verifyScreenshotMaskAlignment Experimental screenshot mask-alignment verification (Android only).
+ *   Can preserve captures during pixel-only redraws, but adds view-hierarchy walks during capture.
+ *   Defaults to false and is ignored on other platforms. Windows with a Compose root always use
+ *   verification regardless of this flag. Only applies when [screenshot] is enabled.
  */
 public data class SessionRecordingConfig(
     val enabled: Boolean = true,
@@ -485,5 +489,50 @@ public data class SessionRecordingConfig(
     val captureLogs: Boolean = false,
     val screenshot: Boolean = false,
     val captureLogcat: Boolean = true,
-    val debouncerDelayMs: Long = 1000L
-)
+    val debouncerDelayMs: Long = 1000L,
+    val verifyScreenshotMaskAlignment: Boolean = false
+) {
+    /** Retains the constructor signature used by existing JVM consumers. */
+    public constructor(
+        enabled: Boolean = true,
+        maskAllTextInputs: Boolean = true,
+        maskAllImages: Boolean = true,
+        captureNetworkTelemetry: Boolean = true,
+        captureLogs: Boolean = false,
+        screenshot: Boolean = false,
+        captureLogcat: Boolean = true,
+        debouncerDelayMs: Long = 1000L
+    ) : this(
+        enabled = enabled,
+        maskAllTextInputs = maskAllTextInputs,
+        maskAllImages = maskAllImages,
+        captureNetworkTelemetry = captureNetworkTelemetry,
+        captureLogs = captureLogs,
+        screenshot = screenshot,
+        captureLogcat = captureLogcat,
+        debouncerDelayMs = debouncerDelayMs,
+        verifyScreenshotMaskAlignment = false
+    )
+
+    /** Retains the copy signature used by existing JVM consumers. */
+    public fun copy(
+        enabled: Boolean = this.enabled,
+        maskAllTextInputs: Boolean = this.maskAllTextInputs,
+        maskAllImages: Boolean = this.maskAllImages,
+        captureNetworkTelemetry: Boolean = this.captureNetworkTelemetry,
+        captureLogs: Boolean = this.captureLogs,
+        screenshot: Boolean = this.screenshot,
+        captureLogcat: Boolean = this.captureLogcat,
+        debouncerDelayMs: Long = this.debouncerDelayMs
+    ): SessionRecordingConfig = SessionRecordingConfig(
+        enabled = enabled,
+        maskAllTextInputs = maskAllTextInputs,
+        maskAllImages = maskAllImages,
+        captureNetworkTelemetry = captureNetworkTelemetry,
+        captureLogs = captureLogs,
+        screenshot = screenshot,
+        captureLogcat = captureLogcat,
+        debouncerDelayMs = debouncerDelayMs,
+        verifyScreenshotMaskAlignment = verifyScreenshotMaskAlignment
+    )
+}
