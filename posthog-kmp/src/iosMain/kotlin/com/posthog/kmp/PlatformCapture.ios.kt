@@ -13,6 +13,5 @@ internal actual fun NativePostHogConfig.configurePlatformCapture(config: PostHog
         sessionReplayConfig.maskAllImages = sessionConfig.maskAllImages
         sessionReplayConfig.captureNetworkTelemetry = sessionConfig.captureNetworkTelemetry
         sessionReplayConfig.captureLogs = sessionConfig.captureLogs
-        sessionReplayConfig.screenshotMode = sessionConfig.screenshot
     }
 }

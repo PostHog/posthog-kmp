@@ -36,7 +36,7 @@ class PostHogAndroidTest {
     @Test
     fun testCaptureRoutesCorrectly() {
         PostHog.capture("test_event", mapOf("prop" to "value"))
-        assertMethodCalled("capture", "test_event", null, mapOf("prop" to "value"), null, null, null, null)
+        assertMethodCalled("capture", "test_event", null, mapOf("prop" to "value"), null, null, null, null, null)
     }
 
     @Test
@@ -46,7 +46,7 @@ class PostHogAndroidTest {
             mapOf("prop" to "value"),
             CaptureOptions(groups = mapOf("company" to "acme"))
         )
-        // capture(event, distinctId, properties, userProperties, userPropertiesSetOnce, groups, timestamp)
+        // capture(event, distinctId, properties, userProperties, userPropertiesSetOnce, groups, timestamp, options)
         assertMethodCalled(
             "capture",
             "test_event",
@@ -55,6 +55,7 @@ class PostHogAndroidTest {
             null,
             null,
             mapOf("company" to "acme"),
+            null,
             null
         )
     }
@@ -70,7 +71,7 @@ class PostHogAndroidTest {
 
             PostHog.capture("test_event", options = CaptureOptions(timestamp = timestamp))
 
-            assertMethodCalled("capture", "test_event", null, null, null, null, null, Date(timestamp))
+            assertMethodCalled("capture", "test_event", null, null, null, null, null, Date(timestamp), null)
             assertEquals("2024-01-02T03:04:05.678Z", Date(timestamp).toInstant().toString())
         } finally {
             TimeZone.setDefault(originalTimeZone)
@@ -80,19 +81,19 @@ class PostHogAndroidTest {
     @Test
     fun testCaptureDropsNullPropertyValues() {
         PostHog.capture("test_event", mapOf("keep" to 1, "drop" to null))
-        assertMethodCalled("capture", "test_event", null, mapOf("keep" to 1), null, null, null, null)
+        assertMethodCalled("capture", "test_event", null, mapOf("keep" to 1), null, null, null, null, null)
     }
 
     @Test
     fun testIdentifyRoutesCorrectly() {
         PostHog.identify("user_123", mapOf("email" to "test@example.com"))
-        assertMethodCalled("identify", "user_123", mapOf("email" to "test@example.com"), null)
+        assertMethodCalled("identify", "user_123", mapOf("email" to "test@example.com"), null, null)
     }
 
     @Test
     fun testScreenRoutesCorrectly() {
         PostHog.screen("Home", mapOf("tab" to "feed"))
-        assertMethodCalled("screen", "Home", mapOf("tab" to "feed"))
+        assertMethodCalled("screen", "Home", mapOf("tab" to "feed"), null)
     }
     
     @Test
@@ -110,7 +111,7 @@ class PostHogAndroidTest {
     @Test
     fun testAliasRoutesCorrectly() {
         PostHog.alias("new_alias")
-        assertMethodCalled("alias", "new_alias")
+        assertMethodCalled("alias", "new_alias", null)
     }
 
     @Test
@@ -134,7 +135,7 @@ class PostHogAndroidTest {
     @Test
     fun testGroupRoutesCorrectly() {
         PostHog.group("company", "posthog", mapOf("plan" to "premium"))
-        assertMethodCalled("group", "company", "posthog", mapOf("plan" to "premium"))
+        assertMethodCalled("group", "company", "posthog", mapOf("plan" to "premium"), null)
     }
 
     @Test
@@ -199,8 +200,8 @@ class PostHogAndroidTest {
         var completions = 0
         PostHog.reloadFeatureFlags { completions++ }
         assertEquals(0, completions)
-        val callback = fakeInterface.calledMethods.single().second.single() as com.posthog.PostHogOnFeatureFlags
-        callback.loaded()
+        val callback = fakeInterface.calledMethods.single().second.single() as com.posthog.PostHogFeatureFlagsCallback
+        callback.loaded(com.posthog.PostHogFeatureFlagsLoaded(emptyMap(), errorsLoading = false))
         assertEquals(1, completions)
     }
 
@@ -208,7 +209,7 @@ class PostHogAndroidTest {
     fun testCaptureExceptionRoutesCorrectly() {
         val throwable = RuntimeException("Test exception")
         PostHog.captureException(throwable, mapOf("context" to "test"))
-        assertMethodCalled("captureException", throwable, mapOf("context" to "test"))
+        assertMethodCalled("captureException", throwable, mapOf("context" to "test"), null)
     }
 
     @Test
@@ -262,6 +263,6 @@ class PostHogAndroidTest {
     @Test
     fun testSetPersonPropertiesRoutesCorrectly() {
         PostHog.setPersonProperties(mapOf("plan" to "premium"), mapOf("first_login" to true))
-        assertMethodCalled("setPersonProperties", mapOf("plan" to "premium"), mapOf("first_login" to true))
+        assertMethodCalled("setPersonProperties", mapOf("plan" to "premium"), mapOf("first_login" to true), null)
     }
 }

@@ -27,6 +27,10 @@ import swiftPMImport.com.posthog.posthog.kmp.PostHogSDK
 
 @Suppress("UNUSED_PARAMETER")
 internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext) {
+    // TODO: posthog-ios 4.0 sends capture v1, which drops `$lib`/`$lib_version` from event properties and reads
+    //  them from the PostHog-Sdk-Info header instead. Call the ObjC-only setter once posthog-ios adds it:
+    //  PostHogSDK.setSdkName("posthog-kmp", version = PostHogKmpVersion.VERSION)
+    //  then remove the `$lib` stamping in this file and assert on the sent request in PostHogAppleTest.
     val nativeConfig = NativePostHogConfig(projectToken = config.projectToken, host = config.host).apply {
         debug = config.debug
         captureApplicationLifecycleEvents = config.captureApplicationLifecycleEvents
@@ -236,7 +240,7 @@ internal actual fun platformGetAllFeatureFlags(): Map<String, FeatureFlagResult>
 
 internal actual fun platformReloadFeatureFlags(callback: (() -> Unit)?) {
     if (callback != null) {
-        PostHogSDK.shared.reloadFeatureFlagsWithCallback(callback)
+        PostHogSDK.shared.reloadFeatureFlagsWithCallback { _ -> callback() }
     } else {
         PostHogSDK.shared.reloadFeatureFlags()
     }

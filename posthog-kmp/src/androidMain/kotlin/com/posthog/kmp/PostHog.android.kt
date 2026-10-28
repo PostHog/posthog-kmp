@@ -41,7 +41,7 @@ internal fun PostHogConfig.toAndroidConfig(): PostHogAndroidConfig {
                 maskAllImages = sessionConfig.maskAllImages,
                 captureLogcat = sessionConfig.captureLogcat,
                 screenshot = sessionConfig.screenshot,
-                debouncerDelayMs = sessionConfig.debouncerDelayMs
+                throttleDelayMs = sessionConfig.debouncerDelayMs
             ).apply {
                 verifyScreenshotMaskAlignment = sessionConfig.verifyScreenshotMaskAlignment
             }
