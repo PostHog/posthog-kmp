@@ -471,8 +471,9 @@ public data class ErrorTrackingConfig(
  * @property maskAllImages Mask all images
  * @property captureNetworkTelemetry Include network requests in recording
  * @property captureLogs Capture console logs (iOS/Web)
- * @property screenshot Enable screenshot mode instead of wireframe (Android/iOS experimental).
+ * @property screenshot Enable screenshot mode instead of wireframe (Android only, experimental).
  *                       When enabled, the SDK takes actual screenshots instead of wireframe representations.
+ *                       iOS always records masked screenshots and ignores this flag.
  *                       WARNING: Screenshots may contain sensitive information - ensure proper masking.
  * @property captureLogcat Capture Android logcat output (Android only)
  * @property debouncerDelayMs Delay in milliseconds for debouncing touch events (Android only)
