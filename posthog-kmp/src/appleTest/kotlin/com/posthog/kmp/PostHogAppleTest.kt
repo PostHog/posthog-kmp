@@ -39,6 +39,7 @@ class PostHogAppleTest {
             assertEquals("apple-test-user", event.distinctId)
             assertEquals("dark", event.properties["theme"])
             assertEquals("posthog-kmp", event.properties["\$lib"])
+            assertEquals(PostHogKmpVersion.VERSION, event.properties["\$lib_version"])
 
             PostHog.optOut()
             assertTrue(PostHog.isOptedOut())
