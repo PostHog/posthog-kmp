@@ -160,7 +160,7 @@ class PostHogAndroidTest {
     fun testGetFeatureFlagRoutesCorrectly() {
         fakeInterface.featureFlag = "variant-a"
         assertEquals("variant-a", PostHog.getFeatureFlag("test_flag"))
-        assertMethodCalled("getFeatureFlag", "test_flag", null, true)
+        assertMethodCalled("getFeatureFlag", "test_flag", true)
     }
 
     @Test
