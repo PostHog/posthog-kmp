@@ -2,4 +2,5 @@
 "posthog-kmp": minor
 ---
 
-**Breaking:** remove `SessionRecordingConfig.screenshot`. posthog-android 4.0 and posthog-ios 4.0 always record masked screenshots, so the flag no longer did anything. The JVM constructor and `copy` overloads kept for the old signature are removed with it
+- **Breaking:** remove `SessionRecordingConfig.screenshot` and always record session replay as masked screenshots on Android and iOS, which used wireframes by default — mask custom-drawn content such as maps or video, or turn replay off
+- **Breaking:** remove the JVM `SessionRecordingConfig` constructor and `copy` overloads that took `screenshot`
