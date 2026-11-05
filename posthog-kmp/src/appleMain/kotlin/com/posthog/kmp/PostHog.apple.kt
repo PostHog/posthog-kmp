@@ -27,7 +27,7 @@ import swiftPMImport.com.posthog.posthog.kmp.setSdkName
 
 @Suppress("UNUSED_PARAMETER")
 internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext) {
-    // Capture v1 reads the SDK name and version from the PostHog-Sdk-Info header, not from `$lib`.
+    // posthog-ios stamps `$lib`/`$lib_version` and the PostHog-Sdk-Info header from this name and version.
     PostHogSDK.setSdkName("posthog-kmp", version = PostHogKmpVersion.VERSION)
     val nativeConfig = NativePostHogConfig(projectToken = config.projectToken, host = config.host).apply {
         debug = config.debug
