@@ -13,5 +13,6 @@ internal actual fun NativePostHogConfig.configurePlatformCapture(config: PostHog
         sessionReplayConfig.maskAllImages = sessionConfig.maskAllImages
         sessionReplayConfig.captureNetworkTelemetry = sessionConfig.captureNetworkTelemetry
         sessionReplayConfig.captureLogs = sessionConfig.captureLogs
+        sessionReplayConfig.throttleDelay = sessionConfig.throttleDelayMs / 1000.0
     }
 }

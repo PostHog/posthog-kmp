@@ -472,7 +472,7 @@ public data class ErrorTrackingConfig(
  * @property captureNetworkTelemetry Include network requests in recording
  * @property captureLogs Capture console logs (iOS/Web)
  * @property captureLogcat Capture Android logcat output (Android only)
- * @property debouncerDelayMs Delay in milliseconds for debouncing touch events (Android only)
+ * @property throttleDelayMs Minimum delay in milliseconds between replay snapshots (Android and iOS)
  * @property verifyScreenshotMaskAlignment Experimental screenshot mask-alignment verification (Android only).
  *   Can preserve captures during pixel-only redraws, but adds view-hierarchy walks during capture.
  *   Defaults to false and is ignored on other platforms. Windows with a Compose root always use
@@ -485,6 +485,39 @@ public data class SessionRecordingConfig(
     val captureNetworkTelemetry: Boolean = true,
     val captureLogs: Boolean = false,
     val captureLogcat: Boolean = true,
-    val debouncerDelayMs: Long = 1000L,
+    val throttleDelayMs: Long = 1000L,
     val verifyScreenshotMaskAlignment: Boolean = false
-)
+) {
+    /** Deprecated alias for [throttleDelayMs]. */
+    @Deprecated(
+        "Deprecated in favor of throttleDelayMs. This will be removed in the next major version.",
+        ReplaceWith("throttleDelayMs")
+    )
+    val debouncerDelayMs: Long get() = throttleDelayMs
+
+    public companion object {
+        /** Deprecated named-argument form of the [SessionRecordingConfig] constructor that takes `debouncerDelayMs`. */
+        @Deprecated(
+            "Deprecated in favor of throttleDelayMs. This will be removed in the next major version."
+        )
+        public operator fun invoke(
+            enabled: Boolean = true,
+            maskAllTextInputs: Boolean = true,
+            maskAllImages: Boolean = true,
+            captureNetworkTelemetry: Boolean = true,
+            captureLogs: Boolean = false,
+            captureLogcat: Boolean = true,
+            debouncerDelayMs: Long,
+            verifyScreenshotMaskAlignment: Boolean = false
+        ): SessionRecordingConfig = SessionRecordingConfig(
+            enabled = enabled,
+            maskAllTextInputs = maskAllTextInputs,
+            maskAllImages = maskAllImages,
+            captureNetworkTelemetry = captureNetworkTelemetry,
+            captureLogs = captureLogs,
+            captureLogcat = captureLogcat,
+            throttleDelayMs = debouncerDelayMs,
+            verifyScreenshotMaskAlignment = verifyScreenshotMaskAlignment
+        )
+    }
+}
