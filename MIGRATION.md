@@ -2,7 +2,7 @@
 
 ## 0.10 to 0.11
 
-0.11 moves Android, JVM, iOS and macOS to the 4.0 native SDKs: posthog-android 4.0, the JVM core `com.posthog:posthog` 7.0 and posthog-ios 4.0. JavaScript and Wasm targets don't change.
+0.11 moves Android, JVM, iOS and macOS to the 4.0 native SDKs: posthog-android 4.0, the JVM core `com.posthog:posthog` 7.0 and posthog-ios 4.0. JavaScript and Wasm targets stay on posthog-js; of the changes below, only [Feature flags](#feature-flags) reaches them.
 
 The native SDKs list every change in their own guides: [posthog-android](https://github.com/PostHog/posthog-android/blob/main/docs/migration-3.x-to-4.0.md) and [posthog-ios](https://github.com/PostHog/posthog-ios/blob/main/MIGRATION.md). This guide covers what reaches a KMP app.
 
@@ -12,6 +12,7 @@ The native SDKs list every change in their own guides: [posthog-android](https:/
 - [ ] Build your Xcode app once and commit the updated `KotlinMultiplatformLinkedPackage`, which now pins posthog-ios 4.0. If that build stops with `Synthetic project state updated`, run it again.
 - [ ] Remove `screenshot` from `SessionRecordingConfig`, and mask custom-drawn content before you ship.
 - [ ] If you send events through a reverse proxy or a self-hosted instance, serve `/i/v1/analytics/events` and forward its `Authorization` and `Content-Encoding` headers.
+- [ ] Update `reloadFeatureFlags` callbacks that are function references or `() -> Unit` values to take the new `PostHogFeatureFlagsLoaded` parameter.
 - [ ] Check that `projectToken` is your project token (`phc_...`), not a personal API key (`phx_...`).
 - [ ] Update insights, cohorts and alerts that read the properties listed under [Event changes](#event-changes).
 
