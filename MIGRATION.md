@@ -11,7 +11,7 @@ The native SDKs list every change in their own guides: [posthog-android](https:/
 - [ ] Build iOS and macOS apps with Xcode 26 or later, and set the macOS deployment target to 11.0 or later.
 - [ ] Build your Xcode app once and commit the updated `KotlinMultiplatformLinkedPackage`, which now pins posthog-ios 4.0. If that build stops with `Synthetic project state updated`, run it again.
 - [ ] Remove `screenshot` from `SessionRecordingConfig`, and mask custom-drawn content before you ship.
-- [ ] If you send events through a reverse proxy or a self-hosted instance, serve `/i/v1/analytics/events`.
+- [ ] If you send events through a reverse proxy or a self-hosted instance, serve `/i/v1/analytics/events` and forward its `Authorization` and `Content-Encoding` headers.
 - [ ] Check that `projectToken` is your project token (`phc_...`), not a personal API key (`phx_...`).
 - [ ] Update insights, cohorts and alerts that read the properties listed under [Event changes](#event-changes).
 
@@ -37,7 +37,7 @@ Apps that kept the default `screenshot = false` now upload screenshots. Text inp
 
 ### Capture v1
 
-Android, JVM, iOS and macOS send events to `/i/v1/analytics/events` with the project token in an `Authorization: Bearer` header, instead of `/batch`. PostHog Cloud already serves this path. A reverse proxy or self-hosted instance must forward it too. Until it does, a 404 is retried with no limit, about every 30 seconds, and events stay queued only until a full queue evicts them (`maxQueueSize`, 1000 by default), oldest first. Any other error status that isn't retried, such as 403 or 405, drops the events.
+Android, JVM, iOS and macOS send events to `/i/v1/analytics/events` with the project token in an `Authorization: Bearer` header, instead of `/batch`. PostHog Cloud already serves this path. A reverse proxy or self-hosted instance must forward it too, and pass `Authorization` and `Content-Encoding` through unchanged. A proxy set up from PostHog's [proxy guides](https://posthog.com/docs/advanced/proxy) before 29 October 2026 strips `Authorization`, so PostHog answers 401 and the events are dropped; update it from the current guide. PostHog's managed reverse proxy needs no change. Until it does, a 404 is retried with no limit, about every 30 seconds, and events stay queued only until a full queue evicts them (`maxQueueSize`, 1000 by default), oldest first. Any other error status that isn't retried, such as 401, 403 or 405, drops the events.
 
 Capture requests follow only 307 and 308 redirects to the same origin as `host`, and drop events on any other redirect.
 
