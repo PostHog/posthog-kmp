@@ -2,6 +2,7 @@ package com.posthog.kmp
 
 import java.time.OffsetDateTime
 import java.util.Date
+import java.util.Locale
 import java.util.TimeZone
 import java.util.UUID
 import kotlin.test.Test
@@ -10,6 +11,7 @@ import kotlin.test.assertTrue
 import kotlin.test.BeforeTest
 import kotlin.test.AfterTest
 import kotlin.test.assertNull
+import kotlin.test.assertFalse
 
 class PostHogJvmTest {
 
@@ -157,6 +159,36 @@ class PostHogJvmTest {
     fun testUnregisterRoutesCorrectly() {
         PostHog.unregister("super_prop")
         assertMethodCalled("unregister", "super_prop")
+    }
+
+    @Test
+    fun testSetAppLanguageNormalizesAndRoutes() {
+        PostHog.setAppLanguage(" pt_BR ")
+        PostHog.setAppLanguage(" ")
+        assertEquals(
+            listOf(listOf<Any?>("pt-BR"), listOf<Any?>(null)),
+            fakeInterface.calledMethods.filter { it.first == "setAppLanguage" }.map { it.second }
+        )
+    }
+
+    @Test
+    fun testLocaleIsBcp47LanguageTag() {
+        val original = Locale.getDefault()
+        val context = PostHogJvmContext(com.posthog.PostHogConfig("key"))
+        try {
+            mapOf(
+                "zh-Hant-TW" to "zh-Hant-TW",
+                "en" to "en",
+                "en-US-u-fw-mon" to "en-US"
+            ).forEach { (default, expected) ->
+                Locale.setDefault(Locale.forLanguageTag(default))
+                assertEquals(expected, context.getDynamicContext()["\$locale"], default)
+            }
+            Locale.setDefault(Locale.ROOT)
+            assertFalse(context.getDynamicContext().containsKey("\$locale"))
+        } finally {
+            Locale.setDefault(original)
+        }
     }
 
     @Test

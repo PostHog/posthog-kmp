@@ -126,6 +126,10 @@ internal actual fun platformUnregister(key: String) {
     PostHogJs.unregister(key)
 }
 
+// posthog-js has no $app_language yet, so Wasm doesn't send it
+@Suppress("UNUSED_PARAMETER")
+internal actual fun platformSetAppLanguage(language: String?) {}
+
 internal actual fun platformGroup(type: String, key: String, groupProperties: Map<String, Any>?) {
     PostHogJs.group(type, key, groupProperties?.toJsObject())
 }

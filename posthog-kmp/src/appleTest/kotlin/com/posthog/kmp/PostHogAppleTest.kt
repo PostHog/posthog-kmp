@@ -54,6 +54,38 @@ class PostHogAppleTest {
     }
 
     @Test
+    fun testAppLanguageOverridesDetectionAndYieldsToRegistered() {
+        val events = mutableListOf<PostHogEvent>()
+        PostHog.setup(
+            PostHogConfig(
+                projectToken = "apple-unit-test",
+                host = "http://127.0.0.1:9",
+                preloadFeatureFlags = false,
+                captureApplicationLifecycleEvents = false,
+                beforeSend = listOf(PostHogBeforeSend { event ->
+                    events.add(event)
+                    null
+                }),
+            ),
+            PostHogContext(),
+        )
+        try {
+            PostHog.setAppLanguage("pt_BR")
+            PostHog.reset()
+            PostHog.capture("overridden")
+            PostHog.register("\$app_language", "de")
+            PostHog.capture("registered")
+
+            assertEquals("pt-BR", events.single { it.event == "overridden" }.properties["\$app_language"])
+            assertEquals("de", events.single { it.event == "registered" }.properties["\$app_language"])
+        } finally {
+            PostHog.setAppLanguage(null)
+            PostHog.reset()
+            PostHog.close()
+        }
+    }
+
+    @Test
     fun testScreenNameWinsOverProperty() {
         val events = mutableListOf<PostHogEvent>()
         PostHog.setup(
