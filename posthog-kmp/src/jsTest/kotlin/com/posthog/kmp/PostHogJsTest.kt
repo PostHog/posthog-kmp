@@ -503,6 +503,30 @@ class PostHogJsTest {
     }
 
     @Test
+    fun testAppLanguageSkipsDenylistAndMinimalFlagCalledEvents() {
+        fakeJs.init = { _: String, options: dynamic ->
+            calledMethods.add("init" to arrayOf<dynamic>(options))
+        }
+        fakeJs.get_property = { key: String -> key == "\$minimal_flag_called_events" }
+        PostHog.setup(PostHogConfig(projectToken = "key"), PostHogContext())
+        val callback = getCall("init")[0]["before_send"]
+        PostHog.setAppLanguage("de")
+
+        assertNull(
+            callback(js("({ event: '\$feature_flag_called', properties: { \$feature_flag_has_experiment: false } })"))
+                .properties["\$app_language"]
+        )
+        assertEquals(
+            "de",
+            callback(js("({ event: '\$feature_flag_called', properties: { \$feature_flag_has_experiment: true } })"))
+                .properties["\$app_language"] as String
+        )
+
+        fakeJs.config = js("({ property_denylist: ['\$app_language'] })")
+        assertNull(callback(js("({ event: 'a', properties: {} })")).properties["\$app_language"])
+    }
+
+    @Test
     fun testBeforeSendCallbacksSeeAppLanguage() {
         var seen: Any? = null
         fakeJs.init = { _: String, options: dynamic ->

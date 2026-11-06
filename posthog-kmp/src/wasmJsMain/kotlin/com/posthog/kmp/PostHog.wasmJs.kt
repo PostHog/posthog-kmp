@@ -138,10 +138,18 @@ internal actual fun platformSetAppLanguage(language: String?) {
 private fun addAppLanguage(captureResult: JsAny) {
     val language = appLanguage ?: return
     val properties = getJsProperty(captureResult, "properties") ?: return
-    if (getJsProperty(properties, "\$app_language") == null) {
+    if (getJsProperty(properties, "\$app_language") == null && !excludesAppLanguage(PostHogJs, captureResult)) {
         setJsProperty(properties, "\$app_language", language.toJsString())
     }
 }
+
+// posthog-js applies property_denylist and strips minimal $feature_flag_called events to an
+// allowlist before before_send runs, so honor both here
+private fun excludesAppLanguage(posthog: PostHogJsApi, event: JsAny): Boolean = js(
+    "(Array.isArray(posthog.config?.property_denylist) && posthog.config.property_denylist.includes('\$app_language')) || " +
+        "(event.event === '\$feature_flag_called' && event.properties['\$feature_flag_has_experiment'] === false && " +
+        "posthog.get_property('\$minimal_flag_called_events') === true)"
+)
 
 internal actual fun platformGroup(type: String, key: String, groupProperties: Map<String, Any>?) {
     PostHogJs.group(type, key, groupProperties?.toJsObject())
