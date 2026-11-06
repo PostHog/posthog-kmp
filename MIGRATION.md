@@ -51,6 +51,24 @@ Events queued on disk by 0.10 are sent through capture v1 after the update.
 
 `FeatureFlagResult.payload` is `null` for a payload that isn't valid JSON, such as plain text or an empty string, instead of the raw string. A JSON string payload such as `"text"` still returns `"text"`.
 
+The `reloadFeatureFlags()` callback receives a `PostHogFeatureFlagsLoaded` with the enabled flags, their values, and `errorsLoading`, which is `true` when the reload failed. A lambda that ignores its parameter still compiles; a function reference or a `() -> Unit` value needs the parameter:
+
+```kotlin
+// 0.10
+PostHog.reloadFeatureFlags { showCheckout() }
+
+// 0.11
+PostHog.reloadFeatureFlags { loaded ->
+    if (!loaded.errorsLoading) showCheckout()
+}
+```
+
+Before `setup()`, the callback runs right away with no flags and `errorsLoading = true` on every platform. On Android and JVM it used to never run.
+
+A flag whose variant is an empty string is disabled on every platform: `isFeatureEnabled()` returns `false` and `FeatureFlagResult.enabled` is `false`. iOS and macOS used to report it as enabled in `isFeatureEnabled()`, and JavaScript and Wasm in `FeatureFlagResult.enabled`.
+
+To react to every flag load rather than one reload, use the new `PostHog.onFeatureFlags()`.
+
 ### Event changes
 
 | Change | Platforms | What to do |

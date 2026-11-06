@@ -292,12 +292,59 @@ class PostHogJvmTest {
 
     @Test
     fun testReloadCallbackWaitsForNativeCompletion() {
-        var completions = 0
-        PostHog.reloadFeatureFlags { completions++ }
-        assertEquals(0, completions)
+        val results = mutableListOf<PostHogFeatureFlagsLoaded>()
+        PostHog.reloadFeatureFlags { results.add(it) }
+        assertEquals(0, results.size)
         val callback = fakeInterface.calledMethods.single().second.single() as com.posthog.PostHogFeatureFlagsCallback
-        callback.loaded(com.posthog.PostHogFeatureFlagsLoaded(emptyMap(), errorsLoading = false))
-        assertEquals(1, completions)
+        callback.loaded(com.posthog.PostHogFeatureFlagsLoaded(mapOf("beta" to true, "off" to false), errorsLoading = true))
+        assertEquals(mapOf<String, Any>("beta" to true), results.single().variants)
+        assertEquals(true, results.single().errorsLoading)
+    }
+
+    @Test
+    fun testReloadCallbackBeforeSetupReportsError() {
+        postHogInstance = null
+        val results = mutableListOf<PostHogFeatureFlagsLoaded>()
+        PostHog.reloadFeatureFlags { results.add(it) }
+        assertEquals(emptyMap(), results.single().variants)
+        assertEquals(true, results.single().errorsLoading)
+    }
+
+    @Test
+    fun testOnFeatureFlagsFollowsInstanceUntilUnsubscribed() {
+        postHogInstance = null
+        val results = mutableListOf<PostHogFeatureFlagsLoaded>()
+        val subscription = PostHog.onFeatureFlags { results.add(it) }
+
+        postHogInstance = fakeInterface.proxy
+        fakeInterface.featureFlagsCallbacks.single()
+            .loaded(com.posthog.PostHogFeatureFlagsLoaded(mapOf("beta" to "test"), errorsLoading = false))
+        assertEquals(mapOf<String, Any>("beta" to "test"), results.single().variants)
+
+        val nextInstance = FakePostHogInterface()
+        postHogInstance = nextInstance.proxy
+        assertTrue(fakeInterface.featureFlagsCallbacks.isEmpty())
+        assertEquals(1, nextInstance.featureFlagsCallbacks.size)
+
+        subscription.unsubscribe()
+        subscription.unsubscribe()
+        assertTrue(nextInstance.featureFlagsCallbacks.isEmpty())
+        postHogInstance = fakeInterface.proxy
+        assertTrue(fakeInterface.featureFlagsCallbacks.isEmpty())
+    }
+
+    @Test
+    fun testPropertiesForFlagsRouteToNativeSdk() {
+        PostHog.setPersonPropertiesForFlags(mapOf("plan" to "pro", "drop" to null))
+        PostHog.setPersonPropertiesForFlags(mapOf("drop" to null))
+        PostHog.resetPersonPropertiesForFlags(reloadFeatureFlags = false)
+        PostHog.setGroupPropertiesForFlags("company", mapOf("seats" to 5), reloadFeatureFlags = false)
+        PostHog.resetGroupPropertiesForFlags()
+
+        assertMethodCalled("setPersonPropertiesForFlags", mapOf("plan" to "pro"), true)
+        assertMethodCalled("resetPersonPropertiesForFlags", false)
+        assertMethodCalled("setGroupPropertiesForFlags", "company", mapOf("seats" to 5), false)
+        assertMethodCalled("resetGroupPropertiesForFlags", null, true)
     }
 
     @Test

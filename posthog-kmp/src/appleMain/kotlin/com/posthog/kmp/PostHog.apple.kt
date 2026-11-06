@@ -12,6 +12,7 @@ import swiftPMImport.com.posthog.posthog.kmp.BoxedBeforeSendBlock
 import swiftPMImport.com.posthog.posthog.kmp.PostHogConfig as NativePostHogConfig
 import swiftPMImport.com.posthog.posthog.kmp.PostHogEvent as NativePostHogEvent
 import swiftPMImport.com.posthog.posthog.kmp.PostHogFeatureFlagResult as NativeFeatureFlagResult
+import swiftPMImport.com.posthog.posthog.kmp.PostHogFeatureFlagsLoaded as NativeFeatureFlagsLoaded
 import swiftPMImport.com.posthog.posthog.kmp.PostHogPersonProfilesAlways
 import swiftPMImport.com.posthog.posthog.kmp.PostHogPersonProfilesIdentifiedOnly
 import swiftPMImport.com.posthog.posthog.kmp.PostHogPersonProfilesNever
@@ -40,6 +41,7 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         maxQueueSize = config.maxQueueSize.toLong()
         maxBatchSize = config.maxBatchSize.toLong()
         optOut = config.optOut
+        evaluationContexts = config.evaluationContexts
         personProfiles = when (config.personProfiles) {
             PersonProfiles.ALWAYS -> PostHogPersonProfilesAlways
             PersonProfiles.NEVER -> PostHogPersonProfilesNever
@@ -202,16 +204,8 @@ internal actual fun platformGroup(
     PostHogSDK.shared.groupWithType(type, key, groupProperties?.toNativeProperties())
 }
 
-internal actual fun platformIsFeatureEnabled(key: String, defaultValue: Boolean, sendFeatureFlagEvent: Boolean): Boolean {
-    // getFeatureFlag fires $feature_flag_called even for absent flags (matching Android) and lets us
-    // honor defaultValue; the iOS SDK's isFeatureEnabled has no defaultValue parameter.
-    val flagValue = PostHogSDK.shared.getFeatureFlagWithKey(key, sendFeatureFlagEvent)
-    return when (flagValue) {
-        null -> defaultValue
-        is String -> true
-        else -> flagValue as? Boolean ?: false
-    }
-}
+internal actual fun platformIsFeatureEnabled(key: String, defaultValue: Boolean, sendFeatureFlagEvent: Boolean): Boolean =
+    PostHogSDK.shared.isFeatureEnabledWithKey(key, defaultValue = defaultValue, sendFeatureFlagEvent = sendFeatureFlagEvent)
 
 internal actual fun platformGetFeatureFlag(key: String, sendFeatureFlagEvent: Boolean): Any? =
     PostHogSDK.shared.getFeatureFlagWithKey(key, sendFeatureFlagEvent)
@@ -222,18 +216,67 @@ internal actual fun platformGetAllFeatureFlags(): Map<String, FeatureFlagResult>
         ?.associate { result -> result.key to result.toFeatureFlagResult() }
         ?: emptyMap()
 
-internal actual fun platformReloadFeatureFlags(callback: (() -> Unit)?) {
+internal actual fun platformReloadFeatureFlags(callback: ((PostHogFeatureFlagsLoaded) -> Unit)?) {
     if (callback != null) {
-        PostHogSDK.shared.reloadFeatureFlagsWithCallback { _ -> callback() }
+        PostHogSDK.shared.reloadFeatureFlagsWithCallback { loaded -> deliverFeatureFlags(callback, loaded) }
     } else {
         PostHogSDK.shared.reloadFeatureFlags()
+    }
+}
+
+internal actual fun platformOnFeatureFlags(callback: (PostHogFeatureFlagsLoaded) -> Unit): PostHogFeatureFlagsSubscription {
+    val subscription = PostHogSDK.shared.onFeatureFlags { loaded -> deliverFeatureFlags(callback, loaded) }
+    return PostHogFeatureFlagsSubscription { subscription.unsubscribe() }
+}
+
+/** A Kotlin exception thrown back into the native SDK would terminate the app, so it stops here. */
+private fun deliverFeatureFlags(callback: (PostHogFeatureFlagsLoaded) -> Unit, loaded: NativeFeatureFlagsLoaded?) {
+    val featureFlags = loaded?.variants
+        ?.filterKeys { it is String }
+        ?.mapKeys { it.key as String }
+        .orEmpty()
+    try {
+        callback(PostHogFeatureFlagsLoaded(featureFlags, errorsLoading = loaded?.errorsLoading ?: true))
+    } catch (e: Throwable) {
+        if (currentConfig?.debug == true) NSLog("[PostHog] Feature flags callback failed: ${e.message}")
+    }
+}
+
+internal actual fun platformSetPersonPropertiesForFlags(properties: Map<String, Any>, reloadFeatureFlags: Boolean) {
+    PostHogSDK.shared.setPersonPropertiesForFlagsWithProperties(
+        properties.toNativeProperties(),
+        reloadFeatureFlags = reloadFeatureFlags
+    )
+}
+
+internal actual fun platformResetPersonPropertiesForFlags(reloadFeatureFlags: Boolean) {
+    PostHogSDK.shared.resetPersonPropertiesForFlagsWithReloadFeatureFlags(reloadFeatureFlags)
+}
+
+internal actual fun platformSetGroupPropertiesForFlags(
+    type: String,
+    properties: Map<String, Any>,
+    reloadFeatureFlags: Boolean
+) {
+    PostHogSDK.shared.setGroupPropertiesForFlags(
+        type,
+        properties = properties.toNativeProperties(),
+        reloadFeatureFlags = reloadFeatureFlags
+    )
+}
+
+internal actual fun platformResetGroupPropertiesForFlags(type: String?, reloadFeatureFlags: Boolean) {
+    if (type == null) {
+        PostHogSDK.shared.resetGroupPropertiesForFlagsWithReloadFeatureFlags(reloadFeatureFlags)
+    } else {
+        PostHogSDK.shared.resetGroupPropertiesForFlagsWithGroupType(type, reloadFeatureFlags = reloadFeatureFlags)
     }
 }
 
 internal actual fun platformGetFeatureFlagResult(key: String, sendFeatureFlagEvent: Boolean): FeatureFlagResult? =
     PostHogSDK.shared.getFeatureFlagResultWithKey(key, sendFeatureFlagEvent)?.toFeatureFlagResult()
 
-private fun NativeFeatureFlagResult.toFeatureFlagResult(): FeatureFlagResult = FeatureFlagResult(
+private fun NativeFeatureFlagResult.toFeatureFlagResult(): FeatureFlagResult = featureFlagResult(
     key = key,
     enabled = enabled,
     variant = variant,

@@ -55,4 +55,14 @@ class PostHogAndroidConfigTest {
             }
         }
     }
+
+    @Test
+    fun mapsEvaluationContexts() {
+        assertEquals(null, PostHogConfig(projectToken = "phc_test").toAndroidConfig().evaluationContexts)
+        assertEquals(
+            listOf("production", "checkout"),
+            PostHogConfig(projectToken = "phc_test", evaluationContexts = listOf("production", "checkout"))
+                .toAndroidConfig().evaluationContexts
+        )
+    }
 }

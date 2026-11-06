@@ -29,6 +29,10 @@ import kotlin.reflect.KClass
  *   Messaging is available (Android only, defaults to true).
  * @property capturePushNotificationOpened Capture push notification opens automatically
  *   (Android only, defaults to true).
+ * @property evaluationContexts Evaluation context tags that limit which feature flags are evaluated
+ *   (defaults to null, which evaluates every flag). When set, PostHog evaluates only the flags that
+ *   have at least one of these evaluation tags, plus flags with no evaluation tags. Example:
+ *   `PostHogConfig(projectToken = "phc_...", evaluationContexts = listOf("production", "checkout"))`.
  */
 public data class PostHogConfig(
     val projectToken: String,
@@ -50,8 +54,55 @@ public data class PostHogConfig(
     val beforeSend: List<PostHogBeforeSend> = emptyList(),
     val errorTracking: ErrorTrackingConfig? = null,
     val capturePushNotificationSubscriptions: Boolean = true,
-    val capturePushNotificationOpened: Boolean = true
+    val capturePushNotificationOpened: Boolean = true,
+    val evaluationContexts: List<String>? = null
 ) {
+    /** Retains the constructor signature, without `evaluationContexts`, used by existing JVM consumers. */
+    public constructor(
+        projectToken: String,
+        host: String,
+        debug: Boolean,
+        captureApplicationLifecycleEvents: Boolean,
+        captureScreenViews: Boolean,
+        captureDeepLinks: Boolean,
+        sendFeatureFlagEvent: Boolean,
+        preloadFeatureFlags: Boolean,
+        flushAt: Int,
+        flushIntervalSeconds: Int,
+        maxQueueSize: Int,
+        maxBatchSize: Int,
+        optOut: Boolean,
+        personProfiles: PersonProfiles,
+        sessionRecording: SessionRecordingConfig?,
+        autocapture: Boolean,
+        beforeSend: List<PostHogBeforeSend>,
+        errorTracking: ErrorTrackingConfig?,
+        capturePushNotificationSubscriptions: Boolean,
+        capturePushNotificationOpened: Boolean
+    ) : this(
+        projectToken = projectToken,
+        host = host,
+        debug = debug,
+        captureApplicationLifecycleEvents = captureApplicationLifecycleEvents,
+        captureScreenViews = captureScreenViews,
+        captureDeepLinks = captureDeepLinks,
+        sendFeatureFlagEvent = sendFeatureFlagEvent,
+        preloadFeatureFlags = preloadFeatureFlags,
+        flushAt = flushAt,
+        flushIntervalSeconds = flushIntervalSeconds,
+        maxQueueSize = maxQueueSize,
+        maxBatchSize = maxBatchSize,
+        optOut = optOut,
+        personProfiles = personProfiles,
+        sessionRecording = sessionRecording,
+        autocapture = autocapture,
+        beforeSend = beforeSend,
+        errorTracking = errorTracking,
+        capturePushNotificationSubscriptions = capturePushNotificationSubscriptions,
+        capturePushNotificationOpened = capturePushNotificationOpened,
+        evaluationContexts = null
+    )
+
     /** Retains the constructor signature used by existing JVM consumers. */
     public constructor(
         projectToken: String,
@@ -214,7 +265,8 @@ public data class PostHogConfig(
         beforeSend = beforeSend,
         errorTracking = errorTracking,
         capturePushNotificationSubscriptions = capturePushNotificationSubscriptions,
-        capturePushNotificationOpened = capturePushNotificationOpened
+        capturePushNotificationOpened = capturePushNotificationOpened,
+        evaluationContexts = evaluationContexts
     )
 
     @Deprecated("Retained for binary compatibility", level = DeprecationLevel.HIDDEN)
@@ -256,7 +308,8 @@ public data class PostHogConfig(
         beforeSend = beforeSend,
         errorTracking = errorTracking,
         capturePushNotificationSubscriptions = capturePushNotificationSubscriptions,
-        capturePushNotificationOpened = capturePushNotificationOpened
+        capturePushNotificationOpened = capturePushNotificationOpened,
+        evaluationContexts = evaluationContexts
     )
 
     @Deprecated("Retained for binary compatibility", level = DeprecationLevel.HIDDEN)
@@ -297,7 +350,8 @@ public data class PostHogConfig(
         beforeSend = beforeSend,
         errorTracking = errorTracking,
         capturePushNotificationSubscriptions = capturePushNotificationSubscriptions,
-        capturePushNotificationOpened = capturePushNotificationOpened
+        capturePushNotificationOpened = capturePushNotificationOpened,
+        evaluationContexts = evaluationContexts
     )
 
     /** Deprecated alias for [projectToken]. */

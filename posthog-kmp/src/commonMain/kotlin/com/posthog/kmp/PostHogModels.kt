@@ -52,6 +52,79 @@ public data class FeatureFlagResult(
 }
 
 /**
+ * The feature flags passed to [PostHog.onFeatureFlags] and [PostHog.reloadFeatureFlags] callbacks.
+ *
+ * It holds the enabled flags as they were when the callback was invoked, and whether the latest
+ * attempt to load them failed. Disabled flags are left out; read them with [PostHog.getFeatureFlag].
+ *
+ * Example:
+ * ```kotlin
+ * PostHog.reloadFeatureFlags { loaded ->
+ *     if (loaded.errorsLoading) {
+ *         // The values are the last known (cached) flags
+ *     }
+ *     if (loaded.variants["new-checkout"] == "test") {
+ *         // Show the test variant
+ *     }
+ * }
+ * ```
+ */
+public class PostHogFeatureFlagsLoaded internal constructor(
+    featureFlags: Map<String, Any?>,
+    /**
+     * `true` if the latest attempt to load feature flags failed.
+     *
+     * When it did, [flags] and [variants] hold the last known values, which can be empty. It's also
+     * `true`, with no values, when [PostHog.reloadFeatureFlags] is called before [PostHog.setup].
+     */
+    public val errorsLoading: Boolean,
+) {
+    /**
+     * The values of the enabled feature flags, keyed by flag key.
+     *
+     * A value is `true` for an enabled boolean flag, or the variant `String` for a multivariate flag.
+     * A flag whose variant is an empty string counts as disabled and is left out.
+     */
+    public val variants: Map<String, Any> = featureFlags.entries
+        .mapNotNull { (key, value) -> if (value == true || (value is String && value.isNotEmpty())) key to value else null }
+        .toMap()
+
+    /** The keys of the enabled feature flags. */
+    public val flags: List<String> = variants.keys.toList()
+
+    override fun toString(): String = "PostHogFeatureFlagsLoaded(variants=$variants, errorsLoading=$errorsLoading)"
+}
+
+/**
+ * A registration returned by [PostHog.onFeatureFlags].
+ *
+ * The callback stays registered, including across [PostHog.close] and [PostHog.setup], until you
+ * call [unsubscribe]. Keep a reference only if you want to unsubscribe later.
+ *
+ * Example:
+ * ```kotlin
+ * val subscription = PostHog.onFeatureFlags { loaded -> render(loaded.variants) }
+ * // Later, stop listening
+ * subscription.unsubscribe()
+ * ```
+ */
+public class PostHogFeatureFlagsSubscription internal constructor(
+    private val onUnsubscribe: () -> Unit,
+) {
+    /** Stops the callback from being invoked. Calling it more than once has no effect. */
+    public fun unsubscribe() {
+        onUnsubscribe()
+    }
+}
+
+/**
+ * Builds a [FeatureFlagResult] from a platform result. An empty variant reads as disabled on every
+ * platform, the same as [PostHog.isFeatureEnabled].
+ */
+internal fun featureFlagResult(key: String, enabled: Boolean, variant: String?, payload: Any?): FeatureFlagResult =
+    FeatureFlagResult(key = key, enabled = enabled && variant != "", variant = variant, payload = payload)
+
+/**
  * Internal property keys used by PostHog.
  */
 internal object PostHogProperties {
