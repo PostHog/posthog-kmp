@@ -138,6 +138,10 @@ internal actual fun platformUnregister(key: String) {
     postHogInstance?.unregister(key)
 }
 
+internal actual fun platformSetAppLanguage(language: String?) {
+    postHogInstance?.setAppLanguage(language)
+}
+
 internal actual fun platformGroup(
     type: String,
     key: String,

@@ -152,6 +152,29 @@ public object PostHog {
         platformUnregister(key)
     }
 
+    /**
+     * Sets the `$app_language` property: the language your app displays, sent with every event.
+     *
+     * Default: Android 13+ detects it from the app's `localeConfig`, and iOS and macOS from the
+     * localizations the app bundle declares. Android 6-12, JVM, JavaScript and Wasm send no
+     * `$app_language` until you call this. Compare `$locale`, which is the device language.
+     *
+     * The value overrides the detected language. It is trimmed and `_` becomes `-`. It's kept in
+     * memory only, so call this at startup and whenever the language changes; it survives [reset].
+     * A `$app_language` super property set with [register] takes precedence.
+     *
+     * ```kotlin
+     * PostHog.setAppLanguage("pt-BR")
+     * PostHog.setAppLanguage(null) // back to the detected language
+     * ```
+     *
+     * @param language a BCP 47 language tag, such as `de` or `pt-BR`. Pass `null` or a blank string
+     *   to go back to the detected language
+     */
+    public fun setAppLanguage(language: String?) {
+        platformSetAppLanguage(language?.trim()?.replace('_', '-')?.ifEmpty { null })
+    }
+
     // ==================== Person Properties ====================
 
     /**
@@ -521,6 +544,8 @@ internal expect fun platformGetDistinctId(): String?
 internal expect fun platformRegister(key: String, value: Any)
 
 internal expect fun platformUnregister(key: String)
+
+internal expect fun platformSetAppLanguage(language: String?)
 
 internal expect fun platformGroup(
     type: String,

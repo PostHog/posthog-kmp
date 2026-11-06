@@ -196,6 +196,10 @@ internal actual fun platformUnregister(key: String) {
     PostHogSDK.shared.unregisterProperties(key)
 }
 
+internal actual fun platformSetAppLanguage(language: String?) {
+    PostHogSDK.shared.setAppLanguage(language)
+}
+
 internal actual fun platformGroup(
     type: String,
     key: String,

@@ -32,6 +32,7 @@ class PostHogJsTest {
 
     @AfterTest
     fun tearDown() {
+        PostHog.setAppLanguage(null)
         mockPostHogJs = null
         currentConfig = null
     }
@@ -477,6 +478,48 @@ class PostHogJsTest {
 
         assertNull(result)
         assertEquals(false, sentinelCalled)
+    }
+
+    @Test
+    fun testAppLanguageIsAddedToEveryEventAndSurvivesReset() {
+        fakeJs.init = { _: String, options: dynamic ->
+            calledMethods.add("init" to arrayOf<dynamic>(options))
+        }
+        PostHog.setup(PostHogConfig(projectToken = "key"), PostHogContext())
+        val callback = getCall("init")[0]["before_send"]
+
+        assertNull(callback(js("({ event: 'a', properties: {} })")).properties["\$app_language"])
+
+        PostHog.setAppLanguage(" pt_BR ")
+        PostHog.reset()
+        assertEquals("pt-BR", callback(js("({ event: 'a', properties: {} })")).properties["\$app_language"] as String)
+        assertEquals(
+            "de",
+            callback(js("({ event: 'a', properties: { \$app_language: 'de' } })")).properties["\$app_language"] as String
+        )
+
+        PostHog.setAppLanguage(null)
+        assertNull(callback(js("({ event: 'a', properties: {} })")).properties["\$app_language"])
+    }
+
+    @Test
+    fun testBeforeSendCallbacksSeeAppLanguage() {
+        var seen: Any? = null
+        fakeJs.init = { _: String, options: dynamic ->
+            calledMethods.add("init" to arrayOf<dynamic>(options))
+        }
+        PostHog.setup(
+            PostHogConfig(projectToken = "key", beforeSend = listOf(PostHogBeforeSend {
+                seen = it.properties["\$app_language"]
+                it
+            })),
+            PostHogContext()
+        )
+        PostHog.setAppLanguage("fr")
+
+        getCall("init")[0]["before_send"](js("({ event: 'a', properties: { distinct_id: 'user-1' } })"))
+
+        assertEquals("fr", seen)
     }
 
     @Test

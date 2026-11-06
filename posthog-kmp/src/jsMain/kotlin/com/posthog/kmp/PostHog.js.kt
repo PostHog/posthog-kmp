@@ -43,10 +43,9 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
     options["bootstrap"] = js("{}")
     config.evaluationContexts?.let { options["evaluation_contexts"] = it.toTypedArray() }
 
-    if (config.beforeSend.isNotEmpty()) {
-        options["before_send"] = { captureResult: dynamic ->
-            processBeforeSend(config, captureResult)
-        }
+    options["before_send"] = { captureResult: dynamic ->
+        addAppLanguage(captureResult)
+        if (config.beforeSend.isEmpty()) captureResult else processBeforeSend(config, captureResult)
     }
     
     options["person_profiles"] = when (config.personProfiles) {
@@ -150,6 +149,22 @@ internal actual fun platformRegister(key: String, value: Any) {
 
 internal actual fun platformUnregister(key: String) {
     PostHogJs.unregister(key)
+}
+
+// posthog-js has no $app_language; a super property would persist and be cleared by reset()
+private var appLanguage: String? = null
+
+internal actual fun platformSetAppLanguage(language: String?) {
+    appLanguage = language
+}
+
+// runs before the app's beforeSend callbacks, like the native SDKs; a registered or event value wins
+private fun addAppLanguage(captureResult: dynamic) {
+    val language = appLanguage ?: return
+    val properties = captureResult?.properties ?: return
+    if (properties["\$app_language"] == undefined) {
+        properties["\$app_language"] = language
+    }
 }
 
 internal actual fun platformGroup(

@@ -76,5 +76,22 @@ To react to every flag load rather than one reload, use the new `PostHog.onFeatu
 | Events with an empty name are dropped, including one a `beforeSend` callback renames to `""`. PostHog also drops events whose name or distinct ID is over 200 bytes. | Android, JVM, iOS, macOS | Give every event a name. |
 | Super properties from `register()` override properties the SDK sets, such as `$os_name`. | Android, JVM, iOS, macOS | Don't register `$`-prefixed SDK properties unless you mean to replace them. |
 | `$locale` is the device's preferred language with its region, such as `de-CH`. | Android, iOS, macOS | Filter on the new `$app_language` for the language the app shows. |
+| `$locale` is a BCP 47 tag that keeps the script, such as `zh-Hant-TW`, and is `en` rather than `en-` when the locale has no region. | JVM | Update filters that match the old form. |
 | `Application Installed`, `Application Updated` and `Application Opened` no longer have `version` and `build`. | iOS, macOS | Use `$app_version` and `$app_build`. |
-| New `$app_language` property with the language the app displays. | Android 13+, iOS, macOS | None. |
+| New `$app_language` property with the language the app displays. Set it yourself with `PostHog.setAppLanguage()` on any platform. | Android 13+, iOS, macOS | See [App language](#app-language) if you translate with Compose Multiplatform resources. |
+
+### App language
+
+The native SDKs detect `$app_language` from the languages your app declares: `localeConfig` on Android 13+, and the bundle's localizations on iOS and macOS. Compose Multiplatform resources don't declare either, so:
+
+- **iOS and macOS** report your development language, such as `en`, whatever language the app shows. List the languages you translate to under `CFBundleLocalizations` in the app's `Info.plist`. This also adds your app to the per-app language list in iOS Settings.
+- **Android** sends no `$app_language` unless the app declares a `localeConfig` or the user picks a per-app language.
+
+If your app picks its language some other way, such as an in-app setting, call `PostHog.setAppLanguage()` at startup and whenever the language changes:
+
+```kotlin
+PostHog.setAppLanguage("pt-BR")
+PostHog.setAppLanguage(null) // back to the detected language
+```
+
+The value is kept in memory only and survives `reset()`. A `$app_language` super property set with `register()` takes precedence. JVM, JavaScript and Wasm send `$app_language` only after you call `setAppLanguage()`.
