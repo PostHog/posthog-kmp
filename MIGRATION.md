@@ -66,7 +66,7 @@ PostHog.reloadFeatureFlags { loaded ->
 
 Before `setup()`, the callback runs right away with no flags and `errorsLoading = true` on every platform. On Android and JVM it used to never run.
 
-A flag whose variant is an empty string is disabled on every platform: `isFeatureEnabled()` returns `false` and `FeatureFlagResult.enabled` is `false`. iOS and macOS used to report it as enabled in `isFeatureEnabled()`, and JavaScript and Wasm in `FeatureFlagResult.enabled`.
+A flag whose variant is an empty string is disabled on every platform: `isFeatureEnabled()` returns `false` and `FeatureFlagResult.enabled` is `false`. iOS and macOS used to report it as enabled in `isFeatureEnabled()`, and JavaScript and Wasm in `FeatureFlagResult.enabled`. On Android, JVM, iOS and macOS, captured events no longer list it in `$active_feature_flags`; JavaScript and Wasm already left it out. `getFeatureFlag()` and the event's `$feature/<key>` property still return `""`.
 
 To react to every flag load rather than one reload, use the new `PostHog.onFeatureFlags()`.
 
