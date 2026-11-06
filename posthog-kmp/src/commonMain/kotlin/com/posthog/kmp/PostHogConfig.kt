@@ -29,6 +29,10 @@ import kotlin.reflect.KClass
  *   Messaging is available (Android only, defaults to true).
  * @property capturePushNotificationOpened Capture push notification opens automatically
  *   (Android only, defaults to true).
+ * @property evaluationContexts Evaluation context tags that limit which feature flags are evaluated
+ *   (defaults to null, which evaluates every flag). When set, PostHog evaluates only the flags that
+ *   have at least one of these evaluation tags, plus flags with no evaluation tags. Example:
+ *   `PostHogConfig(projectToken = "phc_...", evaluationContexts = listOf("production", "checkout"))`.
  */
 public data class PostHogConfig(
     val projectToken: String,
@@ -50,8 +54,55 @@ public data class PostHogConfig(
     val beforeSend: List<PostHogBeforeSend> = emptyList(),
     val errorTracking: ErrorTrackingConfig? = null,
     val capturePushNotificationSubscriptions: Boolean = true,
-    val capturePushNotificationOpened: Boolean = true
+    val capturePushNotificationOpened: Boolean = true,
+    val evaluationContexts: List<String>? = null
 ) {
+    /** Retains the constructor signature, without `evaluationContexts`, used by existing JVM consumers. */
+    public constructor(
+        projectToken: String,
+        host: String,
+        debug: Boolean,
+        captureApplicationLifecycleEvents: Boolean,
+        captureScreenViews: Boolean,
+        captureDeepLinks: Boolean,
+        sendFeatureFlagEvent: Boolean,
+        preloadFeatureFlags: Boolean,
+        flushAt: Int,
+        flushIntervalSeconds: Int,
+        maxQueueSize: Int,
+        maxBatchSize: Int,
+        optOut: Boolean,
+        personProfiles: PersonProfiles,
+        sessionRecording: SessionRecordingConfig?,
+        autocapture: Boolean,
+        beforeSend: List<PostHogBeforeSend>,
+        errorTracking: ErrorTrackingConfig?,
+        capturePushNotificationSubscriptions: Boolean,
+        capturePushNotificationOpened: Boolean
+    ) : this(
+        projectToken = projectToken,
+        host = host,
+        debug = debug,
+        captureApplicationLifecycleEvents = captureApplicationLifecycleEvents,
+        captureScreenViews = captureScreenViews,
+        captureDeepLinks = captureDeepLinks,
+        sendFeatureFlagEvent = sendFeatureFlagEvent,
+        preloadFeatureFlags = preloadFeatureFlags,
+        flushAt = flushAt,
+        flushIntervalSeconds = flushIntervalSeconds,
+        maxQueueSize = maxQueueSize,
+        maxBatchSize = maxBatchSize,
+        optOut = optOut,
+        personProfiles = personProfiles,
+        sessionRecording = sessionRecording,
+        autocapture = autocapture,
+        beforeSend = beforeSend,
+        errorTracking = errorTracking,
+        capturePushNotificationSubscriptions = capturePushNotificationSubscriptions,
+        capturePushNotificationOpened = capturePushNotificationOpened,
+        evaluationContexts = null
+    )
+
     /** Retains the constructor signature used by existing JVM consumers. */
     public constructor(
         projectToken: String,
@@ -214,7 +265,8 @@ public data class PostHogConfig(
         beforeSend = beforeSend,
         errorTracking = errorTracking,
         capturePushNotificationSubscriptions = capturePushNotificationSubscriptions,
-        capturePushNotificationOpened = capturePushNotificationOpened
+        capturePushNotificationOpened = capturePushNotificationOpened,
+        evaluationContexts = evaluationContexts
     )
 
     @Deprecated("Retained for binary compatibility", level = DeprecationLevel.HIDDEN)
@@ -256,7 +308,8 @@ public data class PostHogConfig(
         beforeSend = beforeSend,
         errorTracking = errorTracking,
         capturePushNotificationSubscriptions = capturePushNotificationSubscriptions,
-        capturePushNotificationOpened = capturePushNotificationOpened
+        capturePushNotificationOpened = capturePushNotificationOpened,
+        evaluationContexts = evaluationContexts
     )
 
     @Deprecated("Retained for binary compatibility", level = DeprecationLevel.HIDDEN)
@@ -297,7 +350,8 @@ public data class PostHogConfig(
         beforeSend = beforeSend,
         errorTracking = errorTracking,
         capturePushNotificationSubscriptions = capturePushNotificationSubscriptions,
-        capturePushNotificationOpened = capturePushNotificationOpened
+        capturePushNotificationOpened = capturePushNotificationOpened,
+        evaluationContexts = evaluationContexts
     )
 
     /** Deprecated alias for [projectToken]. */
@@ -471,15 +525,12 @@ public data class ErrorTrackingConfig(
  * @property maskAllImages Mask all images
  * @property captureNetworkTelemetry Include network requests in recording
  * @property captureLogs Capture console logs (iOS/Web)
- * @property screenshot Enable screenshot mode instead of wireframe (Android/iOS experimental).
- *                       When enabled, the SDK takes actual screenshots instead of wireframe representations.
- *                       WARNING: Screenshots may contain sensitive information - ensure proper masking.
  * @property captureLogcat Capture Android logcat output (Android only)
- * @property debouncerDelayMs Delay in milliseconds for debouncing touch events (Android only)
+ * @property throttleDelayMs Minimum delay in milliseconds between replay snapshots (Android and iOS)
  * @property verifyScreenshotMaskAlignment Experimental screenshot mask-alignment verification (Android only).
  *   Can preserve captures during pixel-only redraws, but adds view-hierarchy walks during capture.
  *   Defaults to false and is ignored on other platforms. Windows with a Compose root always use
- *   verification regardless of this flag. Only applies when [screenshot] is enabled.
+ *   verification regardless of this flag.
  */
 public data class SessionRecordingConfig(
     val enabled: Boolean = true,
@@ -487,52 +538,40 @@ public data class SessionRecordingConfig(
     val maskAllImages: Boolean = true,
     val captureNetworkTelemetry: Boolean = true,
     val captureLogs: Boolean = false,
-    val screenshot: Boolean = false,
     val captureLogcat: Boolean = true,
-    val debouncerDelayMs: Long = 1000L,
+    val throttleDelayMs: Long = 1000L,
     val verifyScreenshotMaskAlignment: Boolean = false
 ) {
-    /** Retains the constructor signature used by existing JVM consumers. */
-    public constructor(
-        enabled: Boolean = true,
-        maskAllTextInputs: Boolean = true,
-        maskAllImages: Boolean = true,
-        captureNetworkTelemetry: Boolean = true,
-        captureLogs: Boolean = false,
-        screenshot: Boolean = false,
-        captureLogcat: Boolean = true,
-        debouncerDelayMs: Long = 1000L
-    ) : this(
-        enabled = enabled,
-        maskAllTextInputs = maskAllTextInputs,
-        maskAllImages = maskAllImages,
-        captureNetworkTelemetry = captureNetworkTelemetry,
-        captureLogs = captureLogs,
-        screenshot = screenshot,
-        captureLogcat = captureLogcat,
-        debouncerDelayMs = debouncerDelayMs,
-        verifyScreenshotMaskAlignment = false
+    /** Deprecated alias for [throttleDelayMs]. */
+    @Deprecated(
+        "Deprecated in favor of throttleDelayMs. This will be removed in the next major version.",
+        ReplaceWith("throttleDelayMs")
     )
+    val debouncerDelayMs: Long get() = throttleDelayMs
 
-    /** Retains the copy signature used by existing JVM consumers. */
-    public fun copy(
-        enabled: Boolean = this.enabled,
-        maskAllTextInputs: Boolean = this.maskAllTextInputs,
-        maskAllImages: Boolean = this.maskAllImages,
-        captureNetworkTelemetry: Boolean = this.captureNetworkTelemetry,
-        captureLogs: Boolean = this.captureLogs,
-        screenshot: Boolean = this.screenshot,
-        captureLogcat: Boolean = this.captureLogcat,
-        debouncerDelayMs: Long = this.debouncerDelayMs
-    ): SessionRecordingConfig = SessionRecordingConfig(
-        enabled = enabled,
-        maskAllTextInputs = maskAllTextInputs,
-        maskAllImages = maskAllImages,
-        captureNetworkTelemetry = captureNetworkTelemetry,
-        captureLogs = captureLogs,
-        screenshot = screenshot,
-        captureLogcat = captureLogcat,
-        debouncerDelayMs = debouncerDelayMs,
-        verifyScreenshotMaskAlignment = verifyScreenshotMaskAlignment
-    )
+    public companion object {
+        /** Deprecated named-argument form of the [SessionRecordingConfig] constructor that takes `debouncerDelayMs`. */
+        @Deprecated(
+            "Deprecated in favor of throttleDelayMs. This will be removed in the next major version."
+        )
+        public operator fun invoke(
+            enabled: Boolean = true,
+            maskAllTextInputs: Boolean = true,
+            maskAllImages: Boolean = true,
+            captureNetworkTelemetry: Boolean = true,
+            captureLogs: Boolean = false,
+            captureLogcat: Boolean = true,
+            debouncerDelayMs: Long,
+            verifyScreenshotMaskAlignment: Boolean = false
+        ): SessionRecordingConfig = SessionRecordingConfig(
+            enabled = enabled,
+            maskAllTextInputs = maskAllTextInputs,
+            maskAllImages = maskAllImages,
+            captureNetworkTelemetry = captureNetworkTelemetry,
+            captureLogs = captureLogs,
+            captureLogcat = captureLogcat,
+            throttleDelayMs = debouncerDelayMs,
+            verifyScreenshotMaskAlignment = verifyScreenshotMaskAlignment
+        )
+    }
 }

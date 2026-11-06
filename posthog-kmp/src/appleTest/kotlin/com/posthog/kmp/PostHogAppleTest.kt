@@ -39,6 +39,7 @@ class PostHogAppleTest {
             assertEquals("apple-test-user", event.distinctId)
             assertEquals("dark", event.properties["theme"])
             assertEquals("posthog-kmp", event.properties["\$lib"])
+            assertEquals(PostHogKmpVersion.VERSION, event.properties["\$lib_version"])
 
             PostHog.optOut()
             assertTrue(PostHog.isOptedOut())
@@ -77,6 +78,33 @@ class PostHogAppleTest {
             PostHog.reset()
             PostHog.close()
         }
+    }
+
+    @Test
+    fun testFeatureFlagsWithoutLoadedFlags() {
+        PostHog.setup(
+            PostHogConfig(
+                projectToken = "apple-unit-test",
+                host = "http://127.0.0.1:9",
+                preloadFeatureFlags = false,
+                captureApplicationLifecycleEvents = false,
+            ),
+            PostHogContext(),
+        )
+        try {
+            assertTrue(PostHog.isFeatureEnabled("missing", defaultValue = true, sendFeatureFlagEvent = false))
+            assertFalse(PostHog.isFeatureEnabled("missing", sendFeatureFlagEvent = false))
+        } finally {
+            PostHog.close()
+        }
+
+        val results = mutableListOf<PostHogFeatureFlagsLoaded>()
+        PostHog.reloadFeatureFlags { loaded ->
+            results.add(loaded)
+            error("callback failure must not reach the native SDK")
+        }
+        assertTrue(results.single().errorsLoading)
+        assertTrue(results.single().flags.isEmpty())
     }
 
     @Test

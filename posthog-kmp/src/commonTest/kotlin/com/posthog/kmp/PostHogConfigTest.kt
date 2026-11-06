@@ -103,17 +103,27 @@ class PostHogConfigTest {
         assertEquals(true, config.maskAllImages)
         assertEquals(false, config.captureLogs)
         assertEquals(true, config.captureLogcat)
-        assertEquals(1000L, config.debouncerDelayMs)
+        assertEquals(1000L, config.throttleDelayMs)
         assertEquals(false, config.verifyScreenshotMaskAlignment)
+    }
+
+    @Test
+    @Suppress("DEPRECATION")
+    fun deprecatedDebouncerDelayMsSetsThrottleDelayMs() {
+        val config = SessionRecordingConfig(debouncerDelayMs = 250L, captureLogs = true)
+
+        assertEquals(250L, config.throttleDelayMs)
+        assertEquals(250L, config.debouncerDelayMs)
+        assertEquals(true, config.captureLogs)
     }
 
     @Test
     fun copyPreservesScreenshotMaskAlignmentVerification() {
         val config = SessionRecordingConfig(verifyScreenshotMaskAlignment = true)
 
-        val copy = config.copy(screenshot = true)
+        val copy = config.copy(captureLogs = true)
 
-        assertEquals(true, copy.screenshot)
+        assertEquals(true, copy.captureLogs)
         assertEquals(true, copy.verifyScreenshotMaskAlignment)
         assertEquals(false, copy.copy(verifyScreenshotMaskAlignment = false).verifyScreenshotMaskAlignment)
     }

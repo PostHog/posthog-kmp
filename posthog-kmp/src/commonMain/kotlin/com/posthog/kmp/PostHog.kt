@@ -233,10 +233,131 @@ public object PostHog {
      * Call this to get fresh feature flag values, for example after
      * updating user properties that affect flag targeting.
      *
-     * @param callback Optional callback when flags are loaded
+     * The callback runs once, when the reload finishes, whether or not it succeeded. If the request
+     * fails, [PostHogFeatureFlagsLoaded.errorsLoading] is `true` and the values are the last known
+     * flags. Before [setup], it runs right away with no flags and `errorsLoading` set to `true`.
+     * It can run on a background thread on Android, JVM, iOS and macOS.
+     *
+     * ```kotlin
+     * PostHog.reloadFeatureFlags { loaded ->
+     *     if (!loaded.errorsLoading && "new-checkout" in loaded.flags) {
+     *         // Show the new checkout
+     *     }
+     * }
+     * ```
+     *
+     * @param callback Optional callback with the loaded flags; null (the default) reloads without one
      */
-    public fun reloadFeatureFlags(callback: (() -> Unit)? = null) {
+    public fun reloadFeatureFlags(callback: ((PostHogFeatureFlagsLoaded) -> Unit)? = null) {
         platformReloadFeatureFlags(callback)
+    }
+
+    /**
+     * Register a callback that's invoked whenever feature flags are loaded or updated.
+     *
+     * It's invoked after flags load at startup, after [reloadFeatureFlags], and after calls that
+     * reload flags such as [identify], [group] or [reset]. If flags have already loaded when you
+     * register, it's also invoked with the current values shortly afterwards. When a load fails,
+     * [PostHogFeatureFlagsLoaded.errorsLoading] is `true` and the values are the last known flags.
+     * Treat each invocation as "flags may have changed", not as an exactly-once event.
+     *
+     * You can register before [setup], and the registration stays active across [close] and [setup]
+     * until you unsubscribe. On Android, iOS and macOS the callback runs on the main thread.
+     *
+     * ```kotlin
+     * val subscription = PostHog.onFeatureFlags { loaded ->
+     *     showNewCheckout = loaded.variants["new-checkout"] == "test"
+     * }
+     * // Later, stop listening
+     * subscription.unsubscribe()
+     * ```
+     *
+     * @param callback Receives the enabled flags, their values, and whether loading failed
+     * @return A [PostHogFeatureFlagsSubscription]; call [PostHogFeatureFlagsSubscription.unsubscribe] to stop
+     */
+    public fun onFeatureFlags(callback: (PostHogFeatureFlagsLoaded) -> Unit): PostHogFeatureFlagsSubscription {
+        return platformOnFeatureFlags(callback)
+    }
+
+    /**
+     * Set person properties to use when evaluating feature flags, before they reach the person profile.
+     *
+     * Use this when a flag targets a person property that you just set with [identify] or
+     * [setPersonProperties], so the flag doesn't wait for PostHog to process it. Calls merge: a later
+     * value for the same key replaces the earlier one. The properties are stored on the device until
+     * you clear them with [resetPersonPropertiesForFlags]. Null values are dropped, and an empty map does
+     * nothing. No event is sent. Before [setup], it does nothing.
+     *
+     * ```kotlin
+     * PostHog.setPersonPropertiesForFlags(mapOf("plan" to "pro"))
+     * ```
+     *
+     * @param properties Person properties to send with feature flag requests
+     * @param reloadFeatureFlags Whether to reload feature flags afterwards (defaults to true)
+     */
+    public fun setPersonPropertiesForFlags(properties: Map<String, Any?>, reloadFeatureFlags: Boolean = true) {
+        val nonNull = properties.dropNullValues() ?: return
+        platformSetPersonPropertiesForFlags(nonNull, reloadFeatureFlags)
+    }
+
+    /**
+     * Clear the person properties set with [setPersonPropertiesForFlags].
+     *
+     * Feature flags are then evaluated with the person properties PostHog has stored. Before [setup],
+     * it does nothing.
+     *
+     * ```kotlin
+     * PostHog.resetPersonPropertiesForFlags()
+     * ```
+     *
+     * @param reloadFeatureFlags Whether to reload feature flags afterwards (defaults to true)
+     */
+    public fun resetPersonPropertiesForFlags(reloadFeatureFlags: Boolean = true) {
+        platformResetPersonPropertiesForFlags(reloadFeatureFlags)
+    }
+
+    /**
+     * Set group properties to use when evaluating feature flags, before they reach the group profile.
+     *
+     * Use this when a flag targets a group property that you just set with [group], so the flag
+     * doesn't wait for PostHog to process it. Calls merge per group type: a later value for the same
+     * key replaces the earlier one. The properties are stored on the device until
+     * you clear them with [resetGroupPropertiesForFlags]. Null values are dropped, and an empty map does
+     * nothing. No event is sent. Before [setup], it does nothing.
+     *
+     * ```kotlin
+     * PostHog.setGroupPropertiesForFlags("company", mapOf("plan" to "enterprise"))
+     * ```
+     *
+     * @param type The group type (e.g., "company", "team")
+     * @param properties Group properties to send with feature flag requests
+     * @param reloadFeatureFlags Whether to reload feature flags afterwards (defaults to true)
+     */
+    public fun setGroupPropertiesForFlags(
+        type: String,
+        properties: Map<String, Any?>,
+        reloadFeatureFlags: Boolean = true
+    ) {
+        val nonNull = properties.dropNullValues() ?: return
+        platformSetGroupPropertiesForFlags(type, nonNull, reloadFeatureFlags)
+    }
+
+    /**
+     * Clear the group properties set with [setGroupPropertiesForFlags].
+     *
+     * Feature flags are then evaluated with the group properties PostHog has stored. Before [setup],
+     * it does nothing.
+     *
+     * ```kotlin
+     * PostHog.resetGroupPropertiesForFlags("company") // one group type
+     * PostHog.resetGroupPropertiesForFlags() // every group type
+     * ```
+     *
+     * @param type The group type to clear; null (the default) clears every group type
+     * @param reloadFeatureFlags Whether to reload feature flags afterwards (defaults to true)
+     */
+    public fun resetGroupPropertiesForFlags(type: String? = null, reloadFeatureFlags: Boolean = true) {
+        platformResetGroupPropertiesForFlags(type, reloadFeatureFlags)
     }
 
     /**
@@ -413,7 +534,21 @@ internal expect fun platformGetFeatureFlag(key: String, sendFeatureFlagEvent: Bo
 
 internal expect fun platformGetAllFeatureFlags(): Map<String, FeatureFlagResult>
 
-internal expect fun platformReloadFeatureFlags(callback: (() -> Unit)?)
+internal expect fun platformReloadFeatureFlags(callback: ((PostHogFeatureFlagsLoaded) -> Unit)?)
+
+internal expect fun platformOnFeatureFlags(callback: (PostHogFeatureFlagsLoaded) -> Unit): PostHogFeatureFlagsSubscription
+
+internal expect fun platformSetPersonPropertiesForFlags(properties: Map<String, Any>, reloadFeatureFlags: Boolean)
+
+internal expect fun platformResetPersonPropertiesForFlags(reloadFeatureFlags: Boolean)
+
+internal expect fun platformSetGroupPropertiesForFlags(
+    type: String,
+    properties: Map<String, Any>,
+    reloadFeatureFlags: Boolean
+)
+
+internal expect fun platformResetGroupPropertiesForFlags(type: String?, reloadFeatureFlags: Boolean)
 
 internal expect fun platformGetFeatureFlagResult(key: String, sendFeatureFlagEvent: Boolean): FeatureFlagResult?
 

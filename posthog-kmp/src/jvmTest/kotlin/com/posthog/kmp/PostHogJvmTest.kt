@@ -57,7 +57,7 @@ class PostHogJvmTest {
     @Test
     fun testCaptureRoutesCorrectly() {
         PostHog.capture("test_event", mapOf("prop" to "value"))
-        assertMethodCalled("capture", "test_event", null, mapOf("prop" to "value"), null, null, null, null)
+        assertMethodCalled("capture", "test_event", null, mapOf("prop" to "value"), null, null, null, null, null)
     }
 
     @Test
@@ -67,7 +67,7 @@ class PostHogJvmTest {
             mapOf("prop" to "value"),
             CaptureOptions(groups = mapOf("company" to "acme"))
         )
-        // capture(event, distinctId, properties, userProperties, userPropertiesSetOnce, groups, timestamp)
+        // capture(event, distinctId, properties, userProperties, userPropertiesSetOnce, groups, timestamp, options)
         assertMethodCalled(
             "capture",
             "test_event",
@@ -76,6 +76,7 @@ class PostHogJvmTest {
             null,
             null,
             mapOf("company" to "acme"),
+            null,
             null
         )
     }
@@ -91,7 +92,7 @@ class PostHogJvmTest {
 
             PostHog.capture("test_event", options = CaptureOptions(timestamp = timestamp))
 
-            assertMethodCalled("capture", "test_event", null, null, null, null, null, Date(timestamp))
+            assertMethodCalled("capture", "test_event", null, null, null, null, null, Date(timestamp), null)
             assertEquals("2024-01-02T03:04:05.678Z", Date(timestamp).toInstant().toString())
         } finally {
             TimeZone.setDefault(originalTimeZone)
@@ -101,25 +102,25 @@ class PostHogJvmTest {
     @Test
     fun testCaptureDropsNullPropertyValues() {
         PostHog.capture("test_event", mapOf("keep" to 1, "drop" to null))
-        assertMethodCalled("capture", "test_event", null, mapOf("keep" to 1), null, null, null, null)
+        assertMethodCalled("capture", "test_event", null, mapOf("keep" to 1), null, null, null, null, null)
     }
 
     @Test
     fun testIdentifyRoutesCorrectly() {
         PostHog.identify("user_123", mapOf("email" to "test@example.com"))
-        assertMethodCalled("identify", "user_123", mapOf("email" to "test@example.com"), null)
+        assertMethodCalled("identify", "user_123", mapOf("email" to "test@example.com"), null, null)
     }
 
     @Test
     fun testScreenRoutesCorrectly() {
         PostHog.screen("Home", mapOf("tab" to "feed"))
-        assertMethodCalled("screen", "Home", mapOf("tab" to "feed"))
+        assertMethodCalled("screen", "Home", mapOf("tab" to "feed"), null)
     }
 
     @Test
     fun testScreenNameWinsOverProperty() {
         PostHog.screen("Home", mapOf("\$screen_name" to "Override", "tab" to "feed"))
-        assertMethodCalled("screen", "Home", mapOf("tab" to "feed"))
+        assertMethodCalled("screen", "Home", mapOf("tab" to "feed"), null)
     }
     
     @Test
@@ -137,7 +138,7 @@ class PostHogJvmTest {
     @Test
     fun testAliasRoutesCorrectly() {
         PostHog.alias("new_alias")
-        assertMethodCalled("alias", "new_alias")
+        assertMethodCalled("alias", "new_alias", null)
     }
 
     @Test
@@ -161,7 +162,7 @@ class PostHogJvmTest {
     @Test
     fun testGroupRoutesCorrectly() {
         PostHog.group("company", "posthog", mapOf("plan" to "premium"))
-        assertMethodCalled("group", "company", "posthog", mapOf("plan" to "premium"))
+        assertMethodCalled("group", "company", "posthog", mapOf("plan" to "premium"), null)
     }
 
     @Test
@@ -186,7 +187,7 @@ class PostHogJvmTest {
     fun testGetFeatureFlagRoutesCorrectly() {
         fakeInterface.featureFlag = "variant-a"
         assertEquals("variant-a", PostHog.getFeatureFlag("test_flag"))
-        assertMethodCalled("getFeatureFlag", "test_flag", null, true)
+        assertMethodCalled("getFeatureFlag", "test_flag", true)
     }
 
     @Test
@@ -209,7 +210,7 @@ class PostHogJvmTest {
     fun testCaptureExceptionRoutesCorrectly() {
         val throwable = RuntimeException("Test exception")
         PostHog.captureException(throwable, mapOf("context" to "test"))
-        assertMethodCalled("captureException", throwable, mapOf("context" to "test"))
+        assertMethodCalled("captureException", throwable, mapOf("context" to "test"), null)
     }
 
     @Test
@@ -263,7 +264,7 @@ class PostHogJvmTest {
     @Test
     fun testSetPersonPropertiesRoutesCorrectly() {
         PostHog.setPersonProperties(mapOf("plan" to "premium"), mapOf("first_login" to true))
-        assertMethodCalled("setPersonProperties", mapOf("plan" to "premium"), mapOf("first_login" to true))
+        assertMethodCalled("setPersonProperties", mapOf("plan" to "premium"), mapOf("first_login" to true), null)
     }
 
     @Test
@@ -291,12 +292,59 @@ class PostHogJvmTest {
 
     @Test
     fun testReloadCallbackWaitsForNativeCompletion() {
-        var completions = 0
-        PostHog.reloadFeatureFlags { completions++ }
-        assertEquals(0, completions)
-        val callback = fakeInterface.calledMethods.single().second.single() as com.posthog.PostHogOnFeatureFlags
-        callback.loaded()
-        assertEquals(1, completions)
+        val results = mutableListOf<PostHogFeatureFlagsLoaded>()
+        PostHog.reloadFeatureFlags { results.add(it) }
+        assertEquals(0, results.size)
+        val callback = fakeInterface.calledMethods.single().second.single() as com.posthog.PostHogFeatureFlagsCallback
+        callback.loaded(com.posthog.PostHogFeatureFlagsLoaded(mapOf("beta" to true, "off" to false), errorsLoading = true))
+        assertEquals(mapOf<String, Any>("beta" to true), results.single().variants)
+        assertEquals(true, results.single().errorsLoading)
+    }
+
+    @Test
+    fun testReloadCallbackBeforeSetupReportsError() {
+        postHogInstance = null
+        val results = mutableListOf<PostHogFeatureFlagsLoaded>()
+        PostHog.reloadFeatureFlags { results.add(it) }
+        assertEquals(emptyMap(), results.single().variants)
+        assertEquals(true, results.single().errorsLoading)
+    }
+
+    @Test
+    fun testOnFeatureFlagsFollowsInstanceUntilUnsubscribed() {
+        postHogInstance = null
+        val results = mutableListOf<PostHogFeatureFlagsLoaded>()
+        val subscription = PostHog.onFeatureFlags { results.add(it) }
+
+        postHogInstance = fakeInterface.proxy
+        fakeInterface.featureFlagsCallbacks.single()
+            .loaded(com.posthog.PostHogFeatureFlagsLoaded(mapOf("beta" to "test"), errorsLoading = false))
+        assertEquals(mapOf<String, Any>("beta" to "test"), results.single().variants)
+
+        val nextInstance = FakePostHogInterface()
+        postHogInstance = nextInstance.proxy
+        assertTrue(fakeInterface.featureFlagsCallbacks.isEmpty())
+        assertEquals(1, nextInstance.featureFlagsCallbacks.size)
+
+        subscription.unsubscribe()
+        subscription.unsubscribe()
+        assertTrue(nextInstance.featureFlagsCallbacks.isEmpty())
+        postHogInstance = fakeInterface.proxy
+        assertTrue(fakeInterface.featureFlagsCallbacks.isEmpty())
+    }
+
+    @Test
+    fun testPropertiesForFlagsRouteToNativeSdk() {
+        PostHog.setPersonPropertiesForFlags(mapOf("plan" to "pro", "drop" to null))
+        PostHog.setPersonPropertiesForFlags(mapOf("drop" to null))
+        PostHog.resetPersonPropertiesForFlags(reloadFeatureFlags = false)
+        PostHog.setGroupPropertiesForFlags("company", mapOf("seats" to 5), reloadFeatureFlags = false)
+        PostHog.resetGroupPropertiesForFlags()
+
+        assertMethodCalled("setPersonPropertiesForFlags", mapOf("plan" to "pro"), true)
+        assertMethodCalled("resetPersonPropertiesForFlags", false)
+        assertMethodCalled("setGroupPropertiesForFlags", "company", mapOf("seats" to 5), false)
+        assertMethodCalled("resetGroupPropertiesForFlags", null, true)
     }
 
     @Test
@@ -323,7 +371,7 @@ class PostHogJvmTest {
     @Test
     fun testIdentifyForwardsSetOnceAndDropsNulls() {
         PostHog.identify("user", mapOf("drop" to null), mapOf("first" to true, "drop" to null))
-        assertMethodCalled("identify", "user", null, mapOf("first" to true))
+        assertMethodCalled("identify", "user", null, mapOf("first" to true), null)
     }
 
     @Test

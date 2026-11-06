@@ -1,10 +1,55 @@
 package com.posthog.kmp
 
+import com.posthog.PostHogFeatureFlagsCallback
 import com.posthog.PostHogInterface
 import java.util.Date
 
 @Volatile
 internal var postHogInstance: PostHogInterface? = null
+    set(value) {
+        field = value
+        featureFlagsListeners.attachAll(value)
+    }
+
+/**
+ * [PostHog.onFeatureFlags] registrations. Each one is registered on the native instance, so it gets
+ * the native replay and threading, and is moved to the new instance on every setup.
+ */
+private val featureFlagsListeners = FeatureFlagsListeners()
+
+private class FeatureFlagsListeners {
+    private class Registration(val callback: PostHogFeatureFlagsCallback) {
+        var native: com.posthog.PostHogFeatureFlagsSubscription? = null
+    }
+
+    private val registrations = mutableListOf<Registration>()
+
+    @Synchronized
+    fun add(callback: (PostHogFeatureFlagsLoaded) -> Unit): PostHogFeatureFlagsSubscription {
+        val registration = Registration { loaded -> callback(loaded.toFeatureFlagsLoaded()) }
+        registrations.add(registration)
+        registration.native = postHogInstance?.onFeatureFlags(registration.callback)
+        return PostHogFeatureFlagsSubscription { remove(registration) }
+    }
+
+    @Synchronized
+    fun attachAll(instance: PostHogInterface?) {
+        registrations.forEach { registration ->
+            registration.native?.unsubscribe()
+            registration.native = instance?.onFeatureFlags(registration.callback)
+        }
+    }
+
+    @Synchronized
+    private fun remove(registration: Registration) {
+        registrations.remove(registration)
+        registration.native?.unsubscribe()
+        registration.native = null
+    }
+}
+
+private fun com.posthog.PostHogFeatureFlagsLoaded.toFeatureFlagsLoaded(): PostHogFeatureFlagsLoaded =
+    PostHogFeatureFlagsLoaded(variants, errorsLoading)
 
 internal const val SDK_NAME = "posthog-kmp"
 
@@ -119,12 +164,36 @@ internal actual fun platformGetAllFeatureFlags(): Map<String, FeatureFlagResult>
     } ?: emptyMap()
 }
 
-internal actual fun platformReloadFeatureFlags(callback: (() -> Unit)?) {
-    if (callback != null) {
-        postHogInstance?.reloadFeatureFlags { callback() }
-    } else {
-        postHogInstance?.reloadFeatureFlags()
+internal actual fun platformReloadFeatureFlags(callback: ((PostHogFeatureFlagsLoaded) -> Unit)?) {
+    val instance = postHogInstance
+    when {
+        callback == null -> instance?.reloadFeatureFlags()
+        instance == null -> callback(PostHogFeatureFlagsLoaded(emptyMap(), errorsLoading = true))
+        else -> instance.reloadFeatureFlags { loaded -> callback(loaded.toFeatureFlagsLoaded()) }
     }
+}
+
+internal actual fun platformOnFeatureFlags(callback: (PostHogFeatureFlagsLoaded) -> Unit): PostHogFeatureFlagsSubscription =
+    featureFlagsListeners.add(callback)
+
+internal actual fun platformSetPersonPropertiesForFlags(properties: Map<String, Any>, reloadFeatureFlags: Boolean) {
+    postHogInstance?.setPersonPropertiesForFlags(properties, reloadFeatureFlags)
+}
+
+internal actual fun platformResetPersonPropertiesForFlags(reloadFeatureFlags: Boolean) {
+    postHogInstance?.resetPersonPropertiesForFlags(reloadFeatureFlags)
+}
+
+internal actual fun platformSetGroupPropertiesForFlags(
+    type: String,
+    properties: Map<String, Any>,
+    reloadFeatureFlags: Boolean
+) {
+    postHogInstance?.setGroupPropertiesForFlags(type, properties, reloadFeatureFlags)
+}
+
+internal actual fun platformResetGroupPropertiesForFlags(type: String?, reloadFeatureFlags: Boolean) {
+    postHogInstance?.resetGroupPropertiesForFlags(type, reloadFeatureFlags)
 }
 
 internal actual fun platformGetFeatureFlagResult(key: String, sendFeatureFlagEvent: Boolean): FeatureFlagResult? {
@@ -190,7 +259,7 @@ internal fun PersonProfiles.toCorePersonProfiles(): com.posthog.PersonProfiles {
 }
 
 internal fun com.posthog.FeatureFlagResult.toFeatureFlagResult(): FeatureFlagResult {
-    return FeatureFlagResult(
+    return featureFlagResult(
         key = key,
         enabled = enabled,
         variant = variant,

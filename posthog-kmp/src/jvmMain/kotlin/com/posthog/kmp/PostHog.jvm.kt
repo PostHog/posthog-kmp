@@ -27,6 +27,9 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         maxBatchSize = config.maxBatchSize
 
         optOut = config.optOut
+        evaluationContexts = config.evaluationContexts
+
+        evaluationContexts = config.evaluationContexts
 
         personProfiles = config.personProfiles.toCorePersonProfiles()
         configureErrorTracking(config.errorTracking)
@@ -38,7 +41,7 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
     // the disk queue namespaces by API key itself; the preferences file doesn't
     coreConfig.storagePrefix = File(storageDir, "queue").absolutePath
     coreConfig.cachePreferences = PostHogFilePreferences(
-        File(storageDir, "posthog-prefs-${coreConfig.apiKey}.json"),
+        File(storageDir, "posthog-prefs-${coreConfig.projectToken}.json"),
         coreConfig
     )
     coreConfig.context = PostHogJvmContext(coreConfig)

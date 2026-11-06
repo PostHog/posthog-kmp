@@ -6,12 +6,15 @@ android-sampleCompileSdk = "37"
 compose-multiplatform = "1.12.2"
 compose-material3 = "1.9.0"
 androidx-activity-compose = "1.13.0"
-posthog-android = "3.72.9"
+# TODO: unreleased; confirm once posthog-android 4.0.0 is published (PostHog/posthog-android#871)
+posthog-android = "4.0.0"
 posthog-android-gradle-plugin = "1.7.0"
 # Pure-JVM core that posthog-android is built on (versioned independently of posthog-android)
-posthog-core = "6.47.5"
+# TODO: unreleased; confirm once core 7.0.0 is published with posthog-android 4.0.0
+posthog-core = "7.0.0"
 okio = "3.18.2"
-posthog-ios = "3.64.1"
+# TODO: unreleased; confirm once posthog-ios 4.0.0 is tagged (PostHog/posthog-ios#873), then regenerate .swiftpm-locks
+posthog-ios = "4.0.0"
 posthog-js = "1.435.8"
 mavenPublish = "0.37.0"
 detekt = "1.23.8"

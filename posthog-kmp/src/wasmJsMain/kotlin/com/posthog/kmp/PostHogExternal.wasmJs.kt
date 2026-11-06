@@ -22,7 +22,11 @@ internal external interface PostHogJsApi : JsAny {
     fun getFeatureFlag(key: String, options: JsAny? = definedExternally): JsAny?
     fun getAllFeatureFlags(): JsAny?
     fun reloadFeatureFlags()
-    fun onFeatureFlags(callback: () -> Unit): JsAny
+    fun onFeatureFlags(callback: (flags: JsAny?, variants: JsAny?, context: JsAny?) -> Unit): JsAny
+    fun setPersonPropertiesForFlags(properties: JsAny, reloadFeatureFlags: Boolean)
+    fun resetPersonPropertiesForFlags(reloadFeatureFlags: Boolean)
+    fun setGroupPropertiesForFlags(properties: JsAny, reloadFeatureFlags: Boolean)
+    fun resetGroupPropertiesForFlags(groupType: String? = definedExternally)
     fun getFeatureFlagResult(key: String, options: JsAny? = definedExternally): JsAny?
     fun captureException(error: JsAny, additionalProperties: JsAny? = definedExternally)
     fun get_property(key: String): JsAny?

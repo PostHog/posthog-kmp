@@ -28,6 +28,7 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
 
     val bootstrap = createJsObject()
     setJsProperty(options, "bootstrap", bootstrap)
+    config.evaluationContexts?.let { setJsProperty(options, "evaluation_contexts", it.toJsArray()) }
     if (config.beforeSend.isNotEmpty()) {
         setBeforeSendCallback(options) { captureResult -> processBeforeSend(config, captureResult) }
     }
@@ -39,6 +40,9 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
     if (config.optOut) {
         PostHogJs.opt_out_capturing()
     }
+
+    pendingFeatureFlagsListeners.forEach { it.attach() }
+    pendingFeatureFlagsListeners.clear()
 }
 
 private fun PersonProfiles.postHogValue(): String = when (this) {
@@ -157,24 +161,85 @@ internal actual fun platformGetAllFeatureFlags(): Map<String, FeatureFlagResult>
     }
 }
 
-internal actual fun platformReloadFeatureFlags(callback: (() -> Unit)?) {
+internal actual fun platformReloadFeatureFlags(callback: ((PostHogFeatureFlagsLoaded) -> Unit)?) {
     if (callback == null) {
         PostHogJs.reloadFeatureFlags()
+        return
+    }
+    if (!isPostHogJsLoaded(PostHogJs)) {
+        callback(PostHogFeatureFlagsLoaded(emptyMap(), errorsLoading = true))
         return
     }
 
     var registered = false
     var done = false
     var unsubscribe: JsAny? = null
-    unsubscribe = PostHogJs.onFeatureFlags {
+    unsubscribe = PostHogJs.onFeatureFlags { _, variants, context ->
         if (registered && !done) {
             done = true
-            callback()
             unsubscribe?.let(::invokeJsFunction)
+            callback(featureFlagsLoaded(variants, context))
         }
     }
     registered = true
     PostHogJs.reloadFeatureFlags()
+}
+
+/** [PostHog.onFeatureFlags] registrations made before setup; posthog-js drops them until it's initialized. */
+private val pendingFeatureFlagsListeners = mutableListOf<FeatureFlagsListener>()
+
+private class FeatureFlagsListener(private val callback: (PostHogFeatureFlagsLoaded) -> Unit) {
+    private var unsubscribe: JsAny? = null
+    private var active = true
+
+    fun attach() {
+        if (!active) return
+        unsubscribe = PostHogJs.onFeatureFlags { _, variants, context -> callback(featureFlagsLoaded(variants, context)) }
+    }
+
+    fun detach() {
+        active = false
+        pendingFeatureFlagsListeners.remove(this)
+        unsubscribe?.let(::invokeJsFunction)
+        unsubscribe = null
+    }
+}
+
+internal actual fun platformOnFeatureFlags(callback: (PostHogFeatureFlagsLoaded) -> Unit): PostHogFeatureFlagsSubscription {
+    val listener = FeatureFlagsListener(callback)
+    if (isPostHogJsLoaded(PostHogJs)) listener.attach() else pendingFeatureFlagsListeners.add(listener)
+    return PostHogFeatureFlagsSubscription { listener.detach() }
+}
+
+private fun featureFlagsLoaded(variants: JsAny?, context: JsAny?): PostHogFeatureFlagsLoaded = PostHogFeatureFlagsLoaded(
+    featureFlags = variants?.takeIf { isPlainJsObject(it) }?.toKotlinMap().orEmpty(),
+    errorsLoading = context?.let { getJsProperty(it, "errorsLoading") }?.takeIf { isJsBoolean(it) }?.toKotlinBoolean() ?: false
+)
+
+internal actual fun platformSetPersonPropertiesForFlags(properties: Map<String, Any>, reloadFeatureFlags: Boolean) {
+    if (!isPostHogJsLoaded(PostHogJs)) return
+    PostHogJs.setPersonPropertiesForFlags(properties.toJsObject(), reloadFeatureFlags)
+}
+
+internal actual fun platformResetPersonPropertiesForFlags(reloadFeatureFlags: Boolean) {
+    if (!isPostHogJsLoaded(PostHogJs)) return
+    PostHogJs.resetPersonPropertiesForFlags(reloadFeatureFlags)
+}
+
+internal actual fun platformSetGroupPropertiesForFlags(
+    type: String,
+    properties: Map<String, Any>,
+    reloadFeatureFlags: Boolean
+) {
+    if (!isPostHogJsLoaded(PostHogJs)) return
+    PostHogJs.setGroupPropertiesForFlags(mapOf(type to properties).toJsObject(), reloadFeatureFlags)
+}
+
+internal actual fun platformResetGroupPropertiesForFlags(type: String?, reloadFeatureFlags: Boolean) {
+    if (!isPostHogJsLoaded(PostHogJs)) return
+    // posthog-js has no reload option here and never reloads
+    PostHogJs.resetGroupPropertiesForFlags(type)
+    if (reloadFeatureFlags) PostHogJs.reloadFeatureFlags()
 }
 
 internal actual fun platformGetFeatureFlagResult(
@@ -189,7 +254,7 @@ private fun JsAny.toFeatureFlagResult(): FeatureFlagResult? {
     val enabled = getJsProperty(this, "enabled")?.toKotlinBoolean() ?: false
     val variant = getJsProperty(this, "variant")?.toKotlinString()
     val payload = getJsProperty(this, "payload")?.toKotlinValue()
-    return FeatureFlagResult(key = key, enabled = enabled, variant = variant, payload = payload)
+    return featureFlagResult(key = key, enabled = enabled, variant = variant, payload = payload)
 }
 
 private fun processBeforeSend(config: PostHogConfig, captureResult: JsAny?): JsAny? {
@@ -361,6 +426,8 @@ private fun jsStringValue(value: JsAny): String = js("value")
 private fun jsBooleanValue(value: JsAny): Boolean = js("value")
 private fun jsNumberValue(value: JsAny): Double = js("value")
 private fun invokeJsFunction(callable: JsAny): Unit = js("{ callable(); }")
+/** posthog-js sets `__loaded` in `init()`; before it, flag calls reach no persistence. */
+private fun isPostHogJsLoaded(instance: PostHogJsApi): Boolean = js("instance.__loaded === true")
 private fun overrideSdkInfo(instance: PostHogJsApi, sdkName: String, sdkVersion: String): Unit =
     js("{ instance._overrideSDKInfo?.(sdkName, sdkVersion); }")
 private fun flushPostHogQueues(instance: PostHogJsApi): Unit = js("{ instance._requestQueue?.unload(); instance._retryQueue?.unload(); }")

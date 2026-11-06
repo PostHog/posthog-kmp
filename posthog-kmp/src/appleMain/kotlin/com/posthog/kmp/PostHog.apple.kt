@@ -8,15 +8,16 @@ import platform.Foundation.NSLog
 import platform.Foundation.NSMutableDictionary
 import platform.Foundation.addEntriesFromDictionary
 import platform.Foundation.dateWithTimeIntervalSince1970
-import platform.Foundation.setValue
 import swiftPMImport.com.posthog.posthog.kmp.BoxedBeforeSendBlock
 import swiftPMImport.com.posthog.posthog.kmp.PostHogConfig as NativePostHogConfig
 import swiftPMImport.com.posthog.posthog.kmp.PostHogEvent as NativePostHogEvent
 import swiftPMImport.com.posthog.posthog.kmp.PostHogFeatureFlagResult as NativeFeatureFlagResult
+import swiftPMImport.com.posthog.posthog.kmp.PostHogFeatureFlagsLoaded as NativeFeatureFlagsLoaded
 import swiftPMImport.com.posthog.posthog.kmp.PostHogPersonProfilesAlways
 import swiftPMImport.com.posthog.posthog.kmp.PostHogPersonProfilesIdentifiedOnly
 import swiftPMImport.com.posthog.posthog.kmp.PostHogPersonProfilesNever
 import swiftPMImport.com.posthog.posthog.kmp.PostHogSDK
+import swiftPMImport.com.posthog.posthog.kmp.setSdkName
 
 /**
  * Apple implementation using posthog-ios imported through SwiftPM.
@@ -27,6 +28,8 @@ import swiftPMImport.com.posthog.posthog.kmp.PostHogSDK
 
 @Suppress("UNUSED_PARAMETER")
 internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext) {
+    // posthog-ios stamps `$lib`/`$lib_version` and the PostHog-Sdk-Info header from this name and version.
+    PostHogSDK.setSdkName("posthog-kmp", version = PostHogKmpVersion.VERSION)
     val nativeConfig = NativePostHogConfig(projectToken = config.projectToken, host = config.host).apply {
         debug = config.debug
         captureApplicationLifecycleEvents = config.captureApplicationLifecycleEvents
@@ -38,6 +41,7 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         maxQueueSize = config.maxQueueSize.toLong()
         maxBatchSize = config.maxBatchSize.toLong()
         optOut = config.optOut
+        evaluationContexts = config.evaluationContexts
         personProfiles = when (config.personProfiles) {
             PersonProfiles.ALWAYS -> PostHogPersonProfilesAlways
             PersonProfiles.NEVER -> PostHogPersonProfilesNever
@@ -57,9 +61,9 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
             errorTrackingConfig.inAppByDefault = errorTracking.inAppByDefault
         }
 
-        // The native SDK's top-level metadata globals are not exposed through Objective-C.
-        // Enrich every event here before running the user-provided KMP callbacks instead.
-        setBeforeSend(listOf(BoxedBeforeSendBlock { event -> processBeforeSend(config, event) }))
+        if (config.beforeSend.isNotEmpty()) {
+            setBeforeSend(listOf(BoxedBeforeSendBlock { event -> processBeforeSend(config, event) }))
+        }
     }
 
     PostHogSDK.shared.setup(nativeConfig)
@@ -71,21 +75,9 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
 
 private fun processBeforeSend(config: PostHogConfig, event: NativePostHogEvent?): NativePostHogEvent? {
     event ?: return null
-    if (config.beforeSend.isEmpty()) {
-        // Reading the properties into Kotlin and writing them back re-boxes every boolean the
-        // native SDK set, so stamp the metadata natively when no callback needs them in Kotlin.
-        event.properties = event.properties.withSdkMetadata()
-        return event
-    }
-
     val properties = event.properties
         .filterKeys { it is String }
         .mapKeys { it.key as String }
-        .toMutableMap()
-        .apply {
-            this["\$lib"] = "posthog-kmp"
-            this["\$lib_version"] = PostHogKmpVersion.VERSION
-        }
 
     val processed = config.runBeforeSend(
         PostHogEvent(event.event, event.distinctId, properties.toMap())
@@ -98,7 +90,7 @@ private fun processBeforeSend(config: PostHogConfig, event: NativePostHogEvent?)
     // Only what the callback actually replaced is rebuilt. Carrying the rest over as the native
     // objects they already are keeps a $snapshot payload off the main thread's critical path.
     val (removedKeys, changedValues) = propertyDelta(properties, processed.properties)
-    event.properties = event.properties.withSdkMetadata(removedKeys, changedValues)
+    event.properties = event.properties.withChanges(removedKeys, changedValues)
     return event
 }
 
@@ -121,23 +113,21 @@ internal fun propertyDelta(
 }
 
 /**
- * Adds the KMP SDK metadata to [this], along with whatever a before-send callback removed or
- * replaced, without reading the values it already holds into Kotlin.
+ * Applies what a before-send callback removed or replaced to [this], without reading the values
+ * it already holds into Kotlin. Reading them back would re-box every boolean the native SDK set.
  */
-internal fun Map<Any?, *>.withSdkMetadata(
-    removedKeys: Set<String> = emptySet(),
-    changedValues: Map<String, Any?> = emptyMap()
+internal fun Map<Any?, *>.withChanges(
+    removedKeys: Set<String>,
+    changedValues: Map<String, Any?>
 ): Map<Any?, *> {
-    val stamped = NSMutableDictionary()
-    stamped.addEntriesFromDictionary(this)
-    stamped.setValue("posthog-kmp", forKey = "\$lib")
-    stamped.setValue(PostHogKmpVersion.VERSION, forKey = "\$lib_version")
-    removedKeys.forEach { stamped.removeObjectForKey(it) }
+    val updated = NSMutableDictionary()
+    updated.addEntriesFromDictionary(this)
+    removedKeys.forEach { updated.removeObjectForKey(it) }
     if (changedValues.isNotEmpty()) {
-        stamped.addEntriesFromDictionary(changedValues.toNativeProperties())
+        updated.addEntriesFromDictionary(changedValues.toNativeProperties())
     }
     @Suppress("UNCHECKED_CAST")
-    return stamped.copy() as Map<Any?, *>
+    return updated.copy() as Map<Any?, *>
 }
 
 internal actual fun platformCapture(
@@ -214,16 +204,8 @@ internal actual fun platformGroup(
     PostHogSDK.shared.groupWithType(type, key, groupProperties?.toNativeProperties())
 }
 
-internal actual fun platformIsFeatureEnabled(key: String, defaultValue: Boolean, sendFeatureFlagEvent: Boolean): Boolean {
-    // getFeatureFlag fires $feature_flag_called even for absent flags (matching Android) and lets us
-    // honor defaultValue; the iOS SDK's isFeatureEnabled has no defaultValue parameter.
-    val flagValue = PostHogSDK.shared.getFeatureFlagWithKey(key, sendFeatureFlagEvent)
-    return when (flagValue) {
-        null -> defaultValue
-        is String -> true
-        else -> flagValue as? Boolean ?: false
-    }
-}
+internal actual fun platformIsFeatureEnabled(key: String, defaultValue: Boolean, sendFeatureFlagEvent: Boolean): Boolean =
+    PostHogSDK.shared.isFeatureEnabledWithKey(key, defaultValue = defaultValue, sendFeatureFlagEvent = sendFeatureFlagEvent)
 
 internal actual fun platformGetFeatureFlag(key: String, sendFeatureFlagEvent: Boolean): Any? =
     PostHogSDK.shared.getFeatureFlagWithKey(key, sendFeatureFlagEvent)
@@ -234,18 +216,67 @@ internal actual fun platformGetAllFeatureFlags(): Map<String, FeatureFlagResult>
         ?.associate { result -> result.key to result.toFeatureFlagResult() }
         ?: emptyMap()
 
-internal actual fun platformReloadFeatureFlags(callback: (() -> Unit)?) {
+internal actual fun platformReloadFeatureFlags(callback: ((PostHogFeatureFlagsLoaded) -> Unit)?) {
     if (callback != null) {
-        PostHogSDK.shared.reloadFeatureFlagsWithCallback(callback)
+        PostHogSDK.shared.reloadFeatureFlagsWithCallback { loaded -> deliverFeatureFlags(callback, loaded) }
     } else {
         PostHogSDK.shared.reloadFeatureFlags()
+    }
+}
+
+internal actual fun platformOnFeatureFlags(callback: (PostHogFeatureFlagsLoaded) -> Unit): PostHogFeatureFlagsSubscription {
+    val subscription = PostHogSDK.shared.onFeatureFlags { loaded -> deliverFeatureFlags(callback, loaded) }
+    return PostHogFeatureFlagsSubscription { subscription.unsubscribe() }
+}
+
+/** A Kotlin exception thrown back into the native SDK would terminate the app, so it stops here. */
+private fun deliverFeatureFlags(callback: (PostHogFeatureFlagsLoaded) -> Unit, loaded: NativeFeatureFlagsLoaded?) {
+    val featureFlags = loaded?.variants
+        ?.filterKeys { it is String }
+        ?.mapKeys { it.key as String }
+        .orEmpty()
+    try {
+        callback(PostHogFeatureFlagsLoaded(featureFlags, errorsLoading = loaded?.errorsLoading ?: true))
+    } catch (e: Throwable) {
+        if (currentConfig?.debug == true) NSLog("[PostHog] Feature flags callback failed: ${e.message}")
+    }
+}
+
+internal actual fun platformSetPersonPropertiesForFlags(properties: Map<String, Any>, reloadFeatureFlags: Boolean) {
+    PostHogSDK.shared.setPersonPropertiesForFlagsWithProperties(
+        properties.toNativeProperties(),
+        reloadFeatureFlags = reloadFeatureFlags
+    )
+}
+
+internal actual fun platformResetPersonPropertiesForFlags(reloadFeatureFlags: Boolean) {
+    PostHogSDK.shared.resetPersonPropertiesForFlagsWithReloadFeatureFlags(reloadFeatureFlags)
+}
+
+internal actual fun platformSetGroupPropertiesForFlags(
+    type: String,
+    properties: Map<String, Any>,
+    reloadFeatureFlags: Boolean
+) {
+    PostHogSDK.shared.setGroupPropertiesForFlags(
+        type,
+        properties = properties.toNativeProperties(),
+        reloadFeatureFlags = reloadFeatureFlags
+    )
+}
+
+internal actual fun platformResetGroupPropertiesForFlags(type: String?, reloadFeatureFlags: Boolean) {
+    if (type == null) {
+        PostHogSDK.shared.resetGroupPropertiesForFlagsWithReloadFeatureFlags(reloadFeatureFlags)
+    } else {
+        PostHogSDK.shared.resetGroupPropertiesForFlagsWithGroupType(type, reloadFeatureFlags = reloadFeatureFlags)
     }
 }
 
 internal actual fun platformGetFeatureFlagResult(key: String, sendFeatureFlagEvent: Boolean): FeatureFlagResult? =
     PostHogSDK.shared.getFeatureFlagResultWithKey(key, sendFeatureFlagEvent)?.toFeatureFlagResult()
 
-private fun NativeFeatureFlagResult.toFeatureFlagResult(): FeatureFlagResult = FeatureFlagResult(
+private fun NativeFeatureFlagResult.toFeatureFlagResult(): FeatureFlagResult = featureFlagResult(
     key = key,
     enabled = enabled,
     variant = variant,
