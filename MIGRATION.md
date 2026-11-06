@@ -37,7 +37,7 @@ Apps that kept the default `screenshot = false` now upload screenshots. Text inp
 
 ### Capture v1
 
-Android, JVM, iOS and macOS send events to `/i/v1/analytics/events` with the project token in an `Authorization: Bearer` header, instead of `/batch`. PostHog Cloud already serves this path. A reverse proxy or self-hosted instance must forward it too; until it does, events stay queued and are retried.
+Android, JVM, iOS and macOS send events to `/i/v1/analytics/events` with the project token in an `Authorization: Bearer` header, instead of `/batch`. PostHog Cloud already serves this path. A reverse proxy or self-hosted instance must forward it too. Until it does, a 404 is retried with no limit, about every 30 seconds, and events stay queued only until a full queue evicts them (`maxQueueSize`, 1000 by default), oldest first. Any other error status that isn't retried, such as 403 or 405, drops the events.
 
 Capture requests follow only 307 and 308 redirects to the same origin as `host`, and drop events on any other redirect.
 
