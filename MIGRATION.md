@@ -94,4 +94,4 @@ PostHog.setAppLanguage("pt-BR")
 PostHog.setAppLanguage(null) // back to the detected language
 ```
 
-The value is kept in memory only and survives `reset()`. A `$app_language` super property set with `register()` takes precedence. JVM, JavaScript and Wasm send `$app_language` only after you call `setAppLanguage()`.
+The value is kept in memory only and survives `reset()`. A `$app_language` super property set with `register()` takes precedence. JVM sends `$app_language` only after you call `setAppLanguage()`. JavaScript and Wasm don't send it yet, because posthog-js doesn't support it, so `setAppLanguage()` does nothing there; to send it now, call `PostHog.register("\$app_language", "pt-BR")`.

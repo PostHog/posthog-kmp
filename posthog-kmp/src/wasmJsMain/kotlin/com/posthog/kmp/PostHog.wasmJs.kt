@@ -29,9 +29,8 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
     val bootstrap = createJsObject()
     setJsProperty(options, "bootstrap", bootstrap)
     config.evaluationContexts?.let { setJsProperty(options, "evaluation_contexts", it.toJsArray()) }
-    setBeforeSendCallback(options) { captureResult ->
-        captureResult?.let { addAppLanguage(it) }
-        if (config.beforeSend.isEmpty()) captureResult else processBeforeSend(config, captureResult)
+    if (config.beforeSend.isNotEmpty()) {
+        setBeforeSendCallback(options) { captureResult -> processBeforeSend(config, captureResult) }
     }
     config.sessionRecording?.takeIf { it.enabled }?.let { configureSessionRecording(options, it) }
 
@@ -127,29 +126,9 @@ internal actual fun platformUnregister(key: String) {
     PostHogJs.unregister(key)
 }
 
-// posthog-js has no $app_language; a super property would persist and be cleared by reset()
-private var appLanguage: String? = null
-
-internal actual fun platformSetAppLanguage(language: String?) {
-    appLanguage = language
-}
-
-// runs before the app's beforeSend callbacks, like the native SDKs; a registered or event value wins
-private fun addAppLanguage(captureResult: JsAny) {
-    val language = appLanguage ?: return
-    val properties = getJsProperty(captureResult, "properties") ?: return
-    if (getJsProperty(properties, "\$app_language") == null && !excludesAppLanguage(PostHogJs, captureResult)) {
-        setJsProperty(properties, "\$app_language", language.toJsString())
-    }
-}
-
-// posthog-js applies property_denylist and strips minimal $feature_flag_called events to an
-// allowlist before before_send runs, so honor both here
-private fun excludesAppLanguage(posthog: PostHogJsApi, event: JsAny): Boolean = js(
-    "(Array.isArray(posthog.config?.property_denylist) && posthog.config.property_denylist.includes('\$app_language')) || " +
-        "(event.event === '\$feature_flag_called' && event.properties['\$feature_flag_has_experiment'] === false && " +
-        "posthog.get_property('\$minimal_flag_called_events') === true)"
-)
+// posthog-js has no $app_language yet, so Wasm doesn't send it
+@Suppress("UNUSED_PARAMETER")
+internal actual fun platformSetAppLanguage(language: String?) {}
 
 internal actual fun platformGroup(type: String, key: String, groupProperties: Map<String, Any>?) {
     PostHogJs.group(type, key, groupProperties?.toJsObject())

@@ -156,8 +156,9 @@ public object PostHog {
      * Sets the `$app_language` property: the language your app displays, sent with every event.
      *
      * Default: Android 13+ detects it from the app's `localeConfig`, and iOS and macOS from the
-     * localizations the app bundle declares. Android 6-12, JVM, JavaScript and Wasm send no
-     * `$app_language` until you call this. Compare `$locale`, which is the device language.
+     * localizations the app bundle declares. Android 6-12 and JVM send no `$app_language` until you
+     * call this. JavaScript and Wasm don't send it yet, because posthog-js doesn't support it; use
+     * [register] there instead. Compare `$locale`, which is the device language.
      *
      * The value overrides the detected language. It is trimmed and `_` becomes `-`. It's kept in
      * memory only, so call this at startup and whenever the language changes; it survives [reset].

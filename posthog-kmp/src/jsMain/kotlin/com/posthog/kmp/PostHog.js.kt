@@ -43,9 +43,10 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
     options["bootstrap"] = js("{}")
     config.evaluationContexts?.let { options["evaluation_contexts"] = it.toTypedArray() }
 
-    options["before_send"] = { captureResult: dynamic ->
-        addAppLanguage(captureResult)
-        if (config.beforeSend.isEmpty()) captureResult else processBeforeSend(config, captureResult)
+    if (config.beforeSend.isNotEmpty()) {
+        options["before_send"] = { captureResult: dynamic ->
+            processBeforeSend(config, captureResult)
+        }
     }
     
     options["person_profiles"] = when (config.personProfiles) {
@@ -151,31 +152,9 @@ internal actual fun platformUnregister(key: String) {
     PostHogJs.unregister(key)
 }
 
-// posthog-js has no $app_language; a super property would persist and be cleared by reset()
-private var appLanguage: String? = null
-
-internal actual fun platformSetAppLanguage(language: String?) {
-    appLanguage = language
-}
-
-// runs before the app's beforeSend callbacks, like the native SDKs; a registered or event value wins
-private fun addAppLanguage(captureResult: dynamic) {
-    val language = appLanguage ?: return
-    val properties = captureResult?.properties ?: return
-    if (properties["\$app_language"] == undefined && !excludesAppLanguage(captureResult.event, properties)) {
-        properties["\$app_language"] = language
-    }
-}
-
-// posthog-js applies property_denylist and strips minimal $feature_flag_called events to an
-// allowlist before before_send runs, so honor both here
-private fun excludesAppLanguage(event: dynamic, properties: dynamic): Boolean {
-    val denylist: Any? = PostHogJs.config?.property_denylist
-    if (denylist is Array<*> && "\$app_language" in denylist) return true
-    return event == "\$feature_flag_called" &&
-        properties["\$feature_flag_has_experiment"] === false &&
-        PostHogJs.get_property("\$minimal_flag_called_events") === true
-}
+// posthog-js has no $app_language yet, so JS doesn't send it
+@Suppress("UNUSED_PARAMETER")
+internal actual fun platformSetAppLanguage(language: String?) {}
 
 internal actual fun platformGroup(
     type: String,

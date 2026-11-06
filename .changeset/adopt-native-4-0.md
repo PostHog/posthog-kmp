@@ -12,4 +12,4 @@
 - **Breaking:** let `register()` super properties override properties the SDK sets, such as `$os_name`, on Android, JVM, iOS and macOS
 - **Breaking:** change `$locale` to the device's preferred language and region on Android, iOS and macOS, and to a BCP 47 tag that keeps the script, such as `zh-Hant-TW`, on JVM
 - **Breaking:** remove the `version` and `build` properties from `Application Installed`, `Application Updated` and `Application Opened` on iOS and macOS — use `$app_version` and `$app_build`
-- Add the `$app_language` property with the language the app displays on Android 13+, iOS and macOS, and `PostHog.setAppLanguage()` to set it on every platform
+- Add the `$app_language` property with the language the app displays on Android 13+, iOS and macOS, and `PostHog.setAppLanguage()` to set it on every platform except JavaScript and Wasm

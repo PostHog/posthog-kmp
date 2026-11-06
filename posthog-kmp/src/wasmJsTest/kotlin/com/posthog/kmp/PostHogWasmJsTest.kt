@@ -24,7 +24,6 @@ class PostHogWasmJsTest {
 
     @AfterTest
     fun tearDown() {
-        PostHog.setAppLanguage(null)
         mockPostHogWasmJs = null
         currentConfig = null
     }
@@ -60,53 +59,6 @@ class PostHogWasmJsTest {
         assertTrue(readBoolean(fakePostHog, "optedOut"))
         assertEquals("posthog-kmp", readString(fakePostHog, "sdkName"))
         assertEquals("web,checkout", readEvaluationContexts(fakePostHog))
-    }
-
-    @Test
-    fun appLanguageIsAddedToEveryEventAndSurvivesReset() {
-        PostHog.setup(PostHogConfig(projectToken = "phc_test"), PostHogContext())
-
-        assertFalse(hasDeepJsProperty(assertNotNull(invokeBeforeSendWithAppLanguage(fakePostHog, null)), "properties", "\$app_language"))
-
-        PostHog.setAppLanguage(" pt_BR ")
-        PostHog.reset()
-        val added = assertNotNull(invokeBeforeSendWithAppLanguage(fakePostHog, null))
-        assertEquals("pt-BR", readDeepJsString(added, "properties", "\$app_language"))
-        val registered = assertNotNull(invokeBeforeSendWithAppLanguage(fakePostHog, "de"))
-        assertEquals("de", readDeepJsString(registered, "properties", "\$app_language"))
-
-        PostHog.setAppLanguage(null)
-        assertFalse(hasDeepJsProperty(assertNotNull(invokeBeforeSendWithAppLanguage(fakePostHog, null)), "properties", "\$app_language"))
-    }
-
-    @Test
-    fun appLanguageSkipsDenylistAndMinimalFlagCalledEvents() {
-        PostHog.setup(PostHogConfig(projectToken = "phc_test"), PostHogContext())
-        PostHog.setAppLanguage("de")
-        enableMinimalFlagCalledEvents(fakePostHog)
-
-        assertFalse(hasDeepJsProperty(assertNotNull(invokeBeforeSendFlagCalled(fakePostHog, false)), "properties", "\$app_language"))
-        assertEquals("de", readDeepJsString(assertNotNull(invokeBeforeSendFlagCalled(fakePostHog, true)), "properties", "\$app_language"))
-
-        denylistAppLanguage(fakePostHog)
-        assertFalse(hasDeepJsProperty(assertNotNull(invokeBeforeSendWithAppLanguage(fakePostHog, null)), "properties", "\$app_language"))
-    }
-
-    @Test
-    fun beforeSendCallbacksSeeAppLanguage() {
-        var seen: Any? = null
-        PostHog.setup(
-            PostHogConfig(projectToken = "phc_test", beforeSend = listOf(PostHogBeforeSend {
-                seen = it.properties["\$app_language"]
-                it
-            })),
-            PostHogContext()
-        )
-        PostHog.setAppLanguage("fr")
-
-        invokeBeforeSend(fakePostHog)
-
-        assertEquals("fr", seen)
     }
 
     @Test
@@ -485,16 +437,6 @@ private fun invokeBeforeSend(target: PostHogJsApi): JsAny? = js(
         "email: 'person@example.com', plan: 'paid', nullable: null, nested: [['one'], ['two']], " +
         "date: new Date(0) } })"
 )
-private fun invokeBeforeSendWithAppLanguage(target: PostHogJsApi, language: String?): JsAny? = js(
-    "target.options.before_send({ event: 'a', properties: language === null ? {} : { \$app_language: language } })"
-)
-private fun invokeBeforeSendFlagCalled(target: PostHogJsApi, hasExperiment: Boolean): JsAny? = js(
-    "target.options.before_send({ event: '\$feature_flag_called', properties: { \$feature_flag_has_experiment: hasExperiment } })"
-)
-private fun enableMinimalFlagCalledEvents(target: PostHogJsApi): Unit =
-    js("{ target.get_property = (key) => key === '\$minimal_flag_called_events'; }")
-private fun denylistAppLanguage(target: PostHogJsApi): Unit =
-    js("{ target.config = { property_denylist: ['\$app_language'] }; }")
 private fun invokeBeforeSendWithoutDistinctId(target: PostHogJsApi): JsAny? =
     js("target.options.before_send({ event: 'checkout', properties: {} })")
 private fun invokeBeforeSendWithoutEvent(target: PostHogJsApi): JsAny? =
