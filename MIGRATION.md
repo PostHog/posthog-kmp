@@ -78,7 +78,7 @@ To react to every flag load rather than one reload, use the new `PostHog.onFeatu
 | `$locale` is the device's preferred language with its region, such as `de-CH`. | Android, iOS, macOS | Filter on the new `$app_language` for the language the app shows. |
 | `$locale` is a BCP 47 tag that keeps the script, such as `zh-Hant-TW`, and is `en` rather than `en-` when the locale has no region. | JVM | Update filters that match the old form. |
 | `Application Installed`, `Application Updated` and `Application Opened` no longer have `version` and `build`. | iOS, macOS | Use `$app_version` and `$app_build`. |
-| New `$app_language` property with the language the app displays. Set it yourself with `PostHog.setAppLanguage()` on any platform. | Android 13+, iOS, macOS | See [App language](#app-language) if you translate with Compose Multiplatform resources. |
+| New `$app_language` property with the language the app displays. Set it yourself with `PostHog.setAppLanguage()` on Android, JVM, iOS and macOS. | Android 13+, iOS, macOS | See [App language](#app-language) if you translate with Compose Multiplatform resources. |
 
 ### App language
 
@@ -94,4 +94,5 @@ PostHog.setAppLanguage("pt-BR")
 PostHog.setAppLanguage(null) // back to the detected language
 ```
 
-The value is kept in memory only and survives `reset()`. A `$app_language` super property set with `register()` takes precedence. JVM sends `$app_language` only after you call `setAppLanguage()`. JavaScript and Wasm don't send it yet, because posthog-js doesn't support it, so `setAppLanguage()` does nothing there; to send it now, call `PostHog.register("\$app_language", "pt-BR")`.
+<!-- TODO(app-language-before-setup): remove the next sentence once Android and JVM keep a language set before setup(). -->
+On Android and JVM, call `setAppLanguage()` after `PostHog.setup()`: a call before setup is dropped. The value is kept in memory only and survives `reset()`. A `$app_language` super property set with `register()` takes precedence. JVM sends `$app_language` only after you call `setAppLanguage()`. JavaScript and Wasm don't send it yet, because posthog-js doesn't support it, so `setAppLanguage()` does nothing there; to send it now, call `PostHog.register("\$app_language", "pt-BR")`.

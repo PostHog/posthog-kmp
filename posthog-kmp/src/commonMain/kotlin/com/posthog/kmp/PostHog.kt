@@ -164,6 +164,8 @@ public object PostHog {
      * memory only, so call this at startup and whenever the language changes; it survives [reset].
      * A `$app_language` super property set with [register] takes precedence.
      *
+     * On Android and JVM, call this after [setup]: a call before [setup] is dropped.
+     *
      * ```kotlin
      * PostHog.setAppLanguage("pt-BR")
      * PostHog.setAppLanguage(null) // back to the detected language
@@ -173,6 +175,8 @@ public object PostHog {
      *   to go back to the detected language
      */
     public fun setAppLanguage(language: String?) {
+        // TODO(app-language-before-setup): drop the "after setup" notes in this KDoc and MIGRATION.md once
+        // Android and JVM keep a language set before setup().
         platformSetAppLanguage(language?.trim()?.replace('_', '-')?.ifEmpty { null })
     }
 

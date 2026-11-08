@@ -152,9 +152,10 @@ internal actual fun platformUnregister(key: String) {
     PostHogJs.unregister(key)
 }
 
-// posthog-js has no $app_language yet, so JS doesn't send it
 @Suppress("UNUSED_PARAMETER")
-internal actual fun platformSetAppLanguage(language: String?) {}
+internal actual fun platformSetAppLanguage(language: String?) {
+    // posthog-js has no $app_language yet, so JS doesn't send it
+}
 
 internal actual fun platformGroup(
     type: String,
