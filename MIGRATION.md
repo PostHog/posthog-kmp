@@ -36,6 +36,8 @@ SessionRecordingConfig(maskAllImages = true)
 
 Apps that kept the default `screenshot = false` now upload screenshots. Text inputs and images stay masked by default, but custom-drawn content such as maps, video or canvas drawing is captured as it appears. Mask it with the native SDKs' masking APIs, or turn replay off for those screens.
 
+`debouncerDelayMs` is deprecated in favor of `throttleDelayMs`, which now applies on iOS as well as Android. The constructor still accepts `debouncerDelayMs`, but `copy(debouncerDelayMs = ...)` no longer compiles: use `copy(throttleDelayMs = ...)`. Destructuring a `SessionRecordingConfig` by position also shifts, because `screenshot` is gone.
+
 ### Capture v1
 
 Android, JVM, iOS and macOS send events to `/i/v1/analytics/events` with the project token in an `Authorization: Bearer` header, instead of `/batch`. PostHog Cloud already serves this path. A reverse proxy or self-hosted instance must forward it too, and pass `Authorization` and `Content-Encoding` through unchanged. A proxy set up from PostHog's [proxy guides](https://posthog.com/docs/advanced/proxy) before 29 October 2026 strips `Authorization`, so PostHog answers 401 and the events are dropped; update it from the current guide. PostHog's managed reverse proxy needs no change. Until it does, a 404 is retried with no limit, about every 30 seconds, and events stay queued only until a full queue evicts them (`maxQueueSize`, 1000 by default), oldest first. Any other error status that isn't retried, such as 401, 403 or 405, drops the events.

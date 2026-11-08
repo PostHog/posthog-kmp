@@ -195,7 +195,7 @@ public object PostHog {
      * @param defaultValue Value to return if the flag is not found (defaults to false)
      * @param sendFeatureFlagEvent Whether to send a `$feature_flag_called` event for this
      *   lookup; null (the default) falls back to [PostHogConfig.sendFeatureFlagEvent]
-     * @return true if the flag is enabled, defaultValue otherwise
+     * @return true if the flag is enabled, false if it is disabled, or [defaultValue] if it is not found
      */
     public fun isFeatureEnabled(key: String, defaultValue: Boolean = false, sendFeatureFlagEvent: Boolean? = null): Boolean {
         return platformIsFeatureEnabled(key, defaultValue, resolveSendFeatureFlagEvent(sendFeatureFlagEvent))
@@ -204,7 +204,8 @@ public object PostHog {
     /**
      * Get the value of a feature flag.
      *
-     * Feature flags can return boolean, string variants, or JSON payloads.
+     * Returns `true` or `false` for a boolean flag, or the variant key as a `String` for a
+     * multivariate flag. Use [getFeatureFlagResult] to read a flag's payload.
      *
      * @param key The feature flag key
      * @param sendFeatureFlagEvent Whether to send a `$feature_flag_called` event for this
