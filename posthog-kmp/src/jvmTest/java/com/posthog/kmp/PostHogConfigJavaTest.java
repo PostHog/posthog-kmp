@@ -7,6 +7,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class PostHogConfigJavaTest {
@@ -87,6 +88,6 @@ public class PostHogConfigJavaTest {
         );
         assertEquals(PostHogConfig.HOST_US, config.getHost());
         assertFalse(config.getCapturePushNotificationOpened());
-        assertEquals(null, config.getEvaluationContexts());
+        assertNull(config.getEvaluationContexts());
     }
 }
