@@ -7,7 +7,8 @@
 - **Breaking:** require Xcode 26 or later to build iOS and macOS apps, and macOS 11 or later
 - **Breaking:** send events to capture v1 (`/i/v1/analytics/events`) on Android, JVM, iOS and macOS — make sure your reverse proxy or self-hosted instance serves that path; only 307 and 308 redirects to the same origin are followed
 - **Breaking:** disable the SDK at setup when `projectToken` is a personal API key (`phx_...`) on Android, JVM, iOS and macOS
-- **Breaking:** drop events with an empty name, including one `beforeSend` renames to `""`, and let PostHog drop events whose name or distinct ID is over 200 bytes, on Android, JVM, iOS and macOS
+- **Breaking:** drop events with an empty name or with a distinct ID that `beforeSend` blanks, and let PostHog drop events whose name or distinct ID is over 200 bytes, on Android, JVM, iOS and macOS
+- **Breaking:** leave out `$feature_flag_response` on `$feature_flag_called` for a missing flag on Android, JVM, iOS and macOS — filter on *is not set* instead of `""` or `false`
 - **Breaking:** return a `null` `FeatureFlagResult.payload` for a payload that isn't valid JSON on Android, JVM, iOS and macOS
 - **Breaking:** let `register()` super properties override properties the SDK sets, such as `$os_name`, on Android, JVM, iOS and macOS
 - **Breaking:** change `$locale` to the device's preferred language and region on Android, iOS and macOS, and to a BCP 47 tag that keeps the script, such as `zh-Hant-TW`, on JVM

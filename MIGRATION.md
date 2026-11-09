@@ -4,11 +4,13 @@
 
 0.11 moves Android, JVM, iOS and macOS to the 4.0 native SDKs: posthog-android 4.0, the JVM core `com.posthog:posthog` 7.0 and posthog-ios 4.0. JavaScript and Wasm targets stay on posthog-js; of the breaking changes below, only [Feature flags](#feature-flags) reaches them.
 
-The native SDKs list every change in their own guides: [posthog-android](https://github.com/PostHog/posthog-android/blob/main/docs/migration-3.x-to-4.0.md) and [posthog-ios](https://github.com/PostHog/posthog-ios/blob/main/MIGRATION.md). This guide covers what reaches a KMP app. If your app also calls posthog-android, posthog-ios or the JVM core `com.posthog:posthog` directly, that code moves to 4.0 (core 7.0) too, so follow those guides for it.
+<!-- TODO(native-4.0-links): these tags don't exist until posthog-android 4.0.0 and posthog-ios 4.0.0 are released; check both links resolve before merging. -->
+The native SDKs list every change in their own guides: [posthog-android](https://github.com/PostHog/posthog-android/blob/android-v4.0.0/MIGRATION.md) and [posthog-ios](https://github.com/PostHog/posthog-ios/blob/4.0.0/MIGRATION.md). This guide covers what reaches a KMP app. If your app also calls posthog-android, posthog-ios or the JVM core `com.posthog:posthog` directly, that code moves to 4.0 (core 7.0) too, so follow those guides for it.
 
 ### Checklist
 
 - [ ] Recompile any library built against posthog-kmp 0.10. Its JVM and Android bytecode no longer links, because some signatures changed.
+- [ ] If your Android or JVM build also uses `posthog-android-surveys-compose` or `posthog-server`, see [Other PostHog artifacts](#other-posthog-artifacts).
 - [ ] Build iOS and macOS apps with Xcode 26 or later, and set the macOS deployment target to 11.0 or later.
 - [ ] Build your Xcode app once and commit the updated `KotlinMultiplatformLinkedPackage`, which now pins posthog-ios 4.0. If that build stops with `Synthetic project state updated`, run it again.
 - [ ] Remove `screenshot` from `SessionRecordingConfig`, and mask custom-drawn content before you ship.
@@ -27,10 +29,17 @@ posthog-ios 4.0 is published to Swift Package Manager only. KMP already imports 
 
 Code compiled against 0.10 has to be recompiled against 0.11, including libraries you publish that depend on posthog-kmp. Some JVM signatures changed, so 0.10 bytecode fails at runtime with `NoSuchMethodError`:
 
-- `SessionRecordingConfig` lost `screenshot` and renamed the `debouncerDelayMs` property to `throttleDelayMs`, which changes its constructor, `copy()` and `componentN()` functions.
+- `SessionRecordingConfig` lost `screenshot` and stores the throttle delay in `throttleDelayMs` instead of `debouncerDelayMs`, which changes its constructor, `copy()` and `component7()` onward. `debouncerDelayMs` is still readable as a deprecated alias. `component6()` keeps its signature but now returns `captureLogcat` instead of `screenshot`, so 0.10 bytecode that calls it gets a different value without an error.
 - `reloadFeatureFlags()` takes a `(PostHogFeatureFlagsLoaded) -> Unit` callback instead of `() -> Unit`.
 
-`PostHogConfig` keeps its 0.10 constructors and `copy()` as hidden overloads, so code that only builds a `PostHogConfig` still links.
+`PostHogConfig` keeps its 0.10 constructor as a public overload and its 0.10 `copy()` as a hidden overload, so code that only builds a `PostHogConfig` still links.
+
+#### Other PostHog artifacts
+
+The JVM core `com.posthog:posthog` 7.0 isn't binary compatible with artifacts built against core 6.x, and Gradle resolves one version for the whole build. If your Android or JVM build also pulls in:
+
+- `com.posthog:posthog-android-surveys-compose`, keep its version and declare `com.posthog:posthog-android` 4.0.0 or later, so Gradle doesn't resolve the 3.x version it depends on.
+- `com.posthog:posthog-server`, use 2.25.0 or later. Older versions fail at runtime against core 7.0 with errors such as `NoSuchMethodError`.
 
 ### Session replay
 
@@ -46,7 +55,11 @@ SessionRecordingConfig(maskAllImages = true)
 
 Apps that kept the default `screenshot = false` now upload screenshots. Text inputs and images stay masked by default, but custom-drawn content such as maps, video or canvas drawing is captured as it appears. Mask it with the native SDKs' masking APIs, or turn replay off for those screens.
 
-`debouncerDelayMs` is deprecated in favor of `throttleDelayMs`, which now applies on iOS as well as Android. The constructor still accepts `debouncerDelayMs`, but `copy(debouncerDelayMs = ...)` no longer compiles: use `copy(throttleDelayMs = ...)`. Destructuring a `SessionRecordingConfig` by position also shifts, because `screenshot` is gone.
+On Android, Compose screens, including Compose Multiplatform UI, are now recorded; wireframe captured them as empty boxes. That can count against your replay quota and may need a consent or privacy disclosure update.
+
+`debouncerDelayMs` is deprecated in favor of `throttleDelayMs`, which now applies on iOS as well as Android. The constructor still accepts `debouncerDelayMs` as a named argument, but `copy(debouncerDelayMs = ...)` no longer compiles: use `copy(throttleDelayMs = ...)`.
+
+Because `screenshot` is gone, positional arguments and destructuring shift: `throttleDelayMs` (a `Long`) now sits where `captureLogcat` was. Rewrite positional calls with named arguments. Java callers of `new SessionRecordingConfig(...)` drop the `screenshot` argument and pass `throttleDelayMs`; `debouncerDelayMs` is only reachable from Java through `SessionRecordingConfig.Companion.invoke(...)`.
 
 ### Capture v1
 
@@ -61,6 +74,8 @@ Until your host serves the path, a 404 is retried with no limit, about every 30 
 
 Capture requests follow only 307 and 308 redirects to the same origin as `host`, and drop events on any other redirect.
 
+Retries also changed: 3xx responses are no longer retried, `Retry-After` is capped at 30 seconds, the wait between failed sends doubles with jitter, and a request carries at most about 5 MiB. See the Retries sections of the native guides.
+
 Events queued on disk by 0.10 are sent through capture v1 after the update.
 
 ### Setup
@@ -69,7 +84,7 @@ Events queued on disk by 0.10 are sent through capture v1 after the update.
 
 ### Feature flags
 
-On Android, JVM, iOS and macOS, `FeatureFlagResult.payload` is `null` for a payload that isn't valid JSON, such as plain text or an empty string, instead of the raw string. A JSON string payload such as `"text"` still returns `"text"`. JavaScript and Wasm still return the raw string.
+On Android, JVM, iOS and macOS, `FeatureFlagResult.payload` is `null` for a payload that isn't valid JSON, such as plain text or an empty string, instead of the raw string. A JSON string payload such as `"text"` still returns `"text"`. On Android and JVM, a JSON `null` payload is `null` instead of the string `"null"`. JavaScript and Wasm still return the raw string.
 
 The `reloadFeatureFlags()` callback receives a `PostHogFeatureFlagsLoaded` with the enabled flags, their values, and `errorsLoading`, which is `true` when the reload failed. A lambda that ignores its parameter still compiles; a function reference or a `() -> Unit` value needs the parameter:
 
@@ -85,7 +100,7 @@ PostHog.reloadFeatureFlags { loaded ->
 
 Before `setup()`, the callback runs right away with no flags and `errorsLoading = true` on every platform. On Android and JVM it used to never run.
 
-A flag whose variant is an empty string is disabled on every platform: `isFeatureEnabled()` returns `false` and `FeatureFlagResult.enabled` is `false`. iOS and macOS used to report it as enabled in `isFeatureEnabled()`, and JavaScript and Wasm in `FeatureFlagResult.enabled`. On Android, JVM, iOS and macOS, captured events no longer list it in `$active_feature_flags`; JavaScript and Wasm already left it out. `getFeatureFlag()` and the event's `$feature/<key>` property still return `""`.
+A flag whose variant is an empty string is disabled on every platform: `isFeatureEnabled()` returns `false` and `FeatureFlagResult.enabled` is `false`, including in the results of `getAllFeatureFlags()`. iOS and macOS used to report it as enabled in `isFeatureEnabled()`, and JavaScript and Wasm in `FeatureFlagResult.enabled`. On Android, JVM, iOS and macOS, captured events no longer list it in `$active_feature_flags`; JavaScript and Wasm already left it out. `getFeatureFlag()` and the event's `$feature/<key>` property still return `""`.
 
 To react to every flag load rather than one reload, use the new `PostHog.onFeatureFlags()`.
 
@@ -93,9 +108,14 @@ To react to every flag load rather than one reload, use the new `PostHog.onFeatu
 
 | Change | Platforms | What to do |
 |---|---|---|
-| Events with an empty name are dropped, including one a `beforeSend` callback renames to `""`. PostHog also drops events whose name or distinct ID is over 200 bytes. | Android, JVM, iOS, macOS | Give every event a name. |
+| Events with an empty name are dropped, including one a `beforeSend` callback renames to `""`. Events whose distinct ID a `beforeSend` callback sets to an empty or whitespace-only string are dropped too. PostHog also drops events whose name or distinct ID is over 200 bytes. | Android, JVM, iOS, macOS | Give every event a name, and don't blank the distinct ID in `beforeSend`. |
+| `$feature_flag_called` for a missing flag leaves out `$feature_flag_response` instead of sending `""` or `false`. | Android, JVM, iOS, macOS | Filter on `$feature_flag_response` *is not set* instead. |
+| A `null` value inside a nested map is left out instead of sent as `null`. `$set` and `$set_once` still send `null` values. | iOS, macOS | Don't rely on `null` entries in nested maps. |
+| A `null` element in a list is sent as `null` at its position instead of being removed, which used to shift later elements. | Android, JVM | Update filters that index into list properties. |
+| `$sdk_debug_replay_capture_mode` is always `screenshot`. | Android, iOS | Update filters on `wireframe`. |
+| `Deep Link Opened` leaves out query parameters whose name starts with `$`. | Android | Rename any `$`-prefixed parameter you read from the event. |
 | Super properties from `register()` override properties the SDK sets, such as `$os_name`. | Android, JVM, iOS, macOS | Don't register `$`-prefixed SDK properties unless you mean to replace them. |
-| `$locale` is the device's preferred language with its region, such as `de-CH`. | Android, iOS, macOS | Filter on the new `$app_language` for the language the app shows. |
+| `$locale` is the device's preferred language with its region, such as `de-CH`. On Android it's left out when the device reports no language, and the legacy codes `iw`, `in` and `ji` become `he`, `id` and `yi`. | Android, iOS, macOS | Filter on the new `$app_language` for the language the app shows, and update filters that match the legacy codes. |
 | `$locale` is a BCP 47 tag that keeps the script, such as `zh-Hant-TW`, and is `en` rather than `en-` when the locale has no region. | JVM | Update filters that match the old form. |
 | `Application Installed`, `Application Updated` and `Application Opened` no longer have `version` and `build`. | iOS, macOS | Use `$app_version` and `$app_build`. |
 | New `$app_language` property with the language the app displays. Set it yourself with `PostHog.setAppLanguage()` on Android, JVM, iOS and macOS. | Android 13+, iOS, macOS | See [App language](#app-language) if you translate with Compose Multiplatform resources. |
