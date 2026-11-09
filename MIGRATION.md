@@ -2,16 +2,17 @@
 
 ## 0.10 to 0.11
 
-0.11 moves Android, JVM, iOS and macOS to the 4.0 native SDKs: posthog-android 4.0, the JVM core `com.posthog:posthog` 7.0 and posthog-ios 4.0. JavaScript and Wasm targets stay on posthog-js; of the changes below, only [Feature flags](#feature-flags) reaches them.
+0.11 moves Android, JVM, iOS and macOS to the 4.0 native SDKs: posthog-android 4.0, the JVM core `com.posthog:posthog` 7.0 and posthog-ios 4.0. JavaScript and Wasm targets stay on posthog-js; of the breaking changes below, only [Feature flags](#feature-flags) reaches them.
 
-The native SDKs list every change in their own guides: [posthog-android](https://github.com/PostHog/posthog-android/blob/main/docs/migration-3.x-to-4.0.md) and [posthog-ios](https://github.com/PostHog/posthog-ios/blob/main/MIGRATION.md). This guide covers what reaches a KMP app.
+The native SDKs list every change in their own guides: [posthog-android](https://github.com/PostHog/posthog-android/blob/main/docs/migration-3.x-to-4.0.md) and [posthog-ios](https://github.com/PostHog/posthog-ios/blob/main/MIGRATION.md). This guide covers what reaches a KMP app. If your app also calls posthog-android, posthog-ios or the JVM core `com.posthog:posthog` directly, that code moves to 4.0 (core 7.0) too, so follow those guides for it.
 
 ### Checklist
 
+- [ ] Recompile any library built against posthog-kmp 0.10. Its JVM and Android bytecode no longer links, because some signatures changed.
 - [ ] Build iOS and macOS apps with Xcode 26 or later, and set the macOS deployment target to 11.0 or later.
 - [ ] Build your Xcode app once and commit the updated `KotlinMultiplatformLinkedPackage`, which now pins posthog-ios 4.0. If that build stops with `Synthetic project state updated`, run it again.
 - [ ] Remove `screenshot` from `SessionRecordingConfig`, and mask custom-drawn content before you ship.
-- [ ] If you send events through a reverse proxy or a self-hosted instance, serve `/i/v1/analytics/events` and forward its `Authorization` and `Content-Encoding` headers.
+- [ ] If you send events through a reverse proxy or a self-hosted instance, serve `/i/v1/analytics/events`, forward its `Authorization`, `PostHog-*`, `Content-Type`, `Content-Encoding` and `User-Agent` headers, and pass the response body through unchanged.
 - [ ] Update `reloadFeatureFlags` callbacks that are function references or `() -> Unit` values to take the new `PostHogFeatureFlagsLoaded` parameter.
 - [ ] Check that `projectToken` is your project token (`phc_...`), not a personal API key (`phx_...`).
 - [ ] Update insights, cohorts and alerts that read the properties listed under [Event changes](#event-changes).
@@ -21,6 +22,15 @@ The native SDKs list every change in their own guides: [posthog-android](https:/
 posthog-ios 4.0 uses `swift-tools-version` 6.2, so building the iOS and macOS targets needs Xcode 26. The minimum macOS version is now 11.0; the minimum iOS version stays 15.0.
 
 posthog-ios 4.0 is published to Swift Package Manager only. KMP already imports it through SwiftPM, so you don't need to change how you add the SDK. The generated `KotlinMultiplatformLinkedPackage` in your Xcode project updates to posthog-ios 4.0 on the next build; commit the change.
+
+### Binary compatibility
+
+Code compiled against 0.10 has to be recompiled against 0.11, including libraries you publish that depend on posthog-kmp. Some JVM signatures changed, so 0.10 bytecode fails at runtime with `NoSuchMethodError`:
+
+- `SessionRecordingConfig` lost `screenshot` and renamed the `debouncerDelayMs` property to `throttleDelayMs`, which changes its constructor, `copy()` and `componentN()` functions.
+- `reloadFeatureFlags()` takes a `(PostHogFeatureFlagsLoaded) -> Unit` callback instead of `() -> Unit`.
+
+`PostHogConfig` keeps its 0.10 constructors and `copy()` as hidden overloads, so code that only builds a `PostHogConfig` still links.
 
 ### Session replay
 
@@ -40,7 +50,14 @@ Apps that kept the default `screenshot = false` now upload screenshots. Text inp
 
 ### Capture v1
 
-Android, JVM, iOS and macOS send events to `/i/v1/analytics/events` with the project token in an `Authorization: Bearer` header, instead of `/batch`. PostHog Cloud already serves this path. A reverse proxy or self-hosted instance must forward it too, and pass `Authorization` and `Content-Encoding` through unchanged. A proxy set up from PostHog's [proxy guides](https://posthog.com/docs/advanced/proxy) before 29 October 2026 strips `Authorization`, so PostHog answers 401 and the events are dropped; update it from the current guide. PostHog's managed reverse proxy needs no change. Until it does, a 404 is retried with no limit, about every 30 seconds, and events stay queued only until a full queue evicts them (`maxQueueSize`, 1000 by default), oldest first. Any other error status that isn't retried, such as 401, 403 or 405, drops the events.
+Android, JVM, iOS and macOS send events to `/i/v1/analytics/events` with the project token in an `Authorization: Bearer` header, instead of `/batch`. PostHog Cloud already serves this path. A reverse proxy or self-hosted instance must serve it too. A reverse proxy must:
+
+- Pass these request headers through unchanged: `Authorization` (`Bearer <project token>`), `PostHog-Sdk-Info`, `PostHog-Attempt`, `PostHog-Request-Id`, `PostHog-Request-Timestamp`, `Content-Type`, `Content-Encoding` and `User-Agent`. PostHog answers 401 without `Authorization` and 400 without the others, and the events are dropped.
+- Pass PostHog's response body through unchanged. A 2xx response whose body isn't PostHog's `{"results": {...}}` drops the events instead of retrying them.
+
+A proxy set up from PostHog's [proxy guides](https://posthog.com/docs/advanced/proxy) before 29 October 2026 strips `Authorization`, so PostHog answers 401 and the events are dropped; update it from the current guide. PostHog's managed reverse proxy needs no change.
+
+Until your host serves the path, a 404 is retried with no limit, about every 30 seconds, and events stay queued only until a full queue evicts them (`maxQueueSize`, 1000 by default), oldest first. Any other error status that isn't retried, such as 401, 403 or 405, drops the events.
 
 Capture requests follow only 307 and 308 redirects to the same origin as `host`, and drop events on any other redirect.
 
@@ -99,3 +116,18 @@ PostHog.setAppLanguage(null) // back to the detected language
 
 <!-- TODO(app-language-before-setup): remove the next sentence once Android and JVM keep a language set before setup(). -->
 On Android and JVM, call `setAppLanguage()` after `PostHog.setup()`: a call before setup is dropped. The value is kept in memory only and survives `reset()`. A `$app_language` super property set with `register()` takes precedence. JVM sends `$app_language` only after you call `setAppLanguage()`. JavaScript and Wasm don't send it yet, because posthog-js doesn't support it, so `setAppLanguage()` does nothing there; to send it now, call `PostHog.register("\$app_language", "pt-BR")`.
+
+### New in 0.11
+
+These additions work on every platform, including JavaScript and Wasm.
+
+- `PostHog.setPersonPropertiesForFlags()` and `PostHog.setGroupPropertiesForFlags()` evaluate feature flags with properties you just set, before PostHog processes them. Clear them with `resetPersonPropertiesForFlags()` and `resetGroupPropertiesForFlags()`.
+- `PostHogConfig.evaluationContexts` limits feature flag evaluation to the flags tagged with at least one of those contexts, plus flags with no tags.
+- `PostHog.onFeatureFlags()` calls you back on every feature flag load.
+- `PostHog.setAppLanguage()` sets `$app_language`; see [App language](#app-language).
+
+```kotlin
+val config = PostHogConfig(projectToken = "phc_...", evaluationContexts = listOf("checkout"))
+PostHog.setPersonPropertiesForFlags(mapOf("plan" to "pro"))
+PostHog.setGroupPropertiesForFlags("company", mapOf("plan" to "enterprise"))
+```
