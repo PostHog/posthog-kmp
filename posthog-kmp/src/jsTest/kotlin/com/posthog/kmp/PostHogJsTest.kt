@@ -332,36 +332,29 @@ class PostHogJsTest {
     }
 
     @Test
-    fun testOnFeatureFlagsLateListenerReportsLatestLoadError() {
-        // posthog-js passes { errorsLoading } on each load, but replays cached flags to a new listener without it
-        val handlers = mutableListOf<(dynamic, dynamic, dynamic) -> Unit>()
-        var hasFlags = false
+    fun testOnFeatureFlagsReadsLatestLoadErrorsWhenContextIsMissing() {
+        // Like posthog-js: each load stores its errors, and a new listener gets cached flags without a context
+        var flagErrors: dynamic = js("[]")
+        fakeJs.__loaded = true
+        fakeJs.get_property = { key: String -> if (key == "\$feature_flag_errors") flagErrors else null }
         fakeJs.onFeatureFlags = { cb: (dynamic, dynamic, dynamic) -> Unit ->
-            handlers.add(cb)
-            if (hasFlags) cb(js("['beta']"), js("({ beta: true })"), undefined)
-            val unSub: () -> Unit = { handlers.remove(cb) }
+            cb(js("['beta']"), js("({ beta: true })"), undefined)
+            val unSub: () -> Unit = { }
             unSub
         }
-        fakeJs.init = { _: String, _: dynamic -> fakeJs.__loaded = true }
-        fun load(errorsLoading: Boolean) {
-            hasFlags = true
-            val context: dynamic = js("({})")
-            context.errorsLoading = errorsLoading
-            handlers.toList().forEach { it(js("['beta']"), js("({ beta: true })"), context) }
+        fun lateListenerErrorsLoading(): Boolean {
+            val results = mutableListOf<PostHogFeatureFlagsLoaded>()
+            PostHog.onFeatureFlags { results.add(it) }
+            return results.single().errorsLoading
         }
-        PostHog.setup(PostHogConfig(projectToken = "key"), PostHogContext())
-        load(errorsLoading = false)
-        load(errorsLoading = true)
 
-        val results = mutableListOf<PostHogFeatureFlagsLoaded>()
-        PostHog.onFeatureFlags { results.add(it) }
-        assertEquals(listOf("beta"), results.single().flags)
-        assertTrue(results.single().errorsLoading, "a late listener must see that the latest load failed")
-
-        load(errorsLoading = false)
-        assertFalse(results.last().errorsLoading)
-        PostHog.onFeatureFlags { results.add(it) }
-        assertFalse(results.last().errorsLoading)
+        assertFalse(lateListenerErrorsLoading())
+        flagErrors = js("['connection_error']")
+        assertTrue(lateListenerErrorsLoading(), "a failed load must reach a late listener")
+        flagErrors = js("['quota_limited']")
+        assertTrue(lateListenerErrorsLoading(), "a quota-limited load fires no callback but still failed")
+        flagErrors = js("['errors_while_computing_flags']")
+        assertFalse(lateListenerErrorsLoading(), "posthog-js reports this load with errorsLoading = false")
     }
 
     @Test

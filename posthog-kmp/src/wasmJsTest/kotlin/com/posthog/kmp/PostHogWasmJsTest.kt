@@ -261,22 +261,19 @@ class PostHogWasmJsTest {
     }
 
     @Test
-    fun onFeatureFlagsLateListenerReportsLatestLoadError() {
-        // posthog-js passes { errorsLoading } on each load, but replays cached flags to a new listener without it
-        useListenerList(fakePostHog)
-        PostHog.setup(PostHogConfig(projectToken = "phc_test"), PostHogContext())
-        loadFeatureFlags(fakePostHog, errorsLoading = false)
-        loadFeatureFlags(fakePostHog, errorsLoading = true)
+    fun onFeatureFlagsReadsLatestLoadErrorsWhenContextIsMissing() {
+        // Like posthog-js: each load stores its errors, and a new listener gets cached flags without a context
+        fun lateListenerErrorsLoading(errors: String): Boolean {
+            setFeatureFlagErrors(fakePostHog, errors)
+            val results = mutableListOf<PostHogFeatureFlagsLoaded>()
+            PostHog.onFeatureFlags { results.add(it) }
+            return results.single().errorsLoading
+        }
 
-        val results = mutableListOf<PostHogFeatureFlagsLoaded>()
-        PostHog.onFeatureFlags { results.add(it) }
-        assertEquals(listOf("beta"), results.single().flags)
-        assertTrue(results.single().errorsLoading, "a late listener must see that the latest load failed")
-
-        loadFeatureFlags(fakePostHog, errorsLoading = false)
-        assertFalse(results.last().errorsLoading)
-        PostHog.onFeatureFlags { results.add(it) }
-        assertFalse(results.last().errorsLoading)
+        assertFalse(lateListenerErrorsLoading(""))
+        assertTrue(lateListenerErrorsLoading("connection_error"), "a failed load must reach a late listener")
+        assertTrue(lateListenerErrorsLoading("quota_limited"), "a quota-limited load fires no callback but still failed")
+        assertFalse(lateListenerErrorsLoading("errors_while_computing_flags"), "posthog-js reports this load with errorsLoading = false")
     }
 
     @Test
@@ -479,20 +476,12 @@ private fun invokeBeforeSendWithThrowingGetter(target: PostHogJsApi): JsAny? =
         "{ get(target, key) { if (key === 'properties') throw Error('failed'); return target[key]; } }))")
 private fun notifyFeatureFlags(target: PostHogJsApi): Unit =
     js("{ target.flagsCallback(['beta'], { beta: 'test', off: false }, { errorsLoading: true }); }")
-private fun useListenerList(target: PostHogJsApi): Unit = js(
+/** Sets the errors posthog-js stores for its latest flag load; [errors] is comma-separated. */
+private fun setFeatureFlagErrors(target: PostHogJsApi, errors: String): Unit = js(
     """{
-        target.flagListeners = [];
-        target.onFeatureFlags = function (callback) {
-            target.flagListeners.push(callback);
-            if (target.hasFlags) callback(['beta'], { beta: true });
-            return function () { target.flagListeners = target.flagListeners.filter(function (c) { return c !== callback; }); };
-        };
-    }"""
-)
-private fun loadFeatureFlags(target: PostHogJsApi, errorsLoading: Boolean): Unit = js(
-    """{
-        target.hasFlags = true;
-        target.flagListeners.slice().forEach(function (c) { c(['beta'], { beta: true }, { errorsLoading: errorsLoading }); });
+        const stored = errors ? errors.split(',') : [];
+        const getProperty = target.get_property;
+        target.get_property = function (key) { return key === '${'$'}feature_flag_errors' ? stored : getProperty.call(target, key); };
     }"""
 )
 private fun markUnloaded(target: PostHogJsApi): Unit = js("{ target.__loaded = false; }")

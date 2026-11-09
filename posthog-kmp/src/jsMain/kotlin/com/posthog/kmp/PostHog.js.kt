@@ -81,7 +81,6 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         PostHogJs.opt_out_capturing()
     }
 
-    trackFeatureFlagsErrorsLoading()
     pendingFeatureFlagsListeners.forEach { it.attach() }
     pendingFeatureFlagsListeners.clear()
 }
@@ -263,30 +262,27 @@ internal actual fun platformOnFeatureFlags(callback: (PostHogFeatureFlagsLoaded)
 /** posthog-js sets `__loaded` in `init()`; before it, flag calls reach no persistence. */
 private fun isPostHogJsLoaded(): Boolean = PostHogJs.__loaded == true
 
+private fun featureFlagsLoaded(variants: dynamic, context: dynamic): PostHogFeatureFlagsLoaded =
+    PostHogFeatureFlagsLoaded(
+        dynamicToMap(variants),
+        errorsLoading = context?.errorsLoading as? Boolean ?: latestFeatureFlagsLoadFailed()
+    )
+
+/** The posthog-js property that holds the errors of the latest flag load. */
+private const val FEATURE_FLAG_ERRORS_PROPERTY = "\$feature_flag_errors"
+
+/** Flags loaded, but some couldn't be computed; posthog-js reports that load with `errorsLoading = false`. */
+private const val ERRORS_WHILE_COMPUTING_FLAGS = "errors_while_computing_flags"
+
 /**
- * Whether posthog-js's latest flag load failed. posthog-js passes it on each load but leaves it out
- * when it replays the cached flags to a listener at registration, so a late listener reads it here.
+ * posthog-js leaves `errorsLoading` out when it replays cached flags to a new listener, and when
+ * flags change without a load. It stores the errors of its latest load, so read them instead.
  */
-private var featureFlagsErrorsLoading = false
-private var unsubscribeFeatureFlagsErrorsLoading: dynamic = null
-
-/** Records every load's result, including loads that no [PostHog.onFeatureFlags] listener sees. */
-private fun trackFeatureFlagsErrorsLoading() {
-    if (unsubscribeFeatureFlagsErrorsLoading != null) unsubscribeFeatureFlagsErrorsLoading()
-    featureFlagsErrorsLoading = false
-    unsubscribeFeatureFlagsErrorsLoading = PostHogJs.onFeatureFlags { _: dynamic, _: dynamic, context: dynamic ->
-        recordErrorsLoading(context)
-    }
-}
-
-private fun recordErrorsLoading(context: dynamic) {
-    val errorsLoading = context?.errorsLoading
-    if (errorsLoading is Boolean) featureFlagsErrorsLoading = errorsLoading
-}
-
-private fun featureFlagsLoaded(variants: dynamic, context: dynamic): PostHogFeatureFlagsLoaded {
-    recordErrorsLoading(context)
-    return PostHogFeatureFlagsLoaded(dynamicToMap(variants), errorsLoading = featureFlagsErrorsLoading)
+private fun latestFeatureFlagsLoadFailed(): Boolean = try {
+    val errors: Any? = PostHogJs.get_property(FEATURE_FLAG_ERRORS_PROPERTY)
+    errors is Array<*> && errors.any { it != ERRORS_WHILE_COMPUTING_FLAGS }
+} catch (e: Throwable) {
+    false
 }
 
 internal actual fun platformSetPersonPropertiesForFlags(properties: Map<String, Any>, reloadFeatureFlags: Boolean) {

@@ -41,7 +41,6 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         PostHogJs.opt_out_capturing()
     }
 
-    trackFeatureFlagsErrorsLoading()
     pendingFeatureFlagsListeners.forEach { it.attach() }
     pendingFeatureFlagsListeners.clear()
 }
@@ -217,33 +216,28 @@ internal actual fun platformOnFeatureFlags(callback: (PostHogFeatureFlagsLoaded)
     return PostHogFeatureFlagsSubscription { listener.detach() }
 }
 
+private fun featureFlagsLoaded(variants: JsAny?, context: JsAny?): PostHogFeatureFlagsLoaded = PostHogFeatureFlagsLoaded(
+    featureFlags = variants?.takeIf { isPlainJsObject(it) }?.toKotlinMap().orEmpty(),
+    errorsLoading = context?.let { getJsProperty(it, "errorsLoading") }?.takeIf { isJsBoolean(it) }?.toKotlinBoolean()
+        ?: latestFeatureFlagsLoadFailed()
+)
+
+/** The posthog-js property that holds the errors of the latest flag load. */
+private const val FEATURE_FLAG_ERRORS_PROPERTY = "\$feature_flag_errors"
+
+/** Flags loaded, but some couldn't be computed; posthog-js reports that load with `errorsLoading = false`. */
+private const val ERRORS_WHILE_COMPUTING_FLAGS = "errors_while_computing_flags"
+
 /**
- * Whether posthog-js's latest flag load failed. posthog-js passes it on each load but leaves it out
- * when it replays the cached flags to a listener at registration, so a late listener reads it here.
+ * posthog-js leaves `errorsLoading` out when it replays cached flags to a new listener, and when
+ * flags change without a load. It stores the errors of its latest load, so read them instead.
  */
-private var featureFlagsErrorsLoading = false
-private var unsubscribeFeatureFlagsErrorsLoading: JsAny? = null
-
-/** Records every load's result, including loads that no [PostHog.onFeatureFlags] listener sees. */
-private fun trackFeatureFlagsErrorsLoading() {
-    unsubscribeFeatureFlagsErrorsLoading?.let(::invokeJsFunction)
-    featureFlagsErrorsLoading = false
-    unsubscribeFeatureFlagsErrorsLoading = PostHogJs.onFeatureFlags { _, _, context -> recordErrorsLoading(context) }
-}
-
-private fun recordErrorsLoading(context: JsAny?) {
-    context?.let { getJsProperty(it, "errorsLoading") }?.takeIf { isJsBoolean(it) }?.let {
-        featureFlagsErrorsLoading = it.toKotlinBoolean()
+private fun latestFeatureFlagsLoadFailed(): Boolean = wasmCall("onFeatureFlags") {
+    val errors = PostHogJs.get_property(FEATURE_FLAG_ERRORS_PROPERTY)?.takeIf { isJsArray(it) } ?: return@wasmCall false
+    (0 until jsArrayLength(errors)).any { index ->
+        jsArrayItem(errors, index)?.takeIf { isJsString(it) }?.toKotlinString() != ERRORS_WHILE_COMPUTING_FLAGS
     }
-}
-
-private fun featureFlagsLoaded(variants: JsAny?, context: JsAny?): PostHogFeatureFlagsLoaded {
-    recordErrorsLoading(context)
-    return PostHogFeatureFlagsLoaded(
-        featureFlags = variants?.takeIf { isPlainJsObject(it) }?.toKotlinMap().orEmpty(),
-        errorsLoading = featureFlagsErrorsLoading
-    )
-}
+} ?: false
 
 internal actual fun platformSetPersonPropertiesForFlags(properties: Map<String, Any>, reloadFeatureFlags: Boolean) {
     if (!isPostHogJsLoaded(PostHogJs)) return
