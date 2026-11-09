@@ -69,7 +69,7 @@ Events queued on disk by 0.10 are sent through capture v1 after the update.
 
 ### Feature flags
 
-`FeatureFlagResult.payload` is `null` for a payload that isn't valid JSON, such as plain text or an empty string, instead of the raw string. A JSON string payload such as `"text"` still returns `"text"`.
+On Android, JVM, iOS and macOS, `FeatureFlagResult.payload` is `null` for a payload that isn't valid JSON, such as plain text or an empty string, instead of the raw string. A JSON string payload such as `"text"` still returns `"text"`. JavaScript and Wasm still return the raw string.
 
 The `reloadFeatureFlags()` callback receives a `PostHogFeatureFlagsLoaded` with the enabled flags, their values, and `errorsLoading`, which is `true` when the reload failed. A lambda that ignores its parameter still compiles; a function reference or a `() -> Unit` value needs the parameter:
 
