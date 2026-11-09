@@ -32,10 +32,13 @@ internal class PostHogJvmContext(
     override fun getStaticContext(): Map<String, Any> = cacheStaticContext
 
     override fun getDynamicContext(): Map<String, Any> =
-        mapOf(
-            "\$locale" to "${Locale.getDefault().language}-${Locale.getDefault().country}",
-            "\$timezone" to TimeZone.getDefault().id
-        )
+        buildMap {
+            // BCP 47, matching posthog-android: keeps the script, drops extensions such as -u-fw-mon
+            Locale.getDefault().stripExtensions().toLanguageTag().takeUnless { it == "und" }?.let {
+                put("\$locale", it)
+            }
+            put("\$timezone", TimeZone.getDefault().id)
+        }
 
     override fun getSdkInfo(): Map<String, Any> = cacheSdkInfo
 }

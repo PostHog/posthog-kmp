@@ -29,8 +29,6 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         optOut = config.optOut
         evaluationContexts = config.evaluationContexts
 
-        evaluationContexts = config.evaluationContexts
-
         personProfiles = config.personProfiles.toCorePersonProfiles()
         configureErrorTracking(config.errorTracking)
         configureBeforeSend(config)
