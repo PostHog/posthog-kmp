@@ -332,6 +332,39 @@ class PostHogJsTest {
     }
 
     @Test
+    fun testOnFeatureFlagsLateListenerReportsLatestLoadError() {
+        // posthog-js passes { errorsLoading } on each load, but replays cached flags to a new listener without it
+        val handlers = mutableListOf<(dynamic, dynamic, dynamic) -> Unit>()
+        var hasFlags = false
+        fakeJs.onFeatureFlags = { cb: (dynamic, dynamic, dynamic) -> Unit ->
+            handlers.add(cb)
+            if (hasFlags) cb(js("['beta']"), js("({ beta: true })"), undefined)
+            val unSub: () -> Unit = { handlers.remove(cb) }
+            unSub
+        }
+        fakeJs.init = { _: String, _: dynamic -> fakeJs.__loaded = true }
+        fun load(errorsLoading: Boolean) {
+            hasFlags = true
+            val context: dynamic = js("({})")
+            context.errorsLoading = errorsLoading
+            handlers.toList().forEach { it(js("['beta']"), js("({ beta: true })"), context) }
+        }
+        PostHog.setup(PostHogConfig(projectToken = "key"), PostHogContext())
+        load(errorsLoading = false)
+        load(errorsLoading = true)
+
+        val results = mutableListOf<PostHogFeatureFlagsLoaded>()
+        PostHog.onFeatureFlags { results.add(it) }
+        assertEquals(listOf("beta"), results.single().flags)
+        assertTrue(results.single().errorsLoading, "a late listener must see that the latest load failed")
+
+        load(errorsLoading = false)
+        assertFalse(results.last().errorsLoading)
+        PostHog.onFeatureFlags { results.add(it) }
+        assertFalse(results.last().errorsLoading)
+    }
+
+    @Test
     fun testPropertiesForFlagsRouteToPostHogJs() {
         fakeJs.__loaded = true
         fakeJs.setPersonPropertiesForFlags = { props: dynamic, reload: Boolean ->

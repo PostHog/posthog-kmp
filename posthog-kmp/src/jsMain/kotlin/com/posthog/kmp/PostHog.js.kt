@@ -81,6 +81,7 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         PostHogJs.opt_out_capturing()
     }
 
+    trackFeatureFlagsErrorsLoading()
     pendingFeatureFlagsListeners.forEach { it.attach() }
     pendingFeatureFlagsListeners.clear()
 }
@@ -262,8 +263,31 @@ internal actual fun platformOnFeatureFlags(callback: (PostHogFeatureFlagsLoaded)
 /** posthog-js sets `__loaded` in `init()`; before it, flag calls reach no persistence. */
 private fun isPostHogJsLoaded(): Boolean = PostHogJs.__loaded == true
 
-private fun featureFlagsLoaded(variants: dynamic, context: dynamic): PostHogFeatureFlagsLoaded =
-    PostHogFeatureFlagsLoaded(dynamicToMap(variants), errorsLoading = context?.errorsLoading == true)
+/**
+ * Whether posthog-js's latest flag load failed. posthog-js passes it on each load but leaves it out
+ * when it replays the cached flags to a listener at registration, so a late listener reads it here.
+ */
+private var featureFlagsErrorsLoading = false
+private var unsubscribeFeatureFlagsErrorsLoading: dynamic = null
+
+/** Records every load's result, including loads that no [PostHog.onFeatureFlags] listener sees. */
+private fun trackFeatureFlagsErrorsLoading() {
+    if (unsubscribeFeatureFlagsErrorsLoading != null) unsubscribeFeatureFlagsErrorsLoading()
+    featureFlagsErrorsLoading = false
+    unsubscribeFeatureFlagsErrorsLoading = PostHogJs.onFeatureFlags { _: dynamic, _: dynamic, context: dynamic ->
+        recordErrorsLoading(context)
+    }
+}
+
+private fun recordErrorsLoading(context: dynamic) {
+    val errorsLoading = context?.errorsLoading
+    if (errorsLoading is Boolean) featureFlagsErrorsLoading = errorsLoading
+}
+
+private fun featureFlagsLoaded(variants: dynamic, context: dynamic): PostHogFeatureFlagsLoaded {
+    recordErrorsLoading(context)
+    return PostHogFeatureFlagsLoaded(dynamicToMap(variants), errorsLoading = featureFlagsErrorsLoading)
+}
 
 internal actual fun platformSetPersonPropertiesForFlags(properties: Map<String, Any>, reloadFeatureFlags: Boolean) {
     if (!isPostHogJsLoaded()) return

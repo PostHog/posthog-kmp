@@ -261,6 +261,25 @@ class PostHogWasmJsTest {
     }
 
     @Test
+    fun onFeatureFlagsLateListenerReportsLatestLoadError() {
+        // posthog-js passes { errorsLoading } on each load, but replays cached flags to a new listener without it
+        useListenerList(fakePostHog)
+        PostHog.setup(PostHogConfig(projectToken = "phc_test"), PostHogContext())
+        loadFeatureFlags(fakePostHog, errorsLoading = false)
+        loadFeatureFlags(fakePostHog, errorsLoading = true)
+
+        val results = mutableListOf<PostHogFeatureFlagsLoaded>()
+        PostHog.onFeatureFlags { results.add(it) }
+        assertEquals(listOf("beta"), results.single().flags)
+        assertTrue(results.single().errorsLoading, "a late listener must see that the latest load failed")
+
+        loadFeatureFlags(fakePostHog, errorsLoading = false)
+        assertFalse(results.last().errorsLoading)
+        PostHog.onFeatureFlags { results.add(it) }
+        assertFalse(results.last().errorsLoading)
+    }
+
+    @Test
     fun propertiesForFlagsRouteToPostHogJs() {
         PostHog.setPersonPropertiesForFlags(mapOf("plan" to "pro", "drop" to null), reloadFeatureFlags = false)
         PostHog.setGroupPropertiesForFlags("company", mapOf("plan" to "enterprise"))
@@ -460,6 +479,22 @@ private fun invokeBeforeSendWithThrowingGetter(target: PostHogJsApi): JsAny? =
         "{ get(target, key) { if (key === 'properties') throw Error('failed'); return target[key]; } }))")
 private fun notifyFeatureFlags(target: PostHogJsApi): Unit =
     js("{ target.flagsCallback(['beta'], { beta: 'test', off: false }, { errorsLoading: true }); }")
+private fun useListenerList(target: PostHogJsApi): Unit = js(
+    """{
+        target.flagListeners = [];
+        target.onFeatureFlags = function (callback) {
+            target.flagListeners.push(callback);
+            if (target.hasFlags) callback(['beta'], { beta: true });
+            return function () { target.flagListeners = target.flagListeners.filter(function (c) { return c !== callback; }); };
+        };
+    }"""
+)
+private fun loadFeatureFlags(target: PostHogJsApi, errorsLoading: Boolean): Unit = js(
+    """{
+        target.hasFlags = true;
+        target.flagListeners.slice().forEach(function (c) { c(['beta'], { beta: true }, { errorsLoading: errorsLoading }); });
+    }"""
+)
 private fun markUnloaded(target: PostHogJsApi): Unit = js("{ target.__loaded = false; }")
 private fun hasFlagsCallback(target: PostHogJsApi): Boolean = js("target.flagsCallback !== undefined")
 private fun readEvaluationContexts(target: PostHogJsApi): String = js("target.options.evaluation_contexts.join(',')")
