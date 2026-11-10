@@ -70,6 +70,18 @@ gates every PR and push to `main`; the release publishes the approved commit.
   artifacts already made it to Maven Central. It requires the same `Release`
   environment approval.
 
+## Failed or cancelled release
+
+The independent [release failure notification workflow](.github/workflows/release-failure-notification.yml) checks every completed main-branch `Release` run and alerts if a job failed, timed out, or was cancelled. It still runs when GitHub Actions stops the release mid-run, so it covers cases the in-run "Send failure event to PostHog" job cannot. This includes runner startup failures and cancellations with job records.
+
+It also alerts when the run did not succeed, no job failed, and the "Release and publish" job never appeared in the job list. Once that job succeeds, alerts describe follow-up problems, such as a skipped released Slack notification, instead of claiming the release failed.
+
+Cancelled runs with no jobs are ignored, including superseded queued runs and manual cancellations before any job is created. A rejected approval is also ignored when the release job failed before running any step and the rejection-reply step confirms the rejection in the same attempt.
+
+Job inspection retries transient GitHub API failures up to three times. If inspection still fails, it logs the error and posts a fallback alert with the overall run status and logs link so the release can be checked manually.
+
+Alerts reply to the approval thread in `#approvals-client-libraries`. The release workflow saves the thread timestamp in a run artifact for 30 days, independently of release approval. Failed-job reruns reuse the latest available thread from the same or an earlier attempt. If the timestamp is missing or invalid, the alert falls back to a new channel message. The workflow must be present on the default branch to run.
+
 ## Release approval
 
 Every release requires approval from the Client Libraries team via the `Release` GitHub environment. The request is posted to `#approvals-client-libraries` on Slack.
