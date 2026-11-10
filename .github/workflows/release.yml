@@ -460,17 +460,6 @@ jobs:
             --title "$NEW_VERSION" \
             --notes "$LAST_CHANGELOG_ENTRY"
 
-      - name: Notify Slack - Failed
-        continue-on-error: true
-        if: ${{ failure() && needs.notify-approval-needed.outputs.slack_ts != '' }}
-        uses: PostHog/.github/.github/actions/slack-thread-reply@cb0979b67dcd585828b61ac45927eef4da8f6287 # main
-        with:
-          slack_bot_token: ${{ secrets.SLACK_CLIENT_LIBRARIES_BOT_TOKEN }}
-          slack_channel_id: ${{ vars.SLACK_APPROVALS_CLIENT_LIBRARIES_CHANNEL_ID }}
-          thread_ts: ${{ needs.notify-approval-needed.outputs.slack_ts }}
-          message: "❌ Failed to release `posthog-kmp@${{ needs.prepare-release-candidate.outputs.new-version }}`! <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View logs>"
-          emoji_reaction: "x"
-
   # Runs on ubuntu because posthog-github-action is a container action, which
   # the macOS release job can't execute.
   report-failure:
