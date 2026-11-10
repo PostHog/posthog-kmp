@@ -382,7 +382,8 @@ class PostHogJsTest {
         fakeJs.setPersonPropertiesForFlags = { props: dynamic, reload: Boolean ->
             calledMethods.add("setPersonPropertiesForFlags" to arrayOf<dynamic>(props, reload))
         }
-        fakeJs.setGroupPropertiesForFlags = { props: dynamic, reload: Boolean ->
+        fakeJs.featureFlags = js("{}")
+        fakeJs.featureFlags.setGroupPropertiesForFlags = { props: dynamic, reload: Boolean ->
             calledMethods.add("setGroupPropertiesForFlags" to arrayOf<dynamic>(props, reload))
         }
         fakeJs.resetGroupPropertiesForFlags = { type: dynamic ->

@@ -258,7 +258,8 @@ internal actual fun platformSetGroupPropertiesForFlags(
     reloadFeatureFlags: Boolean
 ) {
     if (!isPostHogJsLoaded(PostHogJs)) return
-    PostHogJs.setGroupPropertiesForFlags(mapOf(type to properties).toJsObject(), reloadFeatureFlags)
+    // The posthog-js facade turns on person processing first, and drops the call with `person_profiles: 'never'`
+    PostHogJs.featureFlags?.setGroupPropertiesForFlags(mapOf(type to properties).toJsObject(), reloadFeatureFlags)
 }
 
 internal actual fun platformResetGroupPropertiesForFlags(type: String?, reloadFeatureFlags: Boolean) {

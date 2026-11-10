@@ -25,7 +25,7 @@ internal external interface PostHogJsApi : JsAny {
     fun onFeatureFlags(callback: (flags: JsAny?, variants: JsAny?, context: JsAny?) -> Unit): JsAny
     fun setPersonPropertiesForFlags(properties: JsAny, reloadFeatureFlags: Boolean)
     fun resetPersonPropertiesForFlags(reloadFeatureFlags: Boolean)
-    fun setGroupPropertiesForFlags(properties: JsAny, reloadFeatureFlags: Boolean)
+    val featureFlags: PostHogJsFeatureFlagsApi?
     fun resetGroupPropertiesForFlags(groupType: String? = definedExternally)
     fun getFeatureFlagResult(key: String, options: JsAny? = definedExternally): JsAny?
     fun captureException(error: JsAny, additionalProperties: JsAny? = definedExternally)
@@ -40,6 +40,10 @@ internal external interface PostHogJsApi : JsAny {
         userPropertiesToSet: JsAny,
         userPropertiesToSetOnce: JsAny? = definedExternally
     )
+}
+
+internal external interface PostHogJsFeatureFlagsApi : JsAny {
+    fun setGroupPropertiesForFlags(properties: JsAny, reloadFeatureFlags: Boolean)
 }
 
 internal external val posthog: PostHogJsApi

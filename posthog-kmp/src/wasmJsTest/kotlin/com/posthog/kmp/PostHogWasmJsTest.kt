@@ -408,7 +408,7 @@ private fun createFakePostHog(): PostHogJsApi = js(
                 return () => { this.unsubscribed = true; };
             },
             setPersonPropertiesForFlags(properties, reload) { this.personForFlags = { properties, reload }; },
-            setGroupPropertiesForFlags(properties, reload) { this.groupForFlags = { properties, reload }; },
+            setGroupPropertiesForFlags() { throw new Error('turns on person processing'); },
             resetGroupPropertiesForFlags(groupType) { this.resetGroupType = groupType == null ? 'all' : groupType; },
             reloadFeatureFlags() {
                 this.reloadCount = (this.reloadCount || 0) + 1;
@@ -426,6 +426,7 @@ private fun createFakePostHog(): PostHogJsApi = js(
                 this.capturedErrorProperties = additionalProperties;
             }
         };
+        fake.featureFlags = { setGroupPropertiesForFlags(properties, reload) { fake.groupForFlags = { properties, reload }; } };
         fake._requestQueue = { unload() { fake.requestQueueUnloaded = true; } };
         fake._retryQueue = { unload() { fake.retryQueueUnloaded = true; } };
         return fake;
