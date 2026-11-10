@@ -5,9 +5,16 @@
 - See the [0.10 to 0.11 migration guide](https://github.com/PostHog/posthog-kmp/blob/main/MIGRATION.md) for upgrade steps
 - **Breaking:** upgrade to posthog-android 4.0, the JVM core 7.0 and posthog-ios 4.0
 - **Breaking:** require Xcode 26 or later to build iOS and macOS apps, and macOS 11 or later
+- **Breaking:** require recompiling libraries built against posthog-kmp 0.10, which fail on Android and JVM with `NoSuchMethodError`
+- **Breaking:** require `posthog-server` 2.25.0 or later, and `posthog-android` 4.0.0 declared alongside `posthog-android-surveys-compose`, in the same Android or JVM build
 - **Breaking:** send events to capture v1 (`/i/v1/analytics/events`) on Android, JVM, iOS and macOS — make sure your reverse proxy or self-hosted instance serves that path; only 307 and 308 redirects to the same origin are followed
+- **Breaking:** retry a capture 404 until the host serves capture v1, keeping events only until a full queue evicts them, stop retrying 3xx responses, and cap a request at about 5 MiB, on Android, JVM, iOS and macOS
 - **Breaking:** disable the SDK at setup when `projectToken` is a personal API key (`phx_...`) on Android, JVM, iOS and macOS
 - **Breaking:** drop events with an empty name or with a distinct ID that `beforeSend` blanks, and let PostHog drop events whose name or distinct ID is over 200 bytes, on Android, JVM, iOS and macOS
+- **Breaking:** mark personless events with a capture option instead of a `$process_person_profile` property, so `beforeSend` no longer sees or changes it, on Android, JVM, iOS and macOS — pass `$process_person_profile` to `capture()` instead
+- **Breaking:** leave out `null` values in nested maps on iOS and macOS, and keep `null` list elements in place instead of removing them on Android and JVM
+- **Breaking:** always send `$sdk_debug_replay_capture_mode` as `screenshot` on Android and iOS
+- **Breaking:** leave out query parameters whose name starts with `$` from `Deep Link Opened` on Android
 - **Breaking:** leave out `$feature_flag_response` on `$feature_flag_called` for a missing flag on Android, JVM, iOS and macOS — filter on *is not set* instead of `""` or `false`
 - **Breaking:** return a `null` `FeatureFlagResult.payload` for a payload that isn't valid JSON on Android, JVM, iOS and macOS
 - **Breaking:** let `register()` super properties override properties the SDK sets, such as `$os_name`, on Android, JVM, iOS and macOS

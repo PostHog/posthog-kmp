@@ -140,7 +140,7 @@ On Android and JVM, call `setAppLanguage()` after `PostHog.setup()`: a call befo
 
 ### New in 0.11
 
-These additions work on every platform, including JavaScript and Wasm.
+These additions work on every platform, including JavaScript and Wasm, except `setAppLanguage()`, which does nothing on JavaScript and Wasm.
 
 - `PostHog.setPersonPropertiesForFlags()` and `PostHog.setGroupPropertiesForFlags()` evaluate feature flags with properties you just set, before PostHog processes them. Clear them with `resetPersonPropertiesForFlags()` and `resetGroupPropertiesForFlags()`.
 - `PostHogConfig.evaluationContexts` limits feature flag evaluation to the flags tagged with at least one of those contexts, plus flags with no tags.
