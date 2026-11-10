@@ -240,8 +240,9 @@ private class FeatureFlagsListener(private val callback: (PostHogFeatureFlagsLoa
 
     fun attach() {
         if (!active) return
+        // posthog-js iterates a snapshot of its listeners, so one unsubscribed mid-delivery still gets called
         unsubscribe = PostHogJs.onFeatureFlags { _: dynamic, variants: dynamic, context: dynamic ->
-            callback(featureFlagsLoaded(variants, context))
+            if (active) callback(featureFlagsLoaded(variants, context))
         }
     }
 

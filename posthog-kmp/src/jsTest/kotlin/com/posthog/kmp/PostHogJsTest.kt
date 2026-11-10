@@ -332,6 +332,25 @@ class PostHogJsTest {
     }
 
     @Test
+    fun testOnFeatureFlagsSkipsListenerUnsubscribedDuringDelivery() {
+        // posthog-js keeps calling the handlers it snapshotted before an unsubscribe
+        var handler: ((dynamic, dynamic, dynamic) -> Unit)? = null
+        fakeJs.__loaded = true
+        fakeJs.onFeatureFlags = { cb: (dynamic, dynamic, dynamic) -> Unit ->
+            handler = cb
+            val unSub: () -> Unit = { }
+            unSub
+        }
+        val results = mutableListOf<PostHogFeatureFlagsLoaded>()
+        val subscription = PostHog.onFeatureFlags { results.add(it) }
+        val snapshotted = assertNotNull(handler)
+
+        subscription.unsubscribe()
+        snapshotted(js("['beta']"), js("({ beta: true })"), js("({ errorsLoading: false })"))
+        assertTrue(results.isEmpty())
+    }
+
+    @Test
     fun testOnFeatureFlagsReadsLatestLoadErrorsWhenContextIsMissing() {
         // Like posthog-js: each load stores its errors, and a new listener gets cached flags without a context
         var flagErrors: dynamic = js("[]")
