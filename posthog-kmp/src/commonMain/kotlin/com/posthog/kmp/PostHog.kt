@@ -265,6 +265,8 @@ public object PostHog {
      * The callback runs once, when the reload finishes, whether or not it succeeded. If the request
      * fails, [PostHogFeatureFlagsLoaded.errorsLoading] is `true` and the values are the last known
      * flags. Before [setup], it runs right away with no flags and `errorsLoading` set to `true`.
+     * On JavaScript and Wasm, posthog-js notifies no listener when the flags quota is exhausted or a
+     * failed request has no cached flags, so the callback waits for the next load that does.
      * It can run on a background thread on Android, JVM, iOS and macOS.
      *
      * ```kotlin
