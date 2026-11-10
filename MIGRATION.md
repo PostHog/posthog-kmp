@@ -17,6 +17,7 @@ The native SDKs list every change in their own guides: [posthog-android](https:/
 - [ ] If you send events through a reverse proxy or a self-hosted instance, serve `/i/v1/analytics/events`, forward its `Authorization`, `PostHog-*`, `Content-Type`, `Content-Encoding` and `User-Agent` headers, and pass the response body through unchanged.
 - [ ] Update `reloadFeatureFlags` callbacks that are function references or `() -> Unit` values to take the new `PostHogFeatureFlagsLoaded` parameter.
 - [ ] Check that `projectToken` is your project token (`phc_...`), not a personal API key (`phx_...`).
+- [ ] If you call `register("\$process_person_profile", false)`, remove it and use `personProfiles` instead (see [Event changes](#event-changes)).
 - [ ] Update insights, cohorts and alerts that read the properties listed under [Event changes](#event-changes).
 
 ### Build requirements
@@ -116,6 +117,7 @@ To react to every flag load rather than one reload, use the new `PostHog.onFeatu
 | `$sdk_debug_replay_capture_mode` is always `screenshot`. | Android, iOS | Update filters on `wireframe`. |
 | `Deep Link Opened` leaves out query parameters whose name starts with `$`. | Android | Rename any `$`-prefixed parameter you read from the event. |
 | Super properties from `register()` override properties the SDK sets, such as `$os_name`. | Android, JVM, iOS, macOS | Don't register `$`-prefixed SDK properties unless you mean to replace them. |
+| A `$process_person_profile = false` registered with `register()` now applies, and it also reaches the events `identify()`, `alias()`, `group()` and `setPersonProperties()` send. In 0.10, the SDK replaced a registered value with its own, so it had no effect. PostHog drops `$identify`, `$create_alias` and `$groupidentify` events with person processing off, with an ingestion warning, and the SDK doesn't report it. A `$set` event is kept, but the person isn't updated. Other events after `identify()` are still linked to the person and billed as identified events. These methods take no capture options yet, so you can't turn person processing back on for one call. | Android, JVM, iOS, macOS | Remove the registered value. To skip person profiles for anonymous users, rely on `personProfiles = PersonProfiles.IDENTIFIED_ONLY`, the default, which still lets `identify()` create the person. To create no person profiles at all, set `personProfiles = PersonProfiles.NEVER`. |
 | `$locale` is the device's preferred language with its region, such as `de-CH`. On Android it's left out when the device reports no language, and the legacy codes `iw`, `in` and `ji` become `he`, `id` and `yi`. | Android, iOS, macOS | Filter on the new `$app_language` for the language the app shows, and update filters that match the legacy codes. |
 | `$locale` is a BCP 47 tag that keeps the script, such as `zh-Hant-TW`, and is `en` rather than `en-` when the locale has no region. | JVM | Update filters that match the old form. |
 | `Application Installed`, `Application Updated` and `Application Opened` no longer have `version` and `build`. | iOS, macOS | Use `$app_version` and `$app_build`. |
