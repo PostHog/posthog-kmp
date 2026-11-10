@@ -261,6 +261,22 @@ class PostHogWasmJsTest {
     }
 
     @Test
+    fun onFeatureFlagsReadsLatestLoadErrorsWhenContextIsMissing() {
+        // Like posthog-js: each load stores its errors, and a new listener gets cached flags without a context
+        fun lateListenerErrorsLoading(errors: String): Boolean {
+            setFeatureFlagErrors(fakePostHog, errors)
+            val results = mutableListOf<PostHogFeatureFlagsLoaded>()
+            PostHog.onFeatureFlags { results.add(it) }
+            return results.single().errorsLoading
+        }
+
+        assertFalse(lateListenerErrorsLoading(""))
+        assertTrue(lateListenerErrorsLoading("connection_error"), "a failed load must reach a late listener")
+        assertTrue(lateListenerErrorsLoading("quota_limited"), "a quota-limited load fires no callback but still failed")
+        assertFalse(lateListenerErrorsLoading("errors_while_computing_flags"), "posthog-js reports this load with errorsLoading = false")
+    }
+
+    @Test
     fun propertiesForFlagsRouteToPostHogJs() {
         PostHog.setPersonPropertiesForFlags(mapOf("plan" to "pro", "drop" to null), reloadFeatureFlags = false)
         PostHog.setGroupPropertiesForFlags("company", mapOf("plan" to "enterprise"))
@@ -460,6 +476,14 @@ private fun invokeBeforeSendWithThrowingGetter(target: PostHogJsApi): JsAny? =
         "{ get(target, key) { if (key === 'properties') throw Error('failed'); return target[key]; } }))")
 private fun notifyFeatureFlags(target: PostHogJsApi): Unit =
     js("{ target.flagsCallback(['beta'], { beta: 'test', off: false }, { errorsLoading: true }); }")
+/** Sets the errors posthog-js stores for its latest flag load; [errors] is comma-separated. */
+private fun setFeatureFlagErrors(target: PostHogJsApi, errors: String): Unit = js(
+    """{
+        const stored = errors ? errors.split(',') : [];
+        const getProperty = target.get_property;
+        target.get_property = function (key) { return key === '${'$'}feature_flag_errors' ? stored : getProperty.call(target, key); };
+    }"""
+)
 private fun markUnloaded(target: PostHogJsApi): Unit = js("{ target.__loaded = false; }")
 private fun hasFlagsCallback(target: PostHogJsApi): Boolean = js("target.flagsCallback !== undefined")
 private fun readEvaluationContexts(target: PostHogJsApi): String = js("target.options.evaluation_contexts.join(',')")

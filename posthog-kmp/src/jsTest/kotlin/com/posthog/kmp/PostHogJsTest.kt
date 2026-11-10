@@ -332,6 +332,32 @@ class PostHogJsTest {
     }
 
     @Test
+    fun testOnFeatureFlagsReadsLatestLoadErrorsWhenContextIsMissing() {
+        // Like posthog-js: each load stores its errors, and a new listener gets cached flags without a context
+        var flagErrors: dynamic = js("[]")
+        fakeJs.__loaded = true
+        fakeJs.get_property = { key: String -> if (key == "\$feature_flag_errors") flagErrors else null }
+        fakeJs.onFeatureFlags = { cb: (dynamic, dynamic, dynamic) -> Unit ->
+            cb(js("['beta']"), js("({ beta: true })"), undefined)
+            val unSub: () -> Unit = { }
+            unSub
+        }
+        fun lateListenerErrorsLoading(): Boolean {
+            val results = mutableListOf<PostHogFeatureFlagsLoaded>()
+            PostHog.onFeatureFlags { results.add(it) }
+            return results.single().errorsLoading
+        }
+
+        assertFalse(lateListenerErrorsLoading())
+        flagErrors = js("['connection_error']")
+        assertTrue(lateListenerErrorsLoading(), "a failed load must reach a late listener")
+        flagErrors = js("['quota_limited']")
+        assertTrue(lateListenerErrorsLoading(), "a quota-limited load fires no callback but still failed")
+        flagErrors = js("['errors_while_computing_flags']")
+        assertFalse(lateListenerErrorsLoading(), "posthog-js reports this load with errorsLoading = false")
+    }
+
+    @Test
     fun testPropertiesForFlagsRouteToPostHogJs() {
         fakeJs.__loaded = true
         fakeJs.setPersonPropertiesForFlags = { props: dynamic, reload: Boolean ->
