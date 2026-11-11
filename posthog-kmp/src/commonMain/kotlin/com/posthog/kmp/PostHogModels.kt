@@ -11,8 +11,103 @@ package com.posthog.kmp
  */
 public data class CaptureOptions(
     val groups: Map<String, String>? = null,
-    val timestamp: Long? = null
+    val timestamp: Long? = null,
+    /** Settings that tell PostHog how to process this event. See [PostHogEventOptions]. */
+    val eventOptions: PostHogEventOptions? = null
 )
+
+/**
+ * Settings that tell PostHog how to process an event, sent apart from its properties.
+ *
+ * A `null` field is left unset, so PostHog and the SDK use their defaults.
+ *
+ * These replace the `$process_person_profile`, `$cookieless_mode`, `$ignore_sent_at` and
+ * `$product_tour_id` properties. Those properties still work, and a field set here wins over its
+ * property.
+ *
+ * On JavaScript and Wasm, posthog-js has no options, so the fields set here are sent as those
+ * properties on [PostHog.capture], [PostHog.screen] and [PostHog.captureException] events, and
+ * dropped by [PostHog.identify], [PostHog.alias], [PostHog.group] and [PostHog.setPersonProperties],
+ * which posthog-js sends without event properties. posthog-js sets `$process_person_profile`
+ * itself, so [processPersonProfile] has no effect there.
+ *
+ * @property processPersonProfile Whether PostHog creates or updates a person profile for this
+ *   event. Option key: `process_person_profile`.
+ * @property cookielessMode Whether PostHog processes this event in cookieless mode. Option key:
+ *   `cookieless_mode`.
+ * @property disableSkewCorrection Whether PostHog keeps the event timestamp as sent instead of
+ *   correcting it for device clock skew. Option key: `disable_skew_correction`.
+ * @property productTourId The product tour the event belongs to. Option key: `product_tour_id`.
+ */
+public data class PostHogEventOptions(
+    val processPersonProfile: Boolean? = null,
+    val cookielessMode: Boolean? = null,
+    val disableSkewCorrection: Boolean? = null,
+    val productTourId: String? = null
+)
+
+internal const val PROCESS_PERSON_PROFILE_OPTION = "process_person_profile"
+internal const val COOKIELESS_MODE_OPTION = "cookieless_mode"
+internal const val DISABLE_SKEW_CORRECTION_OPTION = "disable_skew_correction"
+internal const val PRODUCT_TOUR_ID_OPTION = "product_tour_id"
+
+/** Each option key and the legacy property posthog-js reads instead. */
+internal val LEGACY_OPTION_PROPERTIES: Map<String, String> = mapOf(
+    PROCESS_PERSON_PROFILE_OPTION to "\$process_person_profile",
+    COOKIELESS_MODE_OPTION to "\$cookieless_mode",
+    DISABLE_SKEW_CORRECTION_OPTION to "\$ignore_sent_at",
+    PRODUCT_TOUR_ID_OPTION to "\$product_tour_id"
+)
+
+/** The fields that are set, keyed by option key; `null` when none is. */
+internal fun PostHogEventOptions.toOptionsMap(): Map<String, Any>? = buildMap {
+    processPersonProfile?.let { put(PROCESS_PERSON_PROFILE_OPTION, it) }
+    cookielessMode?.let { put(COOKIELESS_MODE_OPTION, it) }
+    disableSkewCorrection?.let { put(DISABLE_SKEW_CORRECTION_OPTION, it) }
+    productTourId?.let { put(PRODUCT_TOUR_ID_OPTION, it) }
+}.ifEmpty { null }
+
+/** Reads the known keys of a native options map; a value of another type reads as unset. */
+internal fun Map<String, Any?>.toEventOptions(): PostHogEventOptions = PostHogEventOptions(
+    processPersonProfile = this[PROCESS_PERSON_PROFILE_OPTION] as? Boolean,
+    cookielessMode = this[COOKIELESS_MODE_OPTION] as? Boolean,
+    disableSkewCorrection = this[DISABLE_SKEW_CORRECTION_OPTION] as? Boolean,
+    productTourId = this[PRODUCT_TOUR_ID_OPTION] as? String
+)
+
+/**
+ * The option keys a before-send callback cleared, and the ones it set to a new value. Fields it
+ * didn't change are in neither, so the native values for them, and for keys
+ * [PostHogEventOptions] doesn't know, are kept as they are.
+ */
+internal fun eventOptionChanges(
+    before: PostHogEventOptions,
+    after: PostHogEventOptions
+): Pair<Set<String>, Map<String, Any>> {
+    val beforeMap = before.toOptionsMap().orEmpty()
+    val afterMap = after.toOptionsMap().orEmpty()
+    return (beforeMap.keys - afterMap.keys) to afterMap.filter { (key, value) -> beforeMap[key] != value }
+}
+
+/** Applies the changes [eventOptionChanges] finds to a native options map. */
+internal fun Map<String, Any?>.withEventOptionChanges(
+    before: PostHogEventOptions,
+    after: PostHogEventOptions
+): Map<String, Any?> {
+    val (removed, changed) = eventOptionChanges(before, after)
+    if (removed.isEmpty() && changed.isEmpty()) return this
+    return this - removed + changed
+}
+
+/** The fields that are set, as the legacy properties posthog-js reads; `null` when none is. */
+internal fun PostHogEventOptions?.toLegacyProperties(): Map<String, Any>? =
+    this?.toOptionsMap()?.mapKeys { (key, _) -> LEGACY_OPTION_PROPERTIES.getValue(key) }
+
+/** [properties] with the [options] set as their legacy properties, which win over the same keys. */
+internal fun withLegacyOptionProperties(properties: Map<String, Any>?, options: PostHogEventOptions?): Map<String, Any>? {
+    val legacy = options.toLegacyProperties() ?: return properties
+    return properties.orEmpty() + legacy
+}
 
 /**
  * Result of a feature flag evaluation with detailed information.

@@ -2,6 +2,7 @@ package com.posthog.kmp
 
 import com.posthog.PostHogFeatureFlagsCallback
 import com.posthog.PostHogInterface
+import com.posthog.PostHogInternal
 import java.util.Date
 
 @Volatile
@@ -64,11 +65,14 @@ internal fun com.posthog.PostHogConfig.configureBeforeSend(config: PostHogConfig
     if (config.beforeSend.isEmpty()) return
 
     addBeforeSend { event ->
+        val nativeOptions = event.options.orEmpty()
+        val options = nativeOptions.toEventOptions()
         config.runBeforeSend(
             PostHogEvent(
                 event = event.event,
                 distinctId = event.distinctId,
-                properties = event.properties.orEmpty()
+                properties = event.properties.orEmpty(),
+                options = options
             ),
             onError = {
                 if (config.debug) logger.log("Before-send callback failed; event was dropped.")
@@ -80,7 +84,9 @@ internal fun com.posthog.PostHogConfig.configureBeforeSend(config: PostHogConfig
                 properties = processed.properties.mapNotNull { (key, value) ->
                     value?.let { key to it }
                 }.toMap().toMutableMap()
-            )
+            ).apply {
+                this.options = nativeOptions.withEventOptionChanges(options, processed.options).toMutableMap()
+            }
         }
     }
 }
@@ -89,37 +95,58 @@ internal actual fun platformCapture(
     event: String,
     properties: Map<String, Any>?,
     groups: Map<String, String>?,
-    timestamp: Long?
+    timestamp: Long?,
+    options: PostHogEventOptions?
 ) {
     postHogInstance?.capture(
         event = event,
         properties = properties,
         groups = groups,
-        timestamp = timestamp?.let { Date(it) }
+        timestamp = timestamp?.let { Date(it) },
+        options = options?.toOptionsMap()
     )
 }
 
-internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?) {
+internal actual fun platformCaptureAi(
+    event: String,
+    properties: Map<String, Any>?,
+    groups: Map<String, String>?,
+    timestamp: Long?,
+    options: PostHogEventOptions?
+): String? {
+    return postHogInstance?.captureAi(
+        event = event,
+        properties = properties,
+        groups = groups,
+        timestamp = timestamp?.let { Date(it) },
+        options = options?.toOptionsMap()
+    )?.toString()
+}
+
+internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?, options: PostHogEventOptions?) {
     postHogInstance?.screen(
         screenTitle = screenName,
-        properties = properties
+        properties = properties,
+        options = options?.toOptionsMap()
     )
 }
 
 internal actual fun platformIdentify(
     distinctId: String,
     userProperties: Map<String, Any>?,
-    userPropertiesSetOnce: Map<String, Any>?
+    userPropertiesSetOnce: Map<String, Any>?,
+    options: PostHogEventOptions?
 ) {
     postHogInstance?.identify(
         distinctId = distinctId,
         userProperties = userProperties,
-        userPropertiesSetOnce = userPropertiesSetOnce
+        userPropertiesSetOnce = userPropertiesSetOnce,
+        options = options?.toOptionsMap()
     )
 }
 
-internal actual fun platformAlias(alias: String) {
-    postHogInstance?.alias(alias)
+internal actual fun platformAlias(alias: String, options: PostHogEventOptions?) {
+    postHogInstance?.alias(alias, options?.toOptionsMap())
 }
 
 internal actual fun platformReset() {
@@ -138,6 +165,16 @@ internal actual fun platformUnregister(key: String) {
     postHogInstance?.unregister(key)
 }
 
+@OptIn(PostHogInternal::class)
+internal actual fun platformRegisterOptions(options: Map<String, Any>) {
+    postHogInstance?.registerOptionsForWrapper(options)
+}
+
+@OptIn(PostHogInternal::class)
+internal actual fun platformUnregisterOptions(key: String) {
+    postHogInstance?.unregisterOptionsForWrapper(key)
+}
+
 internal actual fun platformSetAppLanguage(language: String?) {
     postHogInstance?.setAppLanguage(language)
 }
@@ -145,12 +182,14 @@ internal actual fun platformSetAppLanguage(language: String?) {
 internal actual fun platformGroup(
     type: String,
     key: String,
-    groupProperties: Map<String, Any>?
+    groupProperties: Map<String, Any>?,
+    options: PostHogEventOptions?
 ) {
     postHogInstance?.group(
         type = type,
         key = key,
-        groupProperties = groupProperties
+        groupProperties = groupProperties,
+        options = options?.toOptionsMap()
     )
 }
 
@@ -206,11 +245,13 @@ internal actual fun platformGetFeatureFlagResult(key: String, sendFeatureFlagEve
 
 internal actual fun platformCaptureException(
     throwable: Throwable,
-    additionalProperties: Map<String, Any>?
+    additionalProperties: Map<String, Any>?,
+    options: PostHogEventOptions?
 ) {
     postHogInstance?.captureException(
         throwable = throwable,
-        properties = additionalProperties
+        properties = additionalProperties,
+        options = options?.toOptionsMap()
     )
 }
 
@@ -249,9 +290,10 @@ internal actual fun platformSetDebug(enabled: Boolean) {
 
 internal actual fun platformSetPersonProperties(
     userProperties: Map<String, Any>?,
-    userPropertiesSetOnce: Map<String, Any>?
+    userPropertiesSetOnce: Map<String, Any>?,
+    options: PostHogEventOptions?
 ) {
-    postHogInstance?.setPersonProperties(userProperties, userPropertiesSetOnce)
+    postHogInstance?.setPersonProperties(userProperties, userPropertiesSetOnce, options?.toOptionsMap())
 }
 
 internal fun PersonProfiles.toCorePersonProfiles(): com.posthog.PersonProfiles {

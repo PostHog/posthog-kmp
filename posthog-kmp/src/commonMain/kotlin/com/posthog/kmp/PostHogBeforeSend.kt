@@ -3,13 +3,20 @@ package com.posthog.kmp
 /**
  * Event passed to [PostHogBeforeSend] callbacks before it is queued.
  *
- * Return a copied event to change its name, distinct ID, or properties without mutating the
+ * Return a copied event to change its name, distinct ID, properties or options without mutating the
  * original event. Platform metadata not exposed here, such as the timestamp and UUID, is preserved.
+ *
+ * @property options Settings that tell PostHog how to process the event, including the ones the
+ *   SDK set, such as `processPersonProfile = false` for an anonymous user's event with the default
+ *   [PostHogConfig.personProfiles]. Setting a field to `null` removes it. Options the SDK sets that
+ *   [PostHogEventOptions] doesn't list are kept. On JavaScript and Wasm, posthog-js has no options,
+ *   so this is always empty there and changing it has no effect.
  */
 public data class PostHogEvent(
     val event: String,
     val distinctId: String,
-    val properties: Map<String, Any?>
+    val properties: Map<String, Any?>,
+    val options: PostHogEventOptions = PostHogEventOptions()
 )
 
 /**

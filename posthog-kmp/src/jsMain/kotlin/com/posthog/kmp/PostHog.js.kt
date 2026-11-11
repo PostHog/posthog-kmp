@@ -89,6 +89,16 @@ internal actual fun platformCapture(
     event: String,
     properties: Map<String, Any>?,
     groups: Map<String, String>?,
+    timestamp: Long?,
+    options: PostHogEventOptions?
+) {
+    captureEvent(event, withLegacyOptionProperties(properties, options), groups, timestamp)
+}
+
+private fun captureEvent(
+    event: String,
+    properties: Map<String, Any>?,
+    groups: Map<String, String>?,
     timestamp: Long?
 ) {
     val options = js("{}")
@@ -109,18 +119,33 @@ internal actual fun platformCapture(
     PostHogJs.capture(event, mergedProperties, options)
 }
 
-internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?) {
+@Suppress("UNUSED_PARAMETER")
+internal actual fun platformCaptureAi(
+    event: String,
+    properties: Map<String, Any>?,
+    groups: Map<String, String>?,
+    timestamp: Long?,
+    options: PostHogEventOptions?
+): String? {
+    if (currentConfig?.debug == true) console.log("[PostHog] captureAi isn't supported on JavaScript; $event was not sent.")
+    return null
+}
+
+internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?, options: PostHogEventOptions?) {
     val screenProperties = buildMap {
         put("\$screen_name", screenName)
-        properties?.forEach { (key, value) -> put(key, value) }
+        withLegacyOptionProperties(properties, options)?.forEach { (key, value) -> put(key, value) }
     }
     PostHogJs.capture("\$screen", screenProperties.toJsObject())
 }
 
+// posthog-js's identify, alias, group and setPersonProperties take no event properties, so their options are dropped
+@Suppress("UNUSED_PARAMETER")
 internal actual fun platformIdentify(
     distinctId: String,
     userProperties: Map<String, Any>?,
-    userPropertiesSetOnce: Map<String, Any>?
+    userPropertiesSetOnce: Map<String, Any>?,
+    options: PostHogEventOptions?
 ) {
     PostHogJs.identify(
         distinctId,
@@ -129,7 +154,8 @@ internal actual fun platformIdentify(
     )
 }
 
-internal actual fun platformAlias(alias: String) {
+@Suppress("UNUSED_PARAMETER")
+internal actual fun platformAlias(alias: String, options: PostHogEventOptions?) {
     PostHogJs.alias(alias)
 }
 
@@ -148,6 +174,15 @@ internal actual fun platformRegister(key: String, value: Any) {
     PostHogJs.register(props)
 }
 
+// posthog-js has no options, so they are registered as the legacy properties it reads
+internal actual fun platformRegisterOptions(options: Map<String, Any>) {
+    options.forEach { (key, value) -> LEGACY_OPTION_PROPERTIES[key]?.let { platformRegister(it, value) } }
+}
+
+internal actual fun platformUnregisterOptions(key: String) {
+    LEGACY_OPTION_PROPERTIES[key]?.let { platformUnregister(it) }
+}
+
 internal actual fun platformUnregister(key: String) {
     PostHogJs.unregister(key)
 }
@@ -157,10 +192,12 @@ internal actual fun platformSetAppLanguage(language: String?) {
     // posthog-js has no $app_language yet, so JS doesn't send it
 }
 
+@Suppress("UNUSED_PARAMETER")
 internal actual fun platformGroup(
     type: String,
     key: String,
-    groupProperties: Map<String, Any>?
+    groupProperties: Map<String, Any>?,
+    options: PostHogEventOptions?
 ) {
     if (groupProperties != null) {
         PostHogJs.group(type, key, groupProperties.toJsObject())
@@ -335,11 +372,12 @@ internal actual fun platformGetFeatureFlagResult(key: String, sendFeatureFlagEve
 
 internal actual fun platformCaptureException(
     throwable: Throwable,
-    additionalProperties: Map<String, Any>?
+    additionalProperties: Map<String, Any>?,
+    options: PostHogEventOptions?
 ) {
     val jsThrowable: dynamic = throwable
     throwable::class.simpleName?.let { jsThrowable.name = it }
-    PostHogJs.captureException(jsThrowable, additionalProperties?.toJsObject())
+    PostHogJs.captureException(jsThrowable, withLegacyOptionProperties(additionalProperties, options)?.toJsObject())
 }
 
 internal actual fun platformGetAnonymousId(): String? {
@@ -486,9 +524,11 @@ private fun Any?.toJsValue(): dynamic = when (this) {
     else -> this
 }
 
+@Suppress("UNUSED_PARAMETER")
 internal actual fun platformSetPersonProperties(
     userProperties: Map<String, Any>?,
-    userPropertiesSetOnce: Map<String, Any>?
+    userPropertiesSetOnce: Map<String, Any>?,
+    options: PostHogEventOptions?
 ) {
     PostHogJs.setPersonProperties(
         userProperties?.toJsObject() ?: js("{}"),

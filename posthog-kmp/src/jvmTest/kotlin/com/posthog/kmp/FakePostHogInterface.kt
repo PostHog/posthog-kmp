@@ -23,6 +23,7 @@ class FakePostHogInterface {
     var featureFlagResult: com.posthog.FeatureFlagResult? = null
     var featureFlags: List<com.posthog.FeatureFlagResult> = emptyList()
     var optedOut = false
+    var captureAiUuid: UUID? = null
     val featureFlagsCallbacks = mutableListOf<com.posthog.PostHogFeatureFlagsCallback>()
 
     val proxy: PostHogInterface = Proxy.newProxyInstance(
@@ -71,6 +72,7 @@ class FakePostHogInterface {
             "getFeatureFlagResult" -> featureFlagResult
             "getAllFeatureFlags" -> featureFlags
             "isOptOut" -> optedOut
+            "captureAi" -> captureAiUuid
             "onFeatureFlags" -> {
                 val callback = args[0] as com.posthog.PostHogFeatureFlagsCallback
                 featureFlagsCallbacks.add(callback)

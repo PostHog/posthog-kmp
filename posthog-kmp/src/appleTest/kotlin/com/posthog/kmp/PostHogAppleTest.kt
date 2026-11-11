@@ -54,6 +54,49 @@ class PostHogAppleTest {
     }
 
     @Test
+    fun testEventOptionsReachBeforeSend() {
+        val events = mutableListOf<PostHogEvent>()
+        PostHog.setup(
+            PostHogConfig(
+                projectToken = "apple-unit-test",
+                host = "http://127.0.0.1:9",
+                preloadFeatureFlags = false,
+                captureApplicationLifecycleEvents = false,
+                beforeSend = listOf(PostHogBeforeSend { event ->
+                    events.add(event)
+                    null
+                }),
+            ),
+            PostHogContext(),
+        )
+        try {
+            PostHog.reset()
+            PostHog.capture("anonymous")
+            PostHog.registerOptions(PostHogEventOptions(cookielessMode = true))
+            PostHog.capture(
+                "with-options",
+                options = CaptureOptions(eventOptions = PostHogEventOptions(processPersonProfile = true, productTourId = "tour"))
+            )
+            PostHog.unregisterOptions("cookieless_mode")
+            PostHog.capture("unregistered")
+            val aiUuid = PostHog.captureAi("\$ai_generation", options = CaptureOptions(eventOptions = PostHogEventOptions(disableSkewCorrection = true)))
+
+            // The SDK marks an anonymous user's event as personless with the default personProfiles
+            assertEquals(PostHogEventOptions(processPersonProfile = false), events.single { it.event == "anonymous" }.options)
+            assertEquals(
+                PostHogEventOptions(processPersonProfile = true, cookielessMode = true, productTourId = "tour"),
+                events.single { it.event == "with-options" }.options
+            )
+            assertEquals(null, events.single { it.event == "unregistered" }.options.cookielessMode)
+            assertEquals(true, events.single { it.event == "\$ai_generation" }.options.disableSkewCorrection)
+            assertEquals(null, aiUuid, "beforeSend dropped the AI event")
+        } finally {
+            PostHog.reset()
+            PostHog.close()
+        }
+    }
+
+    @Test
     fun testAppLanguageOverridesDetectionAndYieldsToRegistered() {
         val events = mutableListOf<PostHogEvent>()
         PostHog.setup(

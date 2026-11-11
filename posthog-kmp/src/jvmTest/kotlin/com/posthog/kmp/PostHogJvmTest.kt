@@ -460,4 +460,119 @@ class PostHogJvmTest {
         assertEquals(timestamp, result?.timestamp)
         assertEquals(uuid, result?.uuid)
     }
+    @Test
+    fun testEventOptionsReachNativeOptions() {
+        val options = PostHogEventOptions(processPersonProfile = true, productTourId = "tour")
+        val native = mapOf("process_person_profile" to true, "product_tour_id" to "tour")
+
+        PostHog.capture("event", options = CaptureOptions(eventOptions = options))
+        PostHog.screen("Home", eventOptions = options)
+        PostHog.identify("user", eventOptions = options)
+        PostHog.alias("alias", eventOptions = options)
+        PostHog.group("company", "acme", eventOptions = options)
+        PostHog.setPersonProperties(mapOf("plan" to "pro"), eventOptions = options)
+        val error = IllegalStateException("boom")
+        PostHog.captureException(error, eventOptions = options)
+
+        assertMethodCalled("capture", "event", null, null, null, null, null, null, native)
+        assertMethodCalled("screen", "Home", null, native)
+        assertMethodCalled("identify", "user", null, null, native)
+        assertMethodCalled("alias", "alias", native)
+        assertMethodCalled("group", "company", "acme", null, native)
+        assertMethodCalled("setPersonProperties", mapOf("plan" to "pro"), null, native)
+        assertMethodCalled("captureException", error, null, native)
+    }
+
+    @Test
+    fun testEventOptionsWithNoFieldSetSendNoNativeOptions() {
+        PostHog.capture("event", options = CaptureOptions(eventOptions = PostHogEventOptions()))
+        assertMethodCalled("capture", "event", null, null, null, null, null, null, null)
+    }
+
+    @Test
+    fun testCaptureAiReturnsNativeUuidAndPassesArguments() {
+        val uuid = UUID.randomUUID()
+        fakeInterface.captureAiUuid = uuid
+
+        val result = PostHog.captureAi(
+            "\$ai_generation",
+            mapOf("\$ai_model" to "gpt-5", "drop" to null),
+            CaptureOptions(
+                groups = mapOf("company" to "acme"),
+                timestamp = 1234,
+                eventOptions = PostHogEventOptions(cookielessMode = true)
+            )
+        )
+
+        assertEquals(uuid.toString(), result)
+        assertMethodCalled(
+            "captureAi",
+            "\$ai_generation",
+            null,
+            mapOf("\$ai_model" to "gpt-5"),
+            null,
+            null,
+            mapOf("company" to "acme"),
+            Date(1234),
+            mapOf("cookieless_mode" to true)
+        )
+    }
+
+    @Test
+    fun testCaptureAiReturnsNullWhenNativeDropsTheEvent() {
+        assertNull(PostHog.captureAi("\$ai_generation"))
+    }
+
+    @Test
+    fun testRegisterOptionsRegistersOnlySetFields() {
+        PostHog.registerOptions(PostHogEventOptions(cookielessMode = true, disableSkewCorrection = false))
+        PostHog.registerOptions(PostHogEventOptions())
+        PostHog.unregisterOptions("cookieless_mode")
+
+        assertMethodCalled(
+            "registerOptionsForWrapper",
+            mapOf("cookieless_mode" to true, "disable_skew_correction" to false)
+        )
+        assertMethodCalled("unregisterOptionsForWrapper", "cookieless_mode")
+    }
+
+    @Test
+    fun testBeforeSendSeesAndChangesNativeOptions() {
+        var seen: PostHogEventOptions? = null
+        val nativeConfig = com.posthog.PostHogConfig("key")
+        nativeConfig.configureBeforeSend(
+            PostHogConfig(
+                projectToken = "key",
+                beforeSend = listOf(
+                    PostHogBeforeSend {
+                        seen = it.options
+                        it.copy(options = it.options.copy(processPersonProfile = true, productTourId = null))
+                    }
+                )
+            )
+        )
+        val event = com.posthog.PostHogEvent("event", "user", mutableMapOf()).apply {
+            options = mutableMapOf("process_person_profile" to false, "product_tour_id" to "tour", "future" to 1)
+        }
+
+        val result = nativeConfig.beforeSendList.single().run(event)
+
+        assertEquals(PostHogEventOptions(processPersonProfile = false, productTourId = "tour"), seen)
+        assertEquals<Map<String, Any?>?>(mapOf("process_person_profile" to true, "future" to 1), result?.options)
+    }
+
+    @Test
+    fun testBeforeSendThatKeepsOptionsLeavesNativeOptionsAsTheyWere() {
+        val nativeConfig = com.posthog.PostHogConfig("key")
+        nativeConfig.configureBeforeSend(
+            PostHogConfig(projectToken = "key", beforeSend = listOf(PostHogBeforeSend { it.copy(event = "renamed") }))
+        )
+        val event = com.posthog.PostHogEvent("event", "user", mutableMapOf()).apply {
+            options = mutableMapOf("process_person_profile" to "unreadable", "future" to 1)
+        }
+
+        val result = nativeConfig.beforeSendList.single().run(event)
+
+        assertEquals<Map<String, Any?>?>(mapOf("process_person_profile" to "unreadable", "future" to 1), result?.options)
+    }
 }

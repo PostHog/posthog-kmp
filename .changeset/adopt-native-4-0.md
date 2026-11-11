@@ -11,7 +11,7 @@
 - **Breaking:** retry a capture 404 until the host serves capture v1, keeping events only until a full queue evicts them, stop retrying 3xx responses, and cap a request at about 5 MiB, on Android, JVM, iOS and macOS
 - **Breaking:** disable the SDK at setup when `projectToken` is a personal API key (`phx_...`) on Android, JVM, iOS and macOS
 - **Breaking:** drop events with an empty name or with a distinct ID that `beforeSend` blanks, and let PostHog drop events whose name or distinct ID is over 200 bytes, on Android, JVM, iOS and macOS
-- **Breaking:** mark personless events with a capture option instead of a `$process_person_profile` property, so `beforeSend` no longer sees or changes it, on Android, JVM, iOS and macOS — pass `$process_person_profile` to `capture()` instead
+- **Breaking:** mark personless events with a capture option instead of a `$process_person_profile` property, on Android, JVM, iOS and macOS — `beforeSend` reads and changes it through `PostHogEvent.options`
 - **Breaking:** leave out `null` values in nested maps on iOS and macOS, and keep `null` list elements in place instead of removing them on Android and JVM
 - **Breaking:** always send `$sdk_debug_replay_capture_mode` as `screenshot` on Android and iOS
 - **Breaking:** leave out query parameters whose name starts with `$` from `Deep Link Opened` on Android
