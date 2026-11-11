@@ -68,7 +68,7 @@ jobs:
 
       - name: Set up JDK 17
         if: ${{ !inputs.skip_publish }}
-        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v4.7.1
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v4.7.1
         with:
           distribution: 'zulu'
           java-version: '17'
