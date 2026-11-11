@@ -85,7 +85,8 @@ internal fun com.posthog.PostHogConfig.configureBeforeSend(config: PostHogConfig
                     value?.let { key to it }
                 }.toMap().toMutableMap()
             ).apply {
-                this.options = nativeOptions.withEventOptionChanges(options, processed.options).toMutableMap()
+                // An event the callback built without options keeps the ones it was given
+                this.options = nativeOptions.withEventOptionChanges(options, processed.options ?: options).toMutableMap()
             }
         }
     }

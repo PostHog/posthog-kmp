@@ -546,7 +546,7 @@ class PostHogJvmTest {
                 beforeSend = listOf(
                     PostHogBeforeSend {
                         seen = it.options
-                        it.copy(options = it.options.copy(processPersonProfile = true, productTourId = null))
+                        it.copy(options = it.options?.copy(processPersonProfile = true, productTourId = null))
                     }
                 )
             )
@@ -559,6 +559,24 @@ class PostHogJvmTest {
 
         assertEquals(PostHogEventOptions(processPersonProfile = false, productTourId = "tour"), seen)
         assertEquals<Map<String, Any?>?>(mapOf("process_person_profile" to true, "future" to 1), result?.options)
+    }
+
+    @Test
+    fun testBeforeSendThatBuildsANewEventKeepsNativeOptions() {
+        val nativeConfig = com.posthog.PostHogConfig("key")
+        nativeConfig.configureBeforeSend(
+            PostHogConfig(
+                projectToken = "key",
+                beforeSend = listOf(PostHogBeforeSend { PostHogEvent(it.event, it.distinctId, emptyMap()) })
+            )
+        )
+        val event = com.posthog.PostHogEvent("event", "user", mutableMapOf()).apply {
+            options = mutableMapOf("process_person_profile" to false)
+        }
+
+        val result = nativeConfig.beforeSendList.single().run(event)
+
+        assertEquals<Map<String, Any?>?>(mapOf("process_person_profile" to false), result?.options)
     }
 
     @Test

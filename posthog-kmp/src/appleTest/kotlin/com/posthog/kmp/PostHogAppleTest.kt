@@ -87,8 +87,8 @@ class PostHogAppleTest {
                 PostHogEventOptions(processPersonProfile = true, cookielessMode = true, productTourId = "tour"),
                 events.single { it.event == "with-options" }.options
             )
-            assertEquals(null, events.single { it.event == "unregistered" }.options.cookielessMode)
-            assertEquals(true, events.single { it.event == "\$ai_generation" }.options.disableSkewCorrection)
+            assertEquals(null, events.single { it.event == "unregistered" }.options?.cookielessMode)
+            assertEquals(true, events.single { it.event == "\$ai_generation" }.options?.disableSkewCorrection)
             assertEquals(null, aiUuid, "beforeSend dropped the AI event")
         } finally {
             PostHog.reset()

@@ -209,8 +209,8 @@ public object PostHog {
      * Use this instead of registering a legacy property such as `$cookieless_mode`.
      *
      * On JavaScript and Wasm, posthog-js has no options, so the fields are registered as their
-     * legacy properties, with the limits described on [PostHogEventOptions]. posthog-js adds them
-     * after [PostHogConfig.beforeSend] runs, so the callbacks don't see them.
+     * legacy properties, with the limits described on [PostHogEventOptions].
+     * [PostHogConfig.beforeSend] callbacks see them in [PostHogEvent.properties] there.
      *
      * ```kotlin
      * PostHog.registerOptions(PostHogEventOptions(cookielessMode = true))

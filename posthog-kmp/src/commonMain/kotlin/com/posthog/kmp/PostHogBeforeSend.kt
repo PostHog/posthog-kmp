@@ -8,15 +8,17 @@ package com.posthog.kmp
  *
  * @property options Settings that tell PostHog how to process the event, including the ones the
  *   SDK set, such as `processPersonProfile = false` for an anonymous user's event with the default
- *   [PostHogConfig.personProfiles]. Setting a field to `null` removes it. Options the SDK sets that
- *   [PostHogEventOptions] doesn't list are kept. On JavaScript and Wasm, posthog-js has no options,
- *   so this is always empty there and changing it has no effect.
+ *   [PostHogConfig.personProfiles]. Setting a field to `null` removes it. A callback that returns an
+ *   event with `options = null`, such as one it constructs instead of copying, keeps the options of
+ *   the event it was given. Options the SDK sets that [PostHogEventOptions] doesn't list are kept.
+ *   On JavaScript and Wasm, posthog-js has no options, so this is always empty there and changing
+ *   it has no effect.
  */
 public data class PostHogEvent(
     val event: String,
     val distinctId: String,
     val properties: Map<String, Any?>,
-    val options: PostHogEventOptions = PostHogEventOptions()
+    val options: PostHogEventOptions? = null
 )
 
 /**

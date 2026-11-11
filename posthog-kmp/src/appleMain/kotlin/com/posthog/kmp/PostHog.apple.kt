@@ -96,7 +96,8 @@ private fun processBeforeSend(config: PostHogConfig, event: NativePostHogEvent?)
     // objects they already are keeps a $snapshot payload off the main thread's critical path.
     val (removedKeys, changedValues) = propertyDelta(properties, processed.properties)
     event.properties = event.properties.withChanges(removedKeys, changedValues)
-    val (removedOptions, changedOptions) = eventOptionChanges(options, processed.options)
+    // An event the callback built without options keeps the ones it was given
+    val (removedOptions, changedOptions) = eventOptionChanges(options, processed.options ?: options)
     if (removedOptions.isNotEmpty() || changedOptions.isNotEmpty()) {
         event.options = event.options.withChanges(removedOptions, changedOptions)
     }
