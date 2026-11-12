@@ -61,21 +61,30 @@ internal fun com.posthog.PostHogConfig.configureErrorTracking(config: ErrorTrack
     errorTrackingConfig.ignoredExceptionTypes.addAll(config.ignoredExceptionTypes.map { it.java })
 }
 
+internal fun com.posthog.PostHogConfig.configureCaptureAi(config: PostHogConfig) {
+    captureAiCompression = when (config.captureAiCompression) {
+        PostHogCompression.GZIP -> com.posthog.PostHogCompression.GZIP
+        PostHogCompression.NONE -> com.posthog.PostHogCompression.NONE
+    }
+    captureAiMaxQueueSize = config.captureAiMaxQueueSize
+    captureAiTimeout = config.captureAiTimeout
+    captureAiMaxEventBytes = config.captureAiMaxEventBytes
+}
+
 internal fun com.posthog.PostHogConfig.configureBeforeSend(config: PostHogConfig) {
     if (config.beforeSend.isEmpty()) return
 
     addBeforeSend { event ->
-        val nativeOptions = event.options.orEmpty()
-        val options = nativeOptions.toEventOptions()
+        val input = PostHogEvent(
+            event = event.event,
+            distinctId = event.distinctId,
+            properties = event.properties.orEmpty(),
+            options = event.options.orEmpty()
+        )
         config.runBeforeSend(
-            PostHogEvent(
-                event = event.event,
-                distinctId = event.distinctId,
-                properties = event.properties.orEmpty(),
-                options = options
-            ),
-            onError = {
-                if (config.debug) logger.log("Before-send callback failed; event was dropped.")
+            input,
+            onError = { error ->
+                if (config.debug) logger.log(beforeSendFailureMessage(input, error))
             }
         )?.let { processed ->
             event.copy(
@@ -85,8 +94,9 @@ internal fun com.posthog.PostHogConfig.configureBeforeSend(config: PostHogConfig
                     value?.let { key to it }
                 }.toMap().toMutableMap()
             ).apply {
-                // An event the callback built without options keeps the ones it was given
-                this.options = nativeOptions.withEventOptionChanges(options, processed.options ?: options).toMutableMap()
+                options = processed.options.orEmpty().mapNotNull { (key, value) ->
+                    value?.let { key to it }
+                }.toMap().toMutableMap()
             }
         }
     }
@@ -97,14 +107,14 @@ internal actual fun platformCapture(
     properties: Map<String, Any>?,
     groups: Map<String, String>?,
     timestamp: Long?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 ) {
     postHogInstance?.capture(
         event = event,
         properties = properties,
         groups = groups,
         timestamp = timestamp?.let { Date(it) },
-        options = options?.toOptionsMap()
+        options = options
     )
 }
 
@@ -113,22 +123,22 @@ internal actual fun platformCaptureAi(
     properties: Map<String, Any>?,
     groups: Map<String, String>?,
     timestamp: Long?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 ): String? {
     return postHogInstance?.captureAi(
         event = event,
         properties = properties,
         groups = groups,
         timestamp = timestamp?.let { Date(it) },
-        options = options?.toOptionsMap()
+        options = options
     )?.toString()
 }
 
-internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?, options: PostHogEventOptions?) {
+internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?, options: Map<String, Any>?) {
     postHogInstance?.screen(
         screenTitle = screenName,
         properties = properties,
-        options = options?.toOptionsMap()
+        options = options
     )
 }
 
@@ -136,18 +146,18 @@ internal actual fun platformIdentify(
     distinctId: String,
     userProperties: Map<String, Any>?,
     userPropertiesSetOnce: Map<String, Any>?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 ) {
     postHogInstance?.identify(
         distinctId = distinctId,
         userProperties = userProperties,
         userPropertiesSetOnce = userPropertiesSetOnce,
-        options = options?.toOptionsMap()
+        options = options
     )
 }
 
-internal actual fun platformAlias(alias: String, options: PostHogEventOptions?) {
-    postHogInstance?.alias(alias, options?.toOptionsMap())
+internal actual fun platformAlias(alias: String, options: Map<String, Any>?) {
+    postHogInstance?.alias(alias, options)
 }
 
 internal actual fun platformReset() {
@@ -184,13 +194,13 @@ internal actual fun platformGroup(
     type: String,
     key: String,
     groupProperties: Map<String, Any>?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 ) {
     postHogInstance?.group(
         type = type,
         key = key,
         groupProperties = groupProperties,
-        options = options?.toOptionsMap()
+        options = options
     )
 }
 
@@ -247,12 +257,12 @@ internal actual fun platformGetFeatureFlagResult(key: String, sendFeatureFlagEve
 internal actual fun platformCaptureException(
     throwable: Throwable,
     additionalProperties: Map<String, Any>?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 ) {
     postHogInstance?.captureException(
         throwable = throwable,
         properties = additionalProperties,
-        options = options?.toOptionsMap()
+        options = options
     )
 }
 
@@ -292,9 +302,9 @@ internal actual fun platformSetDebug(enabled: Boolean) {
 internal actual fun platformSetPersonProperties(
     userProperties: Map<String, Any>?,
     userPropertiesSetOnce: Map<String, Any>?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 ) {
-    postHogInstance?.setPersonProperties(userProperties, userPropertiesSetOnce, options?.toOptionsMap())
+    postHogInstance?.setPersonProperties(userProperties, userPropertiesSetOnce, options)
 }
 
 internal fun PersonProfiles.toCorePersonProfiles(): com.posthog.PersonProfiles {

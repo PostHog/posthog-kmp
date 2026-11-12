@@ -90,7 +90,7 @@ internal actual fun platformCapture(
     properties: Map<String, Any>?,
     groups: Map<String, String>?,
     timestamp: Long?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 ) {
     captureEvent(event, withLegacyOptionProperties(properties, options), groups, timestamp)
 }
@@ -125,13 +125,13 @@ internal actual fun platformCaptureAi(
     properties: Map<String, Any>?,
     groups: Map<String, String>?,
     timestamp: Long?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 ): String? {
     if (currentConfig?.debug == true) console.log("[PostHog] captureAi isn't supported on JavaScript; $event was not sent.")
     return null
 }
 
-internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?, options: PostHogEventOptions?) {
+internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?, options: Map<String, Any>?) {
     val screenProperties = buildMap {
         put("\$screen_name", screenName)
         withLegacyOptionProperties(properties, options)?.forEach { (key, value) -> put(key, value) }
@@ -145,7 +145,7 @@ internal actual fun platformIdentify(
     distinctId: String,
     userProperties: Map<String, Any>?,
     userPropertiesSetOnce: Map<String, Any>?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 ) {
     PostHogJs.identify(
         distinctId,
@@ -155,7 +155,7 @@ internal actual fun platformIdentify(
 }
 
 @Suppress("UNUSED_PARAMETER")
-internal actual fun platformAlias(alias: String, options: PostHogEventOptions?) {
+internal actual fun platformAlias(alias: String, options: Map<String, Any>?) {
     PostHogJs.alias(alias)
 }
 
@@ -197,7 +197,7 @@ internal actual fun platformGroup(
     type: String,
     key: String,
     groupProperties: Map<String, Any>?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 ) {
     if (groupProperties != null) {
         PostHogJs.group(type, key, groupProperties.toJsObject())
@@ -373,7 +373,7 @@ internal actual fun platformGetFeatureFlagResult(key: String, sendFeatureFlagEve
 internal actual fun platformCaptureException(
     throwable: Throwable,
     additionalProperties: Map<String, Any>?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 ) {
     val jsThrowable: dynamic = throwable
     throwable::class.simpleName?.let { jsThrowable.name = it }
@@ -456,8 +456,8 @@ private fun processBeforeSend(config: PostHogConfig, captureResult: dynamic): dy
 
     return try {
         val event = dynamicToPostHogEvent(captureResult) ?: return null
-        val processed = config.runBeforeSend(event) {
-            if (config.debug) console.error("[PostHog] Before-send callback failed; event was dropped.")
+        val processed = config.runBeforeSend(event) { error ->
+            if (config.debug) console.error("[PostHog] ${beforeSendFailureMessage(event, error)}")
         } ?: return null
 
         captureResult.event = processed.event
@@ -528,7 +528,7 @@ private fun Any?.toJsValue(): dynamic = when (this) {
 internal actual fun platformSetPersonProperties(
     userProperties: Map<String, Any>?,
     userPropertiesSetOnce: Map<String, Any>?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 ) {
     PostHogJs.setPersonProperties(
         userProperties?.toJsObject() ?: js("{}"),

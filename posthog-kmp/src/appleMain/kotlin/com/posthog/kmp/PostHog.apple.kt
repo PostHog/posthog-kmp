@@ -13,6 +13,8 @@ import swiftPMImport.com.posthog.posthog.kmp.PostHogConfig as NativePostHogConfi
 import swiftPMImport.com.posthog.posthog.kmp.PostHogEvent as NativePostHogEvent
 import swiftPMImport.com.posthog.posthog.kmp.PostHogFeatureFlagResult as NativeFeatureFlagResult
 import swiftPMImport.com.posthog.posthog.kmp.PostHogFeatureFlagsLoaded as NativeFeatureFlagsLoaded
+import swiftPMImport.com.posthog.posthog.kmp.PostHogCompressionGzip
+import swiftPMImport.com.posthog.posthog.kmp.PostHogCompressionNone
 import swiftPMImport.com.posthog.posthog.kmp.PostHogPersonProfilesAlways
 import swiftPMImport.com.posthog.posthog.kmp.PostHogPersonProfilesIdentifiedOnly
 import swiftPMImport.com.posthog.posthog.kmp.PostHogPersonProfilesNever
@@ -48,6 +50,13 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
             PersonProfiles.IDENTIFIED_ONLY -> PostHogPersonProfilesIdentifiedOnly
         }
         setDefaultPersonProperties = true
+        captureAiCompression = when (config.captureAiCompression) {
+            PostHogCompression.GZIP -> PostHogCompressionGzip
+            PostHogCompression.NONE -> PostHogCompressionNone
+        }
+        captureAiMaxQueueSize = config.captureAiMaxQueueSize.toLong()
+        captureAiTimeout = config.captureAiTimeout.toDouble()
+        captureAiMaxEventBytes = config.captureAiMaxEventBytes.toLong()
         configurePlatformCapture(config)
 
         config.errorTracking?.let { errorTracking ->
@@ -82,12 +91,10 @@ private fun processBeforeSend(config: PostHogConfig, event: NativePostHogEvent?)
     val options = event.options
         .filterKeys { it is String }
         .mapKeys { it.key as String }
-        .toEventOptions()
 
-    val processed = config.runBeforeSend(
-        PostHogEvent(event.event, event.distinctId, properties.toMap(), options)
-    ) {
-        if (config.debug) NSLog("[PostHog] Before-send callback failed; event was dropped.")
+    val input = PostHogEvent(event.event, event.distinctId, properties.toMap(), options.toMap())
+    val processed = config.runBeforeSend(input) { error ->
+        if (config.debug) NSLog("[PostHog] ${beforeSendFailureMessage(input, error).replace("%", "%%")}")
     } ?: return null
 
     event.event = processed.event
@@ -96,8 +103,7 @@ private fun processBeforeSend(config: PostHogConfig, event: NativePostHogEvent?)
     // objects they already are keeps a $snapshot payload off the main thread's critical path.
     val (removedKeys, changedValues) = propertyDelta(properties, processed.properties)
     event.properties = event.properties.withChanges(removedKeys, changedValues)
-    // An event the callback built without options keeps the ones it was given
-    val (removedOptions, changedOptions) = eventOptionChanges(options, processed.options ?: options)
+    val (removedOptions, changedOptions) = propertyDelta(options, processed.options.orEmpty())
     if (removedOptions.isNotEmpty() || changedOptions.isNotEmpty()) {
         event.options = event.options.withChanges(removedOptions, changedOptions)
     }
@@ -145,7 +151,7 @@ internal actual fun platformCapture(
     properties: Map<String, Any>?,
     groups: Map<String, String>?,
     timestamp: Long?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 ) {
     @Suppress("UNCHECKED_CAST")
     PostHogSDK.shared.captureWithEvent(
@@ -166,7 +172,7 @@ internal actual fun platformCaptureAi(
     properties: Map<String, Any>?,
     groups: Map<String, String>?,
     timestamp: Long?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 ): String? {
     @Suppress("UNCHECKED_CAST")
     return PostHogSDK.shared.captureAiWithEvent(
@@ -181,11 +187,11 @@ internal actual fun platformCaptureAi(
     )
 }
 
-private fun PostHogEventOptions?.toNativeOptions(): Map<Any?, *>? = this?.toOptionsMap()?.toNativeProperties()
+private fun Map<String, Any>?.toNativeOptions(): Map<Any?, *>? = this?.toNativeProperties()
 
 internal fun Long.toNSDate(): NSDate = NSDate.dateWithTimeIntervalSince1970(toDouble() / 1000.0)
 
-internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?, options: PostHogEventOptions?) {
+internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?, options: Map<String, Any>?) {
     PostHogSDK.shared.screenWithTitle(
         screenName,
         properties = properties?.toNativeProperties(),
@@ -196,7 +202,7 @@ internal actual fun platformScreen(screenName: String, properties: Map<String, A
 internal actual fun platformCaptureException(
     throwable: Throwable,
     additionalProperties: Map<String, Any>?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 ) {
     PostHogSDK.shared.captureExceptionWithNSException(
         exception = throwable.toNSException(),
@@ -209,7 +215,7 @@ internal actual fun platformIdentify(
     distinctId: String,
     userProperties: Map<String, Any>?,
     userPropertiesSetOnce: Map<String, Any>?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 ) {
     PostHogSDK.shared.identifyWithDistinctId(
         distinctId,
@@ -219,7 +225,7 @@ internal actual fun platformIdentify(
     )
 }
 
-internal actual fun platformAlias(alias: String, options: PostHogEventOptions?) {
+internal actual fun platformAlias(alias: String, options: Map<String, Any>?) {
     PostHogSDK.shared.alias(alias, options = options.toNativeOptions())
 }
 
@@ -254,7 +260,7 @@ internal actual fun platformGroup(
     type: String,
     key: String,
     groupProperties: Map<String, Any>?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 ) {
     PostHogSDK.shared.groupWithType(type, key, groupProperties?.toNativeProperties(), options = options.toNativeOptions())
 }
@@ -368,7 +374,7 @@ internal actual fun platformSetDebug(enabled: Boolean) {
 internal actual fun platformSetPersonProperties(
     userProperties: Map<String, Any>?,
     userPropertiesSetOnce: Map<String, Any>?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 ) {
     PostHogSDK.shared.setPersonPropertiesWithUserPropertiesToSet(
         userProperties?.toNativeProperties(),

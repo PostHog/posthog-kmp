@@ -157,16 +157,33 @@ class PostHogConfigTest {
         val config = PostHogConfig(
             projectToken = "phc_test",
             beforeSend = listOf(
-                PostHogBeforeSend { it.copy(options = PostHogEventOptions(processPersonProfile = false)) },
+                PostHogBeforeSend { it.copy(options = mapOf("process_person_profile" to false)) },
                 PostHogBeforeSend { PostHogEvent(it.event, it.distinctId, it.properties) }
             )
         )
 
         val result = config.runBeforeSend(
-            PostHogEvent("checkout", "user-1", emptyMap(), PostHogEventOptions(processPersonProfile = true))
+            PostHogEvent("checkout", "user-1", emptyMap(), mapOf("process_person_profile" to true))
         )
 
-        assertEquals(PostHogEventOptions(processPersonProfile = false), result?.options)
+        assertEquals(mapOf<String, Any?>("process_person_profile" to false), result?.options)
+    }
+
+    @Test
+    fun beforeSendFailureMessageNamesEventAndExceptionTypeOnly() {
+        val message = beforeSendFailureMessage(
+            PostHogEvent("checkout", "user-1", emptyMap()),
+            IllegalStateException("secret@example.com")
+        )
+
+        assertEquals("Before-send callback threw IllegalStateException; event \"checkout\" was dropped.", message)
+    }
+
+    @Test
+    fun copyKeepsCaptureAiConfig() {
+        val config = PostHogConfig(projectToken = "phc_test", captureAiMaxQueueSize = 7)
+
+        assertEquals(7, config.copy(debug = true).captureAiMaxQueueSize)
     }
 
     @Test

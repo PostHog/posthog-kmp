@@ -62,7 +62,7 @@ public object PostHog {
         properties: Map<String, Any?>? = null,
         options: CaptureOptions? = null
     ) {
-        platformCapture(event, properties?.dropNullValues(), options?.groups, options?.timestamp, options?.eventOptions)
+        platformCapture(event, properties?.dropNullValues(), options?.groups, options?.timestamp, options?.eventOptions?.dropNullValues())
     }
 
     /**
@@ -97,7 +97,7 @@ public object PostHog {
         properties: Map<String, Any?>? = null,
         options: CaptureOptions? = null
     ): String? {
-        return platformCaptureAi(event, properties?.dropNullValues(), options?.groups, options?.timestamp, options?.eventOptions)
+        return platformCaptureAi(event, properties?.dropNullValues(), options?.groups, options?.timestamp, options?.eventOptions?.dropNullValues())
     }
 
     /**
@@ -113,9 +113,9 @@ public object PostHog {
     public fun screen(
         screenName: String,
         properties: Map<String, Any?>? = null,
-        eventOptions: PostHogEventOptions? = null
+        eventOptions: Map<String, Any?>? = null
     ) {
-        platformScreen(screenName, properties?.minus("\$screen_name")?.dropNullValues(), eventOptions)
+        platformScreen(screenName, properties?.minus("\$screen_name")?.dropNullValues(), eventOptions?.dropNullValues())
     }
 
     // ==================== User Identification ====================
@@ -135,9 +135,9 @@ public object PostHog {
         distinctId: String,
         userProperties: Map<String, Any?>? = null,
         userPropertiesSetOnce: Map<String, Any?>? = null,
-        eventOptions: PostHogEventOptions? = null
+        eventOptions: Map<String, Any?>? = null
     ) {
-        platformIdentify(distinctId, userProperties?.dropNullValues(), userPropertiesSetOnce?.dropNullValues(), eventOptions)
+        platformIdentify(distinctId, userProperties?.dropNullValues(), userPropertiesSetOnce?.dropNullValues(), eventOptions?.dropNullValues())
     }
 
     /**
@@ -150,8 +150,8 @@ public object PostHog {
      * @param eventOptions Settings that tell PostHog how to process the `$create_alias` event.
      *   Dropped on JavaScript and Wasm.
      */
-    public fun alias(alias: String, eventOptions: PostHogEventOptions? = null) {
-        platformAlias(alias, eventOptions)
+    public fun alias(alias: String, eventOptions: Map<String, Any?>? = null) {
+        platformAlias(alias, eventOptions?.dropNullValues())
     }
 
     /**
@@ -198,40 +198,40 @@ public object PostHog {
     }
 
     /**
-     * Register event options sent with every later event, such as `cookielessMode`.
+     * Register event options sent with every later event, such as
+     * [PostHogEventOptions.COOKIELESS_MODE]. Keys are sent as given, including ones
+     * [PostHogEventOptions] doesn't list.
      *
-     * An event's own [PostHogEventOptions] win over registered ones field by field. Fields set here
-     * overwrite registered values for the same option, and `null` fields are ignored. Registered
-     * options persist across app restarts until [unregisterOptions] removes them or [reset] clears
-     * them. On Android, JVM, iOS and macOS, [PostHogConfig.beforeSend] callbacks see them in
-     * [PostHogEvent.options].
+     * An event's own options win over registered ones key by key. Keys set here overwrite registered
+     * values for the same key, and `null` values are ignored. Registered options persist across app
+     * restarts until [unregisterOptions] removes them or [reset] clears them. On Android, JVM, iOS
+     * and macOS, [PostHogConfig.beforeSend] callbacks see them in [PostHogEvent.options].
      *
      * Use this instead of registering a legacy property such as `$cookieless_mode`.
      *
-     * On JavaScript and Wasm, posthog-js has no options, so the fields are registered as their
-     * legacy properties, with the limits described on [PostHogEventOptions].
-     * [PostHogConfig.beforeSend] callbacks see them in [PostHogEvent.properties] there.
+     * On JavaScript and Wasm, posthog-js has no options, so the keys [PostHogEventOptions] lists are
+     * registered as their legacy properties, with the limits described there, and other keys are
+     * dropped. [PostHogConfig.beforeSend] callbacks see them in [PostHogEvent.properties] there.
      *
      * ```kotlin
-     * PostHog.registerOptions(PostHogEventOptions(cookielessMode = true))
+     * PostHog.registerOptions(mapOf(PostHogEventOptions.COOKIELESS_MODE to true))
      * ```
      *
-     * @param options The options to register
+     * @param options The options to register, keyed by option key
      */
-    public fun registerOptions(options: PostHogEventOptions) {
-        platformRegisterOptions(options.toOptionsMap() ?: return)
+    public fun registerOptions(options: Map<String, Any?>) {
+        platformRegisterOptions(options.dropNullValues() ?: return)
     }
 
     /**
      * Remove an option registered with [registerOptions]. Events captured afterwards no longer get
-     * it, unless they set it in their own [PostHogEventOptions].
+     * it, unless they set it in their own options.
      *
      * ```kotlin
-     * PostHog.unregisterOptions("cookieless_mode")
+     * PostHog.unregisterOptions(PostHogEventOptions.COOKIELESS_MODE)
      * ```
      *
-     * @param key The option key: `process_person_profile`, `cookieless_mode`,
-     *   `disable_skew_correction` or `product_tour_id`
+     * @param key The option key, such as [PostHogEventOptions.COOKIELESS_MODE]
      */
     public fun unregisterOptions(key: String) {
         platformUnregisterOptions(key)
@@ -278,9 +278,9 @@ public object PostHog {
     public fun setPersonProperties(
         userPropertiesToSet: Map<String, Any>?,
         userPropertiesToSetOnce: Map<String, Any>? = null,
-        eventOptions: PostHogEventOptions? = null
+        eventOptions: Map<String, Any?>? = null
     ) {
-        platformSetPersonProperties(userPropertiesToSet, userPropertiesToSetOnce, eventOptions)
+        platformSetPersonProperties(userPropertiesToSet, userPropertiesToSetOnce, eventOptions?.dropNullValues())
     }
 
     // ==================== Group Analytics ====================
@@ -300,9 +300,9 @@ public object PostHog {
         type: String,
         key: String,
         groupProperties: Map<String, Any?>? = null,
-        eventOptions: PostHogEventOptions? = null
+        eventOptions: Map<String, Any?>? = null
     ) {
-        platformGroup(type, key, groupProperties?.dropNullValues(), eventOptions)
+        platformGroup(type, key, groupProperties?.dropNullValues(), eventOptions?.dropNullValues())
     }
 
     // ==================== Feature Flags ====================
@@ -535,9 +535,9 @@ public object PostHog {
     public fun captureException(
         throwable: Throwable,
         additionalProperties: Map<String, Any?>? = null,
-        eventOptions: PostHogEventOptions? = null
+        eventOptions: Map<String, Any?>? = null
     ) {
-        platformCaptureException(throwable, additionalProperties?.dropNullValues(), eventOptions)
+        platformCaptureException(throwable, additionalProperties?.dropNullValues(), eventOptions?.dropNullValues())
     }
 
     // ==================== Opt In/Out ====================
@@ -626,7 +626,7 @@ internal expect fun platformCapture(
     properties: Map<String, Any>?,
     groups: Map<String, String>?,
     timestamp: Long?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 )
 
 internal expect fun platformCaptureAi(
@@ -634,19 +634,19 @@ internal expect fun platformCaptureAi(
     properties: Map<String, Any>?,
     groups: Map<String, String>?,
     timestamp: Long?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 ): String?
 
-internal expect fun platformScreen(screenName: String, properties: Map<String, Any>?, options: PostHogEventOptions?)
+internal expect fun platformScreen(screenName: String, properties: Map<String, Any>?, options: Map<String, Any>?)
 
 internal expect fun platformIdentify(
     distinctId: String,
     userProperties: Map<String, Any>?,
     userPropertiesSetOnce: Map<String, Any>?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 )
 
-internal expect fun platformAlias(alias: String, options: PostHogEventOptions?)
+internal expect fun platformAlias(alias: String, options: Map<String, Any>?)
 
 internal expect fun platformReset()
 
@@ -666,7 +666,7 @@ internal expect fun platformGroup(
     type: String,
     key: String,
     groupProperties: Map<String, Any>?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 )
 
 internal expect fun platformIsFeatureEnabled(key: String, defaultValue: Boolean, sendFeatureFlagEvent: Boolean): Boolean
@@ -696,7 +696,7 @@ internal expect fun platformGetFeatureFlagResult(key: String, sendFeatureFlagEve
 internal expect fun platformCaptureException(
     throwable: Throwable,
     additionalProperties: Map<String, Any>?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 )
 
 internal expect fun platformGetAnonymousId(): String?
@@ -718,5 +718,5 @@ internal expect fun platformSetDebug(enabled: Boolean)
 internal expect fun platformSetPersonProperties(
     userProperties: Map<String, Any>?,
     userPropertiesSetOnce: Map<String, Any>?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 )

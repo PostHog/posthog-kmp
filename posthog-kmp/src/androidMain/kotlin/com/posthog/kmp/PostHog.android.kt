@@ -33,6 +33,7 @@ internal fun PostHogConfig.toAndroidConfig(): PostHogAndroidConfig {
 
         personProfiles = config.personProfiles.toCorePersonProfiles()
         configureErrorTracking(config.errorTracking)
+        configureCaptureAi(config)
         configureBeforeSend(config)
 
         config.sessionRecording?.let { sessionConfig ->

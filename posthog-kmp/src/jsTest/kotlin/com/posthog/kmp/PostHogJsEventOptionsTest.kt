@@ -30,7 +30,12 @@ class PostHogJsEventOptionsTest {
 
     @Test
     fun testEventOptionsAreSentAsLegacyPropertiesThatWin() {
-        val options = PostHogEventOptions(cookielessMode = true, disableSkewCorrection = true, productTourId = "tour")
+        val options = mapOf(
+            PostHogEventOptions.COOKIELESS_MODE to true,
+            PostHogEventOptions.DISABLE_SKEW_CORRECTION to true,
+            PostHogEventOptions.PRODUCT_TOUR_ID to "tour",
+            "future" to 1
+        )
         PostHog.capture(
             "test_event",
             mapOf("\$cookieless_mode" to false, "prop" to "value"),
@@ -45,6 +50,7 @@ class PostHogJsEventOptionsTest {
             assertEquals("tour", properties["\$product_tour_id"] as String)
         }
         assertEquals("value", capture["prop"] as String)
+        assertEquals(undefined, capture["future"])
         assertEquals("Home", screen["\$screen_name"] as String)
     }
 
@@ -56,11 +62,12 @@ class PostHogJsEventOptionsTest {
 
     @Test
     fun testRegisterOptionsRegistersLegacyProperties() {
-        PostHog.registerOptions(PostHogEventOptions(cookielessMode = true))
+        PostHog.registerOptions(mapOf(PostHogEventOptions.COOKIELESS_MODE to true, "future" to 1))
         PostHog.unregisterOptions("cookieless_mode")
         PostHog.unregisterOptions("unknown")
 
         assertEquals(true, argumentsOf("register").single()["\$cookieless_mode"] as Boolean)
+        assertEquals(undefined, argumentsOf("register").single()["future"])
         assertEquals(listOf<dynamic>("\$cookieless_mode"), argumentsOf("unregister"))
     }
 }

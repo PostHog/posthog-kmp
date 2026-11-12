@@ -281,7 +281,9 @@ class PostHogWasmJsTest {
         PostHog.capture(
             "checkout",
             mapOf("\$cookieless_mode" to false),
-            CaptureOptions(eventOptions = PostHogEventOptions(cookielessMode = true, productTourId = "tour"))
+            CaptureOptions(
+                eventOptions = mapOf(PostHogEventOptions.COOKIELESS_MODE to true, PostHogEventOptions.PRODUCT_TOUR_ID to "tour")
+            )
         )
 
         assertTrue(readNestedBoolean(fakePostHog, "properties", "\$cookieless_mode"))
@@ -296,7 +298,7 @@ class PostHogWasmJsTest {
 
     @Test
     fun registerOptionsRegistersLegacyProperties() {
-        PostHog.registerOptions(PostHogEventOptions(disableSkewCorrection = true))
+        PostHog.registerOptions(mapOf(PostHogEventOptions.DISABLE_SKEW_CORRECTION to true))
         PostHog.unregisterOptions("disable_skew_correction")
 
         assertTrue(readNestedBoolean(fakePostHog, "registered", "\$ignore_sent_at"))

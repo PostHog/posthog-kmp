@@ -68,7 +68,7 @@ internal actual fun platformCapture(
     properties: Map<String, Any>?,
     groups: Map<String, String>?,
     timestamp: Long?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 ) {
     captureEvent(event, withLegacyOptionProperties(properties, options), groups, timestamp)
 }
@@ -100,13 +100,13 @@ internal actual fun platformCaptureAi(
     properties: Map<String, Any>?,
     groups: Map<String, String>?,
     timestamp: Long?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 ): String? {
     if (currentConfig?.debug == true) logWasmDebug("captureAi isn't supported on Wasm; $event was not sent.")
     return null
 }
 
-internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?, options: PostHogEventOptions?) {
+internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?, options: Map<String, Any>?) {
     val screenProperties = buildMap<String, Any?> {
         put("\$screen_name", screenName)
         withLegacyOptionProperties(properties, options)?.let { putAll(it) }
@@ -120,7 +120,7 @@ internal actual fun platformIdentify(
     distinctId: String,
     userProperties: Map<String, Any>?,
     userPropertiesSetOnce: Map<String, Any>?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 ) {
     PostHogJs.identify(
         distinctId,
@@ -130,7 +130,7 @@ internal actual fun platformIdentify(
 }
 
 @Suppress("UNUSED_PARAMETER")
-internal actual fun platformAlias(alias: String, options: PostHogEventOptions?) {
+internal actual fun platformAlias(alias: String, options: Map<String, Any>?) {
     PostHogJs.alias(alias)
 }
 
@@ -171,7 +171,7 @@ internal actual fun platformGroup(
     type: String,
     key: String,
     groupProperties: Map<String, Any>?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 ) {
     PostHogJs.group(type, key, groupProperties?.toJsObject())
 }
@@ -329,8 +329,8 @@ private fun processBeforeSend(config: PostHogConfig, captureResult: JsAny?): JsA
     captureResult ?: return null
     return try {
         val event = captureResult.toPostHogEvent() ?: return null
-        val processed = config.runBeforeSend(event) {
-            if (config.debug) logWasmError("beforeSend", "callback failed; event was dropped")
+        val processed = config.runBeforeSend(event) { error ->
+            if (config.debug) logWasmError("beforeSend", beforeSendFailureMessage(event, error))
         } ?: return null
 
         val processedProperties = processed.properties.toJsObject()
@@ -355,7 +355,7 @@ private fun JsAny.toPostHogEvent(): PostHogEvent? {
 internal actual fun platformCaptureException(
     throwable: Throwable,
     additionalProperties: Map<String, Any>?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 ) {
     PostHogJs.captureException(
         createJsError(
@@ -403,7 +403,7 @@ internal actual fun platformSetDebug(enabled: Boolean) {
 internal actual fun platformSetPersonProperties(
     userProperties: Map<String, Any>?,
     userPropertiesSetOnce: Map<String, Any>?,
-    options: PostHogEventOptions?
+    options: Map<String, Any>?
 ) {
     PostHogJs.setPersonProperties(
         userProperties?.toJsObject() ?: createJsObject(),

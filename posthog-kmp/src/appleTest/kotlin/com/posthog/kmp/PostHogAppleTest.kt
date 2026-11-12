@@ -72,23 +72,32 @@ class PostHogAppleTest {
         try {
             PostHog.reset()
             PostHog.capture("anonymous")
-            PostHog.registerOptions(PostHogEventOptions(cookielessMode = true))
+            PostHog.registerOptions(mapOf(PostHogEventOptions.COOKIELESS_MODE to true))
             PostHog.capture(
                 "with-options",
-                options = CaptureOptions(eventOptions = PostHogEventOptions(processPersonProfile = true, productTourId = "tour"))
+                options = CaptureOptions(
+                    eventOptions = mapOf(
+                        PostHogEventOptions.PROCESS_PERSON_PROFILE to true,
+                        PostHogEventOptions.PRODUCT_TOUR_ID to "tour",
+                        "future" to "kept"
+                    )
+                )
             )
-            PostHog.unregisterOptions("cookieless_mode")
+            PostHog.unregisterOptions(PostHogEventOptions.COOKIELESS_MODE)
             PostHog.capture("unregistered")
-            val aiUuid = PostHog.captureAi("\$ai_generation", options = CaptureOptions(eventOptions = PostHogEventOptions(disableSkewCorrection = true)))
+            val aiUuid = PostHog.captureAi(
+                "\$ai_generation",
+                options = CaptureOptions(eventOptions = mapOf(PostHogEventOptions.DISABLE_SKEW_CORRECTION to true))
+            )
 
             // The SDK marks an anonymous user's event as personless with the default personProfiles
-            assertEquals(PostHogEventOptions(processPersonProfile = false), events.single { it.event == "anonymous" }.options)
+            assertEquals(mapOf<String, Any?>("process_person_profile" to false), events.single { it.event == "anonymous" }.options)
             assertEquals(
-                PostHogEventOptions(processPersonProfile = true, cookielessMode = true, productTourId = "tour"),
+                mapOf<String, Any?>("process_person_profile" to true, "cookieless_mode" to true, "product_tour_id" to "tour", "future" to "kept"),
                 events.single { it.event == "with-options" }.options
             )
-            assertEquals(null, events.single { it.event == "unregistered" }.options?.cookielessMode)
-            assertEquals(true, events.single { it.event == "\$ai_generation" }.options?.disableSkewCorrection)
+            assertEquals(null, events.single { it.event == "unregistered" }.options?.get("cookieless_mode"))
+            assertEquals(true, events.single { it.event == "\$ai_generation" }.options?.get("disable_skew_correction"))
             assertEquals(null, aiUuid, "beforeSend dropped the AI event")
         } finally {
             PostHog.reset()

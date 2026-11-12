@@ -462,8 +462,8 @@ class PostHogJvmTest {
     }
     @Test
     fun testEventOptionsReachNativeOptions() {
-        val options = PostHogEventOptions(processPersonProfile = true, productTourId = "tour")
-        val native = mapOf("process_person_profile" to true, "product_tour_id" to "tour")
+        val options = mapOf(PostHogEventOptions.PROCESS_PERSON_PROFILE to true, "future" to 1, "unset" to null)
+        val native = mapOf("process_person_profile" to true, "future" to 1)
 
         PostHog.capture("event", options = CaptureOptions(eventOptions = options))
         PostHog.screen("Home", eventOptions = options)
@@ -484,8 +484,8 @@ class PostHogJvmTest {
     }
 
     @Test
-    fun testEventOptionsWithNoFieldSetSendNoNativeOptions() {
-        PostHog.capture("event", options = CaptureOptions(eventOptions = PostHogEventOptions()))
+    fun testEventOptionsWithNoValueSetSendNoNativeOptions() {
+        PostHog.capture("event", options = CaptureOptions(eventOptions = mapOf("unset" to null)))
         assertMethodCalled("capture", "event", null, null, null, null, null, null, null)
     }
 
@@ -500,7 +500,7 @@ class PostHogJvmTest {
             CaptureOptions(
                 groups = mapOf("company" to "acme"),
                 timestamp = 1234,
-                eventOptions = PostHogEventOptions(cookielessMode = true)
+                eventOptions = mapOf(PostHogEventOptions.COOKIELESS_MODE to true)
             )
         )
 
@@ -519,26 +519,44 @@ class PostHogJvmTest {
     }
 
     @Test
+    fun testCaptureAiConfigReachesNativeConfig() {
+        val nativeConfig = com.posthog.PostHogConfig("key")
+        nativeConfig.configureCaptureAi(
+            PostHogConfig(
+                projectToken = "key",
+                captureAiCompression = PostHogCompression.NONE,
+                captureAiMaxQueueSize = 7,
+                captureAiTimeout = 90,
+                captureAiMaxEventBytes = 1024
+            )
+        )
+
+        assertEquals(com.posthog.PostHogCompression.NONE, nativeConfig.captureAiCompression)
+        assertEquals(7, nativeConfig.captureAiMaxQueueSize)
+        assertEquals(90, nativeConfig.captureAiTimeout)
+        assertEquals(1024, nativeConfig.captureAiMaxEventBytes)
+    }
+
+    @Test
     fun testCaptureAiReturnsNullWhenNativeDropsTheEvent() {
         assertNull(PostHog.captureAi("\$ai_generation"))
     }
 
     @Test
-    fun testRegisterOptionsRegistersOnlySetFields() {
-        PostHog.registerOptions(PostHogEventOptions(cookielessMode = true, disableSkewCorrection = false))
-        PostHog.registerOptions(PostHogEventOptions())
-        PostHog.unregisterOptions("cookieless_mode")
-
-        assertMethodCalled(
-            "registerOptionsForWrapper",
-            mapOf("cookieless_mode" to true, "disable_skew_correction" to false)
+    fun testRegisterOptionsRegistersOnlySetValues() {
+        PostHog.registerOptions(
+            mapOf(PostHogEventOptions.COOKIELESS_MODE to true, "future" to false, "unset" to null)
         )
+        PostHog.registerOptions(mapOf("unset" to null))
+        PostHog.unregisterOptions(PostHogEventOptions.COOKIELESS_MODE)
+
+        assertMethodCalled("registerOptionsForWrapper", mapOf("cookieless_mode" to true, "future" to false))
         assertMethodCalled("unregisterOptionsForWrapper", "cookieless_mode")
     }
 
     @Test
     fun testBeforeSendSeesAndChangesNativeOptions() {
-        var seen: PostHogEventOptions? = null
+        var seen: Map<String, Any?>? = null
         val nativeConfig = com.posthog.PostHogConfig("key")
         nativeConfig.configureBeforeSend(
             PostHogConfig(
@@ -546,7 +564,7 @@ class PostHogJvmTest {
                 beforeSend = listOf(
                     PostHogBeforeSend {
                         seen = it.options
-                        it.copy(options = it.options?.copy(processPersonProfile = true, productTourId = null))
+                        it.copy(options = it.options.orEmpty() + mapOf("process_person_profile" to true, "product_tour_id" to null))
                     }
                 )
             )
@@ -557,7 +575,10 @@ class PostHogJvmTest {
 
         val result = nativeConfig.beforeSendList.single().run(event)
 
-        assertEquals(PostHogEventOptions(processPersonProfile = false, productTourId = "tour"), seen)
+        assertEquals<Map<String, Any?>?>(
+            mapOf("process_person_profile" to false, "product_tour_id" to "tour", "future" to 1),
+            seen
+        )
         assertEquals<Map<String, Any?>?>(mapOf("process_person_profile" to true, "future" to 1), result?.options)
     }
 
