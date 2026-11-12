@@ -38,12 +38,14 @@ internal fun PostHogConfig.runBeforeSend(
 ): PostHogEvent? {
     var current = event
     for (callback in beforeSend) {
-        current = try {
+        val processed = try {
             callback.run(current) ?: return null
         } catch (error: Throwable) {
             onError(error)
             return null
         }
+        // An event the callback built without options keeps the ones it was given
+        current = if (processed.options == null) processed.copy(options = current.options) else processed
     }
     return current
 }

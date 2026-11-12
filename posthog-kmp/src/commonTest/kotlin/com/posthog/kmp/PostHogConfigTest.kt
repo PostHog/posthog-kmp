@@ -153,6 +153,23 @@ class PostHogConfigTest {
     }
 
     @Test
+    fun beforeSendKeepsOptionsSetByEarlierCallback() {
+        val config = PostHogConfig(
+            projectToken = "phc_test",
+            beforeSend = listOf(
+                PostHogBeforeSend { it.copy(options = PostHogEventOptions(processPersonProfile = false)) },
+                PostHogBeforeSend { PostHogEvent(it.event, it.distinctId, it.properties) }
+            )
+        )
+
+        val result = config.runBeforeSend(
+            PostHogEvent("checkout", "user-1", emptyMap(), PostHogEventOptions(processPersonProfile = true))
+        )
+
+        assertEquals(PostHogEventOptions(processPersonProfile = false), result?.options)
+    }
+
+    @Test
     fun copyPreservesBeforeSendCallbacks() {
         val callback = PostHogBeforeSend { it }
         val config = PostHogConfig(projectToken = "phc_test", beforeSend = listOf(callback))
