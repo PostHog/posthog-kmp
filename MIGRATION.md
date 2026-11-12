@@ -2,7 +2,7 @@
 
 ## 0.10 to 0.11
 
-0.11 moves Android, JVM, iOS and macOS to the 4.0 native SDKs: posthog-android 4.0, the JVM core `com.posthog:posthog` 7.0 and posthog-ios 4.0. JavaScript and Wasm targets stay on posthog-js; of the breaking changes below, only [Feature flags](#feature-flags) reaches them.
+0.11 moves Android, JVM, iOS and macOS to the 4.0 native SDKs: posthog-android 4.0, the JVM core `com.posthog:posthog` 7.0 and posthog-ios 4.0. JavaScript and Wasm targets stay on posthog-js; of the breaking changes below, only the `SessionRecordingConfig` changes in [Session replay](#session-replay), which are compile errors in common code, and [Feature flags](#feature-flags) reach them.
 
 <!-- TODO(native-4.0-links): these tags don't exist until posthog-android 4.0.0 and posthog-ios 4.0.0 are released; check both links resolve before merging. -->
 The native SDKs list every change in their own guides: [posthog-android](https://github.com/PostHog/posthog-android/blob/android-v4.0.0/MIGRATION.md) and [posthog-ios](https://github.com/PostHog/posthog-ios/blob/4.0.0/MIGRATION.md). This guide covers what reaches a KMP app. If your app also calls posthog-android, posthog-ios or the JVM core `com.posthog:posthog` directly, that code moves to 4.0 (core 7.0) too, so follow those guides for it.
@@ -18,6 +18,8 @@ The native SDKs list every change in their own guides: [posthog-android](https:/
 - [ ] Update `reloadFeatureFlags` callbacks that are function references or `() -> Unit` values to take the new `PostHogFeatureFlagsLoaded` parameter.
 - [ ] Check that `projectToken` is your project token (`phc_...`), not a personal API key (`phx_...`).
 - [ ] If you call `register("\$process_person_profile", false)`, remove it and use `personProfiles` instead (see [Event changes](#event-changes)).
+- [ ] Update `beforeSend` callbacks that read or set the `$process_person_profile` property to use `PostHogEvent.options["process_person_profile"]` (see [Event changes](#event-changes)).
+- [ ] If you call `captureAi()` through a reverse proxy or a self-hosted instance, serve `/i/v1/ai/events` too (see [Event options](#event-options)).
 - [ ] Update insights, cohorts and alerts that read the properties listed under [Event changes](#event-changes).
 
 ### Build requirements
@@ -32,6 +34,8 @@ Code compiled against 0.10 has to be recompiled against 0.11, including librarie
 
 - `SessionRecordingConfig` lost `screenshot` and stores the throttle delay in `throttleDelayMs` instead of `debouncerDelayMs`, which changes its constructor, `copy()` and `component7()` onward. `debouncerDelayMs` is still readable as a deprecated alias. `component6()` keeps its signature but now returns `captureLogcat` instead of `screenshot`, so 0.10 bytecode that calls it gets a different value without an error.
 - `reloadFeatureFlags()` takes a `(PostHogFeatureFlagsLoaded) -> Unit` callback instead of `() -> Unit`.
+- `CaptureOptions` gained `eventOptions` and `PostHogEvent` gained `options`, which changes their constructors and `copy()`. A `beforeSend` callback compiled against 0.10 that calls `event.copy(...)` fails.
+- `screen()`, `identify()`, `alias()`, `group()`, `setPersonProperties()` and `captureException()` take a trailing `eventOptions` parameter. Java callers have no overload without it, so Java source that calls them, or `new CaptureOptions(groups, timestamp)`, has to pass the new argument.
 
 `PostHogConfig` keeps its 0.10 constructor as a public overload and its 0.10 `copy()` as a hidden overload, so code that only builds a `PostHogConfig` still links.
 
@@ -102,9 +106,9 @@ PostHog.capture("checkout", options = CaptureOptions(eventOptions = mapOf(PostHo
 PostHog.registerOptions(mapOf(PostHogEventOptions.COOKIELESS_MODE to true))
 ```
 
-On JavaScript and Wasm, posthog-js has no options, so the keys in the table are sent as their properties on `capture()`, `screen()` and `captureException()` events, and other keys are dropped.
+On JavaScript and Wasm, posthog-js has no options, so the keys in the table are sent as their properties on `capture()`, `screen()` and `captureException()` events, and other keys are dropped. `registerOptions()` registers those keys as their properties there and drops other keys.
 
-`PostHog.captureAi()` sends AI events, such as `$ai_generation`, to PostHog's AI endpoint on Android, JVM, iOS and macOS. `PostHogConfig.captureAiCompression`, `captureAiMaxQueueSize`, `captureAiTimeout` and `captureAiMaxEventBytes` configure those requests.
+`PostHog.captureAi()` sends AI events, such as `$ai_generation`, to PostHog's AI endpoint, `/i/v1/ai/events`, on Android, JVM, iOS and macOS. A reverse proxy or self-hosted instance has to serve that path too, with the same headers and response handling as [Capture v1](#capture-v1). `PostHogConfig.captureAiCompression`, `captureAiMaxQueueSize`, `captureAiTimeout` and `captureAiMaxEventBytes` configure those requests.
 
 ### Setup
 
