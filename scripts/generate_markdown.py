@@ -21,6 +21,7 @@ import argparse
 import functools
 import json
 import os
+import re
 import shlex
 import subprocess
 from pathlib import Path
@@ -62,7 +63,9 @@ def signature(node) -> str:
     text = node.select_one(".symbol").get_text().strip()
     for word in ("expect ", "actual ", "abstract ", "open ", "override "):
         text = text.removeprefix(word)
-    return text
+    # Dokka drops the parentheses of a nullable function type: `(() -> Unit)? = null` prints as
+    # `() -> Unit? = null`. Only a nullable type can default to null, so that case is unambiguous.
+    return re.sub(r"(: )(\([^()]*\) -> [^=,()]+?)\?( = null)", r"\1(\2)?\3", text)
 
 
 def platforms(node) -> list[tuple[str, object]]:
@@ -119,22 +122,30 @@ def entry(page: Path, label: str) -> str:
     return "\n\n".join(p for p in parts if p)
 
 
+def members(node, kinds: tuple[str, ...]) -> list[str]:
+    """The members a type's page lists of these kinds, each with its brief."""
+    rows = {}
+    for row in node.select(", ".join(f"[data-togglable={k}] .table-row" for k in kinds)):
+        link = row.select_one("a")
+        # A member a supertype declares has no page here, only an anchor on this one.
+        if not link or link["href"].startswith("index.html") or link.get_text().replace("\u200b", "") in NOISE:
+            continue
+        brief = row.select_one(".brief")
+        sig = signature(row) if row.select_one(".symbol") else link.get_text()
+        rows.setdefault(sig, f"- `{sig}`" + (f": {markdown(brief, 5)}" if brief else ""))
+    return list(rows.values())
+
+
 def type_entry(page: Path, name: str) -> str:
-    """A type's declaration, description and the members it declares itself, each with its brief."""
+    """A type's declaration, description and the members it declares itself, its companion's included."""
     node = content(page)
     parts = [f"### `{name}`", *declaration(platforms(node.select_one(".cover")))]
     for kind, heading in (("PROPERTY", "Properties"), ("FUNCTION", "Functions"), ("ENTRY", "Entries")):
-        rows = {}
-        for row in node.select(f"[data-togglable={kind}] .table-row"):
-            link = row.select_one("a")
-            # A member a supertype declares has no page here, only an anchor on this one.
-            if not link or link["href"].startswith("index.html") or link.get_text().replace("​", "") in NOISE:
-                continue
-            brief = row.select_one(".brief")
-            sig = signature(row) if row.select_one(".symbol") else link.get_text()
-            rows.setdefault(sig, f"- `{sig}`" + (f": {markdown(brief, 5)}" if brief else ""))
-        if rows:
-            parts.append(f"#### {heading}\n\n" + "\n".join(rows.values()))
+        if rows := members(node, (kind,)):
+            parts.append(f"#### {heading}\n\n" + "\n".join(rows))
+    if (companion := page.parent / "-companion/index.html").exists():
+        if rows := members(content(companion), ("PROPERTY", "FUNCTION")):
+            parts.append("#### Companion\n\n" + "\n".join(rows))
     return "\n\n".join(p for p in parts if p)
 
 

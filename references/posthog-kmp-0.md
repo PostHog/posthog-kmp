@@ -446,7 +446,7 @@ A null value is ignored (use unregister to remove a super property).
 ### `PostHog.reloadFeatureFlags`
 
 ```kotlin
-fun reloadFeatureFlags(callback: () -> Unit? = null)
+fun reloadFeatureFlags(callback: (() -> Unit)? = null)
 ```
 
 Reload feature flags from the server.
@@ -647,6 +647,12 @@ Configuration options for PostHog SDK initialization.
 - `val projectToken: String`: Your PostHog project token (required), which starts with `phc_`. Find it in your project settings: https://us.posthog.com/settings/project-details#variables. Formerly named `apiKey`. Example: `PostHogConfig(projectToken = "phc_your_project_token")`.
 - `val sendFeatureFlagEvent: Boolean`: Send events when feature flags are evaluated
 - `val sessionRecording: SessionRecordingConfig?`: Enable session recording (platform dependent)
+
+#### Companion
+
+- `const val HOST_EU: String`: PostHog EU Cloud instance
+- `const val HOST_US: String`: PostHog US Cloud instance
+- `operator fun invoke(apiKey: String, host: String = "https://us.i.posthog.com", debug: Boolean = false, captureApplicationLifecycleEvents: Boolean = true, captureScreenViews: Boolean = false, captureDeepLinks: Boolean = true, sendFeatureFlagEvent: Boolean = true, preloadFeatureFlags: Boolean = true, flushAt: Int = 20, flushIntervalSeconds: Int = 30, maxQueueSize: Int = 1000, maxBatchSize: Int = 50, optOut: Boolean = false, personProfiles: PersonProfiles = PersonProfiles.IDENTIFIED_ONLY, sessionRecording: SessionRecordingConfig? = null, autocapture: Boolean = false, beforeSend: List<PostHogBeforeSend> = emptyList(), errorTracking: ErrorTrackingConfig? = null): PostHogConfig`: Deprecated named-argument form of the PostHogConfig constructor that takes `apiKey`.
 
 ### `PostHogContext`
 
