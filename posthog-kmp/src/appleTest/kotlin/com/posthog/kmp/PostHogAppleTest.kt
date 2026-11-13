@@ -106,6 +106,44 @@ class PostHogAppleTest {
     }
 
     @Test
+    fun testBeforeSendEmptyOptionsClearAndNullOptionsKeep() {
+        val events = mutableListOf<PostHogEvent>()
+        PostHog.setup(
+            PostHogConfig(
+                projectToken = "apple-unit-test",
+                host = "http://127.0.0.1:9",
+                preloadFeatureFlags = false,
+                captureApplicationLifecycleEvents = false,
+                beforeSend = listOf(
+                    PostHogBeforeSend { event ->
+                        when (event.event) {
+                            "cleared" -> event.copy(options = emptyMap())
+                            "built" -> PostHogEvent(event.event, event.distinctId, event.properties)
+                            else -> event
+                        }
+                    },
+                    PostHogBeforeSend { event ->
+                        events.add(event)
+                        null
+                    },
+                ),
+            ),
+            PostHogContext(),
+        )
+        try {
+            PostHog.reset()
+            PostHog.capture("cleared")
+            PostHog.capture("built")
+
+            assertEquals(emptyMap(), events.single { it.event == "cleared" }.options)
+            assertEquals(mapOf<String, Any?>("process_person_profile" to false), events.single { it.event == "built" }.options)
+        } finally {
+            PostHog.reset()
+            PostHog.close()
+        }
+    }
+
+    @Test
     fun testAppLanguageOverridesDetectionAndYieldsToRegistered() {
         val events = mutableListOf<PostHogEvent>()
         PostHog.setup(

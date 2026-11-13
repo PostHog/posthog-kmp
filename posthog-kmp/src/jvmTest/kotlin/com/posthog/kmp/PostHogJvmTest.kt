@@ -601,6 +601,21 @@ class PostHogJvmTest {
     }
 
     @Test
+    fun testBeforeSendThatReturnsEmptyOptionsClearsNativeOptions() {
+        val nativeConfig = com.posthog.PostHogConfig("key")
+        nativeConfig.configureBeforeSend(
+            PostHogConfig(projectToken = "key", beforeSend = listOf(PostHogBeforeSend { it.copy(options = emptyMap()) }))
+        )
+        val event = com.posthog.PostHogEvent("event", "user", mutableMapOf()).apply {
+            options = mutableMapOf("process_person_profile" to false, "future" to 1)
+        }
+
+        val result = nativeConfig.beforeSendList.single().run(event)
+
+        assertTrue(result?.options.isNullOrEmpty())
+    }
+
+    @Test
     fun testBeforeSendThatKeepsOptionsLeavesNativeOptionsAsTheyWere() {
         val nativeConfig = com.posthog.PostHogConfig("key")
         nativeConfig.configureBeforeSend(
