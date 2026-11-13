@@ -55,14 +55,49 @@ public object PostHog {
      *
      * @param event The event name (e.g., "button_clicked", "purchase_completed")
      * @param properties Optional properties to include with the event
-     * @param options Optional capture options (groups, timestamp)
+     * @param options Optional capture options (groups, timestamp, event options)
      */
     public fun capture(
         event: String,
         properties: Map<String, Any?>? = null,
         options: CaptureOptions? = null
     ) {
-        platformCapture(event, properties?.dropNullValues(), options?.groups, options?.timestamp)
+        platformCapture(event, properties?.dropNullValues(), options?.groups, options?.timestamp, options?.eventOptions?.dropNullValues())
+    }
+
+    /**
+     * Capture an AI observability event, such as `$ai_generation`, `$ai_span`, `$ai_trace` or
+     * `$ai_embedding`, and send it to PostHog's AI endpoint, which accepts much larger events than
+     * [capture].
+     *
+     * Takes the same arguments as [capture] and goes through the same [PostHogConfig.beforeSend]
+     * callbacks. The event is queued separately from other events and sent unchanged: the SDK
+     * doesn't redact or truncate prompts, outputs or media. PostHog drops an event sent here whose
+     * name doesn't start with `$ai_`. [capture] never sends events here, even ones named `$ai_*`.
+     *
+     * Supported on Android, JVM, iOS and macOS. On JavaScript and Wasm it sends nothing and returns
+     * `null`.
+     *
+     * ```kotlin
+     * PostHog.captureAi(
+     *     "\$ai_generation",
+     *     mapOf("\$ai_trace_id" to traceId, "\$ai_model" to "gpt-5", "\$ai_provider" to "openai")
+     * )
+     * ```
+     *
+     * @param event The AI event name, such as `$ai_generation`
+     * @param properties Optional properties to include with the event
+     * @param options Optional capture options (groups, timestamp, event options)
+     * @return The event's UUID once the SDK has queued it, or `null` when it won't be sent: the SDK
+     *   is not set up, disabled or opted out, a [PostHogConfig.beforeSend] callback dropped it, the
+     *   event is too large, or the platform is JavaScript or Wasm
+     */
+    public fun captureAi(
+        event: String,
+        properties: Map<String, Any?>? = null,
+        options: CaptureOptions? = null
+    ): String? {
+        return platformCaptureAi(event, properties?.dropNullValues(), options?.groups, options?.timestamp, options?.eventOptions?.dropNullValues())
     }
 
     /**
@@ -73,9 +108,14 @@ public object PostHog {
      * @param screenName The name of the screen or page. It takes precedence over a
      *   `$screen_name` key in [properties].
      * @param properties Optional additional properties
+     * @param eventOptions Settings that tell PostHog how to process the `$screen` event
      */
-    public fun screen(screenName: String, properties: Map<String, Any?>? = null) {
-        platformScreen(screenName, properties?.minus("\$screen_name")?.dropNullValues())
+    public fun screen(
+        screenName: String,
+        properties: Map<String, Any?>? = null,
+        eventOptions: Map<String, Any?>? = null
+    ) {
+        platformScreen(screenName, properties?.minus("\$screen_name")?.dropNullValues(), eventOptions?.dropNullValues())
     }
 
     // ==================== User Identification ====================
@@ -88,13 +128,16 @@ public object PostHog {
      * @param distinctId The unique identifier for this user
      * @param userProperties Optional properties to set on the user profile
      * @param userPropertiesSetOnce Optional properties to set only if not already set
+     * @param eventOptions Settings that tell PostHog how to process the `$identify` or `$set` event
+     *   this call sends. Dropped on JavaScript and Wasm.
      */
     public fun identify(
         distinctId: String,
         userProperties: Map<String, Any?>? = null,
-        userPropertiesSetOnce: Map<String, Any?>? = null
+        userPropertiesSetOnce: Map<String, Any?>? = null,
+        eventOptions: Map<String, Any?>? = null
     ) {
-        platformIdentify(distinctId, userProperties?.dropNullValues(), userPropertiesSetOnce?.dropNullValues())
+        platformIdentify(distinctId, userProperties?.dropNullValues(), userPropertiesSetOnce?.dropNullValues(), eventOptions?.dropNullValues())
     }
 
     /**
@@ -104,9 +147,11 @@ public object PostHog {
      * with an identified user ID.
      *
      * @param alias The new alias to assign to the current user
+     * @param eventOptions Settings that tell PostHog how to process the `$create_alias` event.
+     *   Dropped on JavaScript and Wasm.
      */
-    public fun alias(alias: String) {
-        platformAlias(alias)
+    public fun alias(alias: String, eventOptions: Map<String, Any?>? = null) {
+        platformAlias(alias, eventOptions?.dropNullValues())
     }
 
     /**
@@ -153,6 +198,50 @@ public object PostHog {
     }
 
     /**
+     * Register event options sent with every later event, such as
+     * [PostHogEventOptions.COOKIELESS_MODE]. Keys are sent as given, including ones
+     * [PostHogEventOptions] doesn't list.
+     *
+     * An event's own options win over registered ones key by key. Keys set here overwrite registered
+     * values for the same key, and `null` values are ignored. Registered options persist across app
+     * restarts until [unregisterOptions] removes them or [reset] clears them. On Android, JVM, iOS
+     * and macOS, [PostHogConfig.beforeSend] callbacks see them in [PostHogEvent.options].
+     *
+     * On Android, JVM, iOS and macOS, a registered [PostHogEventOptions.PROCESS_PERSON_PROFILE]
+     * skips the events [identify], [alias], [group] and [setPersonProperties] send. A value passed
+     * on those calls still applies.
+     *
+     * Use this instead of registering a legacy property such as `$cookieless_mode`.
+     *
+     * On JavaScript and Wasm, posthog-js has no options, so the keys [PostHogEventOptions] lists are
+     * registered as their legacy properties, with the limits described there, and other keys are
+     * dropped. [PostHogConfig.beforeSend] callbacks see them in [PostHogEvent.properties] there.
+     *
+     * ```kotlin
+     * PostHog.registerOptions(mapOf(PostHogEventOptions.COOKIELESS_MODE to true))
+     * ```
+     *
+     * @param options The options to register, keyed by option key
+     */
+    public fun registerOptions(options: Map<String, Any?>) {
+        platformRegisterOptions(options.dropNullValues() ?: return)
+    }
+
+    /**
+     * Remove an option registered with [registerOptions]. Events captured afterwards no longer get
+     * it, unless they set it in their own options.
+     *
+     * ```kotlin
+     * PostHog.unregisterOptions(PostHogEventOptions.COOKIELESS_MODE)
+     * ```
+     *
+     * @param key The option key, such as [PostHogEventOptions.COOKIELESS_MODE]
+     */
+    public fun unregisterOptions(key: String) {
+        platformUnregisterOptions(key)
+    }
+
+    /**
      * Sets the `$app_language` property: the language your app displays, sent with every event.
      *
      * Default: Android 13+ detects it from the app's `localeConfig`, and iOS and macOS from the
@@ -187,12 +276,15 @@ public object PostHog {
      *
      * @param userPropertiesToSet Properties to set on the person profile (will overwrite existing values)
      * @param userPropertiesToSetOnce Properties to set only if they do not already exist on the profile
+     * @param eventOptions Settings that tell PostHog how to process the `$set` event. Dropped on
+     *   JavaScript and Wasm.
      */
     public fun setPersonProperties(
         userPropertiesToSet: Map<String, Any>?,
-        userPropertiesToSetOnce: Map<String, Any>? = null
+        userPropertiesToSetOnce: Map<String, Any>? = null,
+        eventOptions: Map<String, Any?>? = null
     ) {
-        platformSetPersonProperties(userPropertiesToSet, userPropertiesToSetOnce)
+        platformSetPersonProperties(userPropertiesToSet, userPropertiesToSetOnce, eventOptions?.dropNullValues())
     }
 
     // ==================== Group Analytics ====================
@@ -205,13 +297,16 @@ public object PostHog {
      * @param type The group type (e.g., "company", "team")
      * @param key The unique identifier for this group
      * @param groupProperties Optional properties to set on the group
+     * @param eventOptions Settings that tell PostHog how to process the `$groupidentify` event.
+     *   Dropped on JavaScript and Wasm.
      */
     public fun group(
         type: String,
         key: String,
-        groupProperties: Map<String, Any?>? = null
+        groupProperties: Map<String, Any?>? = null,
+        eventOptions: Map<String, Any?>? = null
     ) {
-        platformGroup(type, key, groupProperties?.dropNullValues())
+        platformGroup(type, key, groupProperties?.dropNullValues(), eventOptions?.dropNullValues())
     }
 
     // ==================== Feature Flags ====================
@@ -439,12 +534,14 @@ public object PostHog {
      *
      * @param throwable The exception to capture
      * @param additionalProperties Optional additional context
+     * @param eventOptions Settings that tell PostHog how to process the `$exception` event
      */
     public fun captureException(
         throwable: Throwable,
-        additionalProperties: Map<String, Any?>? = null
+        additionalProperties: Map<String, Any?>? = null,
+        eventOptions: Map<String, Any?>? = null
     ) {
-        platformCaptureException(throwable, additionalProperties?.dropNullValues())
+        platformCaptureException(throwable, additionalProperties?.dropNullValues(), eventOptions?.dropNullValues())
     }
 
     // ==================== Opt In/Out ====================
@@ -532,18 +629,28 @@ internal expect fun platformCapture(
     event: String,
     properties: Map<String, Any>?,
     groups: Map<String, String>?,
-    timestamp: Long?
+    timestamp: Long?,
+    options: Map<String, Any>?
 )
 
-internal expect fun platformScreen(screenName: String, properties: Map<String, Any>?)
+internal expect fun platformCaptureAi(
+    event: String,
+    properties: Map<String, Any>?,
+    groups: Map<String, String>?,
+    timestamp: Long?,
+    options: Map<String, Any>?
+): String?
+
+internal expect fun platformScreen(screenName: String, properties: Map<String, Any>?, options: Map<String, Any>?)
 
 internal expect fun platformIdentify(
     distinctId: String,
     userProperties: Map<String, Any>?,
-    userPropertiesSetOnce: Map<String, Any>?
+    userPropertiesSetOnce: Map<String, Any>?,
+    options: Map<String, Any>?
 )
 
-internal expect fun platformAlias(alias: String)
+internal expect fun platformAlias(alias: String, options: Map<String, Any>?)
 
 internal expect fun platformReset()
 
@@ -553,12 +660,17 @@ internal expect fun platformRegister(key: String, value: Any)
 
 internal expect fun platformUnregister(key: String)
 
+internal expect fun platformRegisterOptions(options: Map<String, Any>)
+
+internal expect fun platformUnregisterOptions(key: String)
+
 internal expect fun platformSetAppLanguage(language: String?)
 
 internal expect fun platformGroup(
     type: String,
     key: String,
-    groupProperties: Map<String, Any>?
+    groupProperties: Map<String, Any>?,
+    options: Map<String, Any>?
 )
 
 internal expect fun platformIsFeatureEnabled(key: String, defaultValue: Boolean, sendFeatureFlagEvent: Boolean): Boolean
@@ -587,7 +699,8 @@ internal expect fun platformGetFeatureFlagResult(key: String, sendFeatureFlagEve
 
 internal expect fun platformCaptureException(
     throwable: Throwable,
-    additionalProperties: Map<String, Any>?
+    additionalProperties: Map<String, Any>?,
+    options: Map<String, Any>?
 )
 
 internal expect fun platformGetAnonymousId(): String?
@@ -608,5 +721,6 @@ internal expect fun platformSetDebug(enabled: Boolean)
 
 internal expect fun platformSetPersonProperties(
     userProperties: Map<String, Any>?,
-    userPropertiesSetOnce: Map<String, Any>? = null
+    userPropertiesSetOnce: Map<String, Any>?,
+    options: Map<String, Any>?
 )

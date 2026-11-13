@@ -54,6 +54,96 @@ class PostHogAppleTest {
     }
 
     @Test
+    fun testEventOptionsReachBeforeSend() {
+        val events = mutableListOf<PostHogEvent>()
+        PostHog.setup(
+            PostHogConfig(
+                projectToken = "apple-unit-test",
+                host = "http://127.0.0.1:9",
+                preloadFeatureFlags = false,
+                captureApplicationLifecycleEvents = false,
+                beforeSend = listOf(PostHogBeforeSend { event ->
+                    events.add(event)
+                    null
+                }),
+            ),
+            PostHogContext(),
+        )
+        try {
+            PostHog.reset()
+            PostHog.capture("anonymous")
+            PostHog.registerOptions(mapOf(PostHogEventOptions.COOKIELESS_MODE to true))
+            PostHog.capture(
+                "with-options",
+                options = CaptureOptions(
+                    eventOptions = mapOf(
+                        PostHogEventOptions.PROCESS_PERSON_PROFILE to true,
+                        PostHogEventOptions.PRODUCT_TOUR_ID to "tour",
+                        "future" to "kept"
+                    )
+                )
+            )
+            PostHog.unregisterOptions(PostHogEventOptions.COOKIELESS_MODE)
+            PostHog.capture("unregistered")
+            val aiUuid = PostHog.captureAi(
+                "\$ai_generation",
+                options = CaptureOptions(eventOptions = mapOf(PostHogEventOptions.DISABLE_SKEW_CORRECTION to true))
+            )
+
+            // The SDK marks an anonymous user's event as personless with the default personProfiles
+            assertEquals(mapOf<String, Any?>("process_person_profile" to false), events.single { it.event == "anonymous" }.options)
+            assertEquals(
+                mapOf<String, Any?>("process_person_profile" to true, "cookieless_mode" to true, "product_tour_id" to "tour", "future" to "kept"),
+                events.single { it.event == "with-options" }.options
+            )
+            assertEquals(null, events.single { it.event == "unregistered" }.options?.get("cookieless_mode"))
+            assertEquals(true, events.single { it.event == "\$ai_generation" }.options?.get("disable_skew_correction"))
+            assertEquals(null, aiUuid, "beforeSend dropped the AI event")
+        } finally {
+            PostHog.reset()
+            PostHog.close()
+        }
+    }
+
+    @Test
+    fun testBeforeSendEmptyOptionsClearAndNullOptionsKeep() {
+        val events = mutableListOf<PostHogEvent>()
+        PostHog.setup(
+            PostHogConfig(
+                projectToken = "apple-unit-test",
+                host = "http://127.0.0.1:9",
+                preloadFeatureFlags = false,
+                captureApplicationLifecycleEvents = false,
+                beforeSend = listOf(
+                    PostHogBeforeSend { event ->
+                        when (event.event) {
+                            "cleared" -> event.copy(options = emptyMap())
+                            "built" -> PostHogEvent(event.event, event.distinctId, event.properties)
+                            else -> event
+                        }
+                    },
+                    PostHogBeforeSend { event ->
+                        events.add(event)
+                        null
+                    },
+                ),
+            ),
+            PostHogContext(),
+        )
+        try {
+            PostHog.reset()
+            PostHog.capture("cleared")
+            PostHog.capture("built")
+
+            assertEquals(emptyMap(), events.single { it.event == "cleared" }.options)
+            assertEquals(mapOf<String, Any?>("process_person_profile" to false), events.single { it.event == "built" }.options)
+        } finally {
+            PostHog.reset()
+            PostHog.close()
+        }
+    }
+
+    @Test
     fun testAppLanguageOverridesDetectionAndYieldsToRegistered() {
         val events = mutableListOf<PostHogEvent>()
         PostHog.setup(

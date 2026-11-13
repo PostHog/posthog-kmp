@@ -11,14 +11,14 @@
 - **Breaking:** retry a capture 404 until the host serves capture v1, keeping events only until a full queue evicts them, stop retrying 3xx responses, and cap a request at about 5 MiB, on Android, JVM, iOS and macOS
 - **Breaking:** disable the SDK at setup when `projectToken` is a personal API key (`phx_...`) on Android, JVM, iOS and macOS
 - **Breaking:** drop events with an empty name or with a distinct ID that `beforeSend` blanks, and let PostHog drop events whose name or distinct ID is over 200 bytes, on Android, JVM, iOS and macOS
-- **Breaking:** mark personless events with a capture option instead of a `$process_person_profile` property, so `beforeSend` no longer sees or changes it, on Android, JVM, iOS and macOS — pass `$process_person_profile` to `capture()` instead
+- **Breaking:** mark personless events with a capture option instead of a `$process_person_profile` property, on Android, JVM, iOS and macOS — `beforeSend` reads and changes it through `PostHogEvent.options`
 - **Breaking:** leave out `null` values in nested maps on iOS and macOS, and keep `null` list elements in place instead of removing them on Android and JVM
 - **Breaking:** always send `$sdk_debug_replay_capture_mode` as `screenshot` on Android and iOS
 - **Breaking:** leave out query parameters whose name starts with `$` from `Deep Link Opened` on Android
 - **Breaking:** leave out `$feature_flag_response` on `$feature_flag_called` for a missing flag on Android, JVM, iOS and macOS — filter on *is not set* instead of `""` or `false`
 - **Breaking:** return a `null` `FeatureFlagResult.payload` for a payload that isn't valid JSON on Android, JVM, iOS and macOS
 - **Breaking:** let `register()` super properties override properties the SDK sets, such as `$os_name`, on Android, JVM, iOS and macOS
-- **Breaking:** apply a registered `$process_person_profile = false` to every event, including those `identify()`, `alias()`, `group()` and `setPersonProperties()` send, so PostHog drops the `$identify`, `$create_alias` and `$groupidentify` events and doesn't update the person from `$set`, on Android, JVM, iOS and macOS — use `personProfiles` instead
+- **Breaking:** apply a registered `$process_person_profile = false` to every event except those `identify()`, `alias()`, `group()` and `setPersonProperties()` send, on Android, JVM, iOS and macOS — use `personProfiles` instead
 - **Breaking:** change `$locale` to the device's preferred language and region on Android, iOS and macOS, and to a BCP 47 tag that keeps the script, such as `zh-Hant-TW`, on JVM
 - **Breaking:** remove the `version` and `build` properties from `Application Installed`, `Application Updated` and `Application Opened` on iOS and macOS — use `$app_version` and `$app_build`
 - Add the `$app_language` property with the language the app displays on Android 13+, iOS and macOS, and `PostHog.setAppLanguage()` to set it on every platform except JavaScript and Wasm

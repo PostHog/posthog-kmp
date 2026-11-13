@@ -2,7 +2,7 @@
 
 ## 0.10 to 0.11
 
-0.11 moves Android, JVM, iOS and macOS to the 4.0 native SDKs: posthog-android 4.0, the JVM core `com.posthog:posthog` 7.0 and posthog-ios 4.0. JavaScript and Wasm targets stay on posthog-js; of the breaking changes below, only [Feature flags](#feature-flags) reaches them.
+0.11 moves Android, JVM, iOS and macOS to the 4.0 native SDKs: posthog-android 4.0, the JVM core `com.posthog:posthog` 7.0 and posthog-ios 4.0. JavaScript and Wasm targets stay on posthog-js; of the breaking changes below, only the `SessionRecordingConfig` changes in [Session replay](#session-replay), which are compile errors in common code, and [Feature flags](#feature-flags) reach them.
 
 <!-- TODO(native-4.0-links): these tags don't exist until posthog-android 4.0.0 and posthog-ios 4.0.0 are released; check both links resolve before merging. -->
 The native SDKs list every change in their own guides: [posthog-android](https://github.com/PostHog/posthog-android/blob/android-v4.0.0/MIGRATION.md) and [posthog-ios](https://github.com/PostHog/posthog-ios/blob/4.0.0/MIGRATION.md). This guide covers what reaches a KMP app. If your app also calls posthog-android, posthog-ios or the JVM core `com.posthog:posthog` directly, that code moves to 4.0 (core 7.0) too, so follow those guides for it.
@@ -18,6 +18,8 @@ The native SDKs list every change in their own guides: [posthog-android](https:/
 - [ ] Update `reloadFeatureFlags` callbacks that are function references or `() -> Unit` values to take the new `PostHogFeatureFlagsLoaded` parameter.
 - [ ] Check that `projectToken` is your project token (`phc_...`), not a personal API key (`phx_...`).
 - [ ] If you call `register("\$process_person_profile", false)`, remove it and use `personProfiles` instead (see [Event changes](#event-changes)).
+- [ ] Update `beforeSend` callbacks that read or set the `$process_person_profile` property to use `PostHogEvent.options["process_person_profile"]` (see [Event changes](#event-changes)).
+- [ ] If you call `captureAi()` through a reverse proxy or a self-hosted instance, serve `/i/v1/ai/events` too (see [Event options](#event-options)).
 - [ ] Update insights, cohorts and alerts that read the properties listed under [Event changes](#event-changes).
 
 ### Build requirements
@@ -32,6 +34,8 @@ Code compiled against 0.10 has to be recompiled against 0.11, including librarie
 
 - `SessionRecordingConfig` lost `screenshot` and stores the throttle delay in `throttleDelayMs` instead of `debouncerDelayMs`, which changes its constructor, `copy()` and `component7()` onward. `debouncerDelayMs` is still readable as a deprecated alias. `component6()` keeps its signature but now returns `captureLogcat` instead of `screenshot`, so 0.10 bytecode that calls it gets a different value without an error.
 - `reloadFeatureFlags()` takes a `(PostHogFeatureFlagsLoaded) -> Unit` callback instead of `() -> Unit`.
+- `CaptureOptions` gained `eventOptions` and `PostHogEvent` gained `options`, which changes their constructors and `copy()`. A `beforeSend` callback compiled against 0.10 that calls `event.copy(...)` fails.
+- `screen()`, `identify()`, `alias()`, `group()`, `setPersonProperties()` and `captureException()` take a trailing `eventOptions` parameter. Java callers have no overload without it, so Java source that calls them, or `new CaptureOptions(groups, timestamp)`, has to pass the new argument.
 
 `PostHogConfig` keeps its 0.10 constructor as a public overload and its 0.10 `copy()` as a hidden overload, so code that only builds a `PostHogConfig` still links.
 
@@ -79,6 +83,33 @@ Retries also changed: 3xx responses are no longer retried, `Retry-After` is capp
 
 Events queued on disk by 0.10 are sent through capture v1 after the update.
 
+### Event options
+
+Settings that tell PostHog how to process an event are now sent as event options, apart from its properties. Set them with `CaptureOptions.eventOptions`, the `eventOptions` parameter of `screen()`, `identify()`, `alias()`, `group()`, `setPersonProperties()` and `captureException()`, or for every later event with `registerOptions()`. `PostHogEventOptions` has the keys:
+
+| Option | Replaces the property |
+|---|---|
+| `PostHogEventOptions.PROCESS_PERSON_PROFILE` (`process_person_profile`) | `$process_person_profile` |
+| `PostHogEventOptions.COOKIELESS_MODE` (`cookieless_mode`) | `$cookieless_mode` |
+| `PostHogEventOptions.DISABLE_SKEW_CORRECTION` (`disable_skew_correction`) | `$ignore_sent_at` |
+| `PostHogEventOptions.PRODUCT_TOUR_ID` (`product_tour_id`) | `$product_tour_id` |
+
+The properties still work, and an option wins over its property. Options are sent as given, so a key not in the table also works.
+
+```kotlin
+// Before
+PostHog.capture("checkout", mapOf("\$cookieless_mode" to true))
+PostHog.register("\$cookieless_mode", true)
+
+// After
+PostHog.capture("checkout", options = CaptureOptions(eventOptions = mapOf(PostHogEventOptions.COOKIELESS_MODE to true)))
+PostHog.registerOptions(mapOf(PostHogEventOptions.COOKIELESS_MODE to true))
+```
+
+On JavaScript and Wasm, posthog-js has no options, so the keys in the table are sent as their properties on `capture()`, `screen()` and `captureException()` events, and other keys are dropped. `registerOptions()` registers those keys as their properties there and drops other keys.
+
+`PostHog.captureAi()` sends AI events, such as `$ai_generation`, to PostHog's AI endpoint, `/i/v1/ai/events`, on Android, JVM, iOS and macOS. A reverse proxy or self-hosted instance has to serve that path too, with the same headers and response handling as [Capture v1](#capture-v1). `PostHogConfig.captureAiCompression`, `captureAiMaxQueueSize`, `captureAiTimeout` and `captureAiMaxEventBytes` configure those requests.
+
 ### Setup
 
 `setup()` leaves the SDK disabled when `projectToken` is a personal API key (`phx_...`), the same as for an empty token, and prints a warning even when `debug` is off.
@@ -110,14 +141,14 @@ To react to every flag load rather than one reload, use the new `PostHog.onFeatu
 | Change | Platforms | What to do |
 |---|---|---|
 | Events with an empty name are dropped, including one a `beforeSend` callback renames to `""`. Events whose distinct ID a `beforeSend` callback sets to an empty or whitespace-only string are dropped too. PostHog also drops events whose name or distinct ID is over 200 bytes. | Android, JVM, iOS, macOS | Give every event a name, and don't blank the distinct ID in `beforeSend`. |
-| When the SDK doesn't process person profiles for an event (an anonymous user's event with the default `personProfiles`), it now marks that with a capture option instead of a `$process_person_profile = false` property. `PostHogEvent` doesn't expose capture options, so `beforeSend` doesn't see the setting, and setting `$process_person_profile` there doesn't turn person processing on. A `$process_person_profile` you pass to `capture()` now applies, even with `personProfiles = PersonProfiles.NEVER`. In 0.10, the SDK replaced it with its own value. | Android, JVM, iOS, macOS | Set `$process_person_profile` when you call `capture()`, call `identify()`, or set `personProfiles = PersonProfiles.ALWAYS`, instead of setting it in `beforeSend`. Update callbacks that read it. |
+| When the SDK doesn't process person profiles for an event (an anonymous user's event with the default `personProfiles`), it now marks that with the `process_person_profile` event option instead of a `$process_person_profile = false` property. `beforeSend` sees it in `PostHogEvent.options["process_person_profile"]`. | Android, JVM, iOS, macOS | To process person profiles for an event, set `process_person_profile` in `PostHogEvent.options` in `beforeSend`, pass `CaptureOptions(eventOptions = mapOf(PostHogEventOptions.PROCESS_PERSON_PROFILE to true))` to `capture()`, call `identify()`, or set `personProfiles = PersonProfiles.ALWAYS`. Update callbacks that read the property to read `options["process_person_profile"]`. |
 | `$feature_flag_called` for a missing flag leaves out `$feature_flag_response` instead of sending `""` or `false`. | Android, JVM, iOS, macOS | Filter on `$feature_flag_response` *is not set* instead. |
 | A `null` value inside a nested map is left out instead of sent as `null`. `$set` and `$set_once` still send `null` values. | iOS, macOS | Don't rely on `null` entries in nested maps. |
 | A `null` element in a list is sent as `null` at its position instead of being removed, which used to shift later elements. | Android, JVM | Update filters that index into list properties. |
 | `$sdk_debug_replay_capture_mode` is always `screenshot`. | Android, iOS | Update filters on `wireframe`. |
 | `Deep Link Opened` leaves out query parameters whose name starts with `$`. | Android | Rename any `$`-prefixed parameter you read from the event. |
 | Super properties from `register()` override properties the SDK sets, such as `$os_name`. A registered `$session_id` replaces the SDK's session ID, which can detach events from their session replay. | Android, JVM, iOS, macOS | Don't register `$`-prefixed SDK properties unless you mean to replace them. |
-| A `$process_person_profile = false` registered with `register()` now applies, and it also reaches the events `identify()`, `alias()`, `group()` and `setPersonProperties()` send. In 0.10, the SDK replaced a registered value with its own, so it had no effect. PostHog drops `$identify`, `$create_alias` and `$groupidentify` events with person processing off, with an ingestion warning, and the SDK doesn't report it. A `$set` event is kept, but the person isn't updated. Other events after `identify()` are still linked to the person and billed as identified events. The SDK turns the property into a capture option after `beforeSend` runs, so a `beforeSend` callback that sets it to `true` or removes it on `$identify`, `$create_alias`, `$groupidentify` and `$set` events keeps those calls working. | Android, JVM, iOS, macOS | Remove the registered value. To skip person profiles for anonymous users, rely on `personProfiles = PersonProfiles.IDENTIFIED_ONLY`, the default, which still lets `identify()` create the person. To create no person profiles at all, set `personProfiles = PersonProfiles.NEVER`. |
+| A `$process_person_profile = false` registered with `register()`, or a `process_person_profile = false` registered with `registerOptions()`, now applies to every event except the ones `identify()`, `alias()`, `group()` and `setPersonProperties()` send. A value passed on those calls, or set in `beforeSend`, still applies. In 0.10, the SDK replaced a registered value with its own, so it had no effect. Events after `identify()` that get the registered value are still linked to the person and billed as identified events. | Android, JVM, iOS, macOS | Remove the registered value. To skip person profiles for anonymous users, rely on `personProfiles = PersonProfiles.IDENTIFIED_ONLY`, the default, which still lets `identify()` create the person. To create no person profiles at all, set `personProfiles = PersonProfiles.NEVER`. |
 | `$locale` is the device's preferred language with its region, such as `de-CH`. On Android it's left out when the device reports no language, and the legacy codes `iw`, `in` and `ji` become `he`, `id` and `yi`. | Android, iOS, macOS | Filter on the new `$app_language` for the language the app shows, and update filters that match the legacy codes. |
 | `$locale` is a BCP 47 tag that keeps the script, such as `zh-Hant-TW`, and is `en` rather than `en-` when the locale has no region. | JVM | Update filters that match the old form. |
 | `Application Installed`, `Application Updated` and `Application Opened` no longer have `version` and `build`. | iOS, macOS | Use `$app_version` and `$app_build`. |

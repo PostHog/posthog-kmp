@@ -53,7 +53,8 @@ public class PostHogConfigJavaTest {
         PostHogConfig config = new PostHogConfig(
             "phc_test", PostHogConfig.HOST_US, false, true, false, true, true, true,
             20, 30, 1000, 50, false, PersonProfiles.IDENTIFIED_ONLY, null, false,
-            Collections.emptyList(), null, false, false, Collections.singletonList("checkout")
+            Collections.emptyList(), null, false, false, Collections.singletonList("checkout"),
+            PostHogCompression.GZIP, 100, 60, 8 * 1024 * 1024 + 64 * 1024
         );
         Method copyDefault = PostHogConfig.class.getMethod(
             "copy$default", PostHogConfig.class, String.class, String.class,

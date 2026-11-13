@@ -67,6 +67,16 @@ internal actual fun platformCapture(
     event: String,
     properties: Map<String, Any>?,
     groups: Map<String, String>?,
+    timestamp: Long?,
+    options: Map<String, Any>?
+) {
+    captureEvent(event, withLegacyOptionProperties(properties, options), groups, timestamp)
+}
+
+private fun captureEvent(
+    event: String,
+    properties: Map<String, Any>?,
+    groups: Map<String, String>?,
     timestamp: Long?
 ) {
     val options = createJsObject()
@@ -84,18 +94,33 @@ internal actual fun platformCapture(
     PostHogJs.capture(event, mergedProperties, options)
 }
 
-internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?) {
+@Suppress("UNUSED_PARAMETER")
+internal actual fun platformCaptureAi(
+    event: String,
+    properties: Map<String, Any>?,
+    groups: Map<String, String>?,
+    timestamp: Long?,
+    options: Map<String, Any>?
+): String? {
+    if (currentConfig?.debug == true) logWasmDebug("captureAi isn't supported on Wasm; $event was not sent.")
+    return null
+}
+
+internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?, options: Map<String, Any>?) {
     val screenProperties = buildMap<String, Any?> {
         put("\$screen_name", screenName)
-        properties?.let { putAll(it) }
+        withLegacyOptionProperties(properties, options)?.let { putAll(it) }
     }
     PostHogJs.capture("\$screen", screenProperties.toJsObject())
 }
 
+// posthog-js's identify, alias, group and setPersonProperties take no event properties, so their options are dropped
+@Suppress("UNUSED_PARAMETER")
 internal actual fun platformIdentify(
     distinctId: String,
     userProperties: Map<String, Any>?,
-    userPropertiesSetOnce: Map<String, Any>?
+    userPropertiesSetOnce: Map<String, Any>?,
+    options: Map<String, Any>?
 ) {
     PostHogJs.identify(
         distinctId,
@@ -104,7 +129,8 @@ internal actual fun platformIdentify(
     )
 }
 
-internal actual fun platformAlias(alias: String) {
+@Suppress("UNUSED_PARAMETER")
+internal actual fun platformAlias(alias: String, options: Map<String, Any>?) {
     PostHogJs.alias(alias)
 }
 
@@ -122,6 +148,15 @@ internal actual fun platformRegister(key: String, value: Any) {
     PostHogJs.register(properties)
 }
 
+// posthog-js has no options, so they are registered as the legacy properties it reads
+internal actual fun platformRegisterOptions(options: Map<String, Any>) {
+    options.forEach { (key, value) -> LEGACY_OPTION_PROPERTIES[key]?.let { platformRegister(it, value) } }
+}
+
+internal actual fun platformUnregisterOptions(key: String) {
+    LEGACY_OPTION_PROPERTIES[key]?.let { platformUnregister(it) }
+}
+
 internal actual fun platformUnregister(key: String) {
     PostHogJs.unregister(key)
 }
@@ -131,7 +166,13 @@ internal actual fun platformSetAppLanguage(language: String?) {
     // posthog-js has no $app_language yet, so Wasm doesn't send it
 }
 
-internal actual fun platformGroup(type: String, key: String, groupProperties: Map<String, Any>?) {
+@Suppress("UNUSED_PARAMETER")
+internal actual fun platformGroup(
+    type: String,
+    key: String,
+    groupProperties: Map<String, Any>?,
+    options: Map<String, Any>?
+) {
     PostHogJs.group(type, key, groupProperties?.toJsObject())
 }
 
@@ -288,8 +329,8 @@ private fun processBeforeSend(config: PostHogConfig, captureResult: JsAny?): JsA
     captureResult ?: return null
     return try {
         val event = captureResult.toPostHogEvent() ?: return null
-        val processed = config.runBeforeSend(event) {
-            if (config.debug) logWasmError("beforeSend", "callback failed; event was dropped")
+        val processed = config.runBeforeSend(event) { error ->
+            if (config.debug) logWasmError("beforeSend", beforeSendFailureMessage(event, error))
         } ?: return null
 
         val processedProperties = processed.properties.toJsObject()
@@ -311,14 +352,18 @@ private fun JsAny.toPostHogEvent(): PostHogEvent? {
     return PostHogEvent(event, distinctId, properties - "distinct_id")
 }
 
-internal actual fun platformCaptureException(throwable: Throwable, additionalProperties: Map<String, Any>?) {
+internal actual fun platformCaptureException(
+    throwable: Throwable,
+    additionalProperties: Map<String, Any>?,
+    options: Map<String, Any>?
+) {
     PostHogJs.captureException(
         createJsError(
             throwable::class.simpleName ?: "Error",
             throwable.message ?: throwable.toString(),
             throwable.stackTraceToString()
         ),
-        additionalProperties?.toJsObject()
+        withLegacyOptionProperties(additionalProperties, options)?.toJsObject()
     )
 }
 
@@ -354,9 +399,11 @@ internal actual fun platformSetDebug(enabled: Boolean) {
     wasmCall("setDebug") { PostHogJs.debug(enabled) }
 }
 
+@Suppress("UNUSED_PARAMETER")
 internal actual fun platformSetPersonProperties(
     userProperties: Map<String, Any>?,
-    userPropertiesSetOnce: Map<String, Any>?
+    userPropertiesSetOnce: Map<String, Any>?,
+    options: Map<String, Any>?
 ) {
     PostHogJs.setPersonProperties(
         userProperties?.toJsObject() ?: createJsObject(),
@@ -459,3 +506,4 @@ private fun overrideSdkInfo(instance: PostHogJsApi, sdkName: String, sdkVersion:
     js("{ instance._overrideSDKInfo?.(sdkName, sdkVersion); }")
 private fun flushPostHogQueues(instance: PostHogJsApi): Unit = js("{ instance._requestQueue?.unload(); instance._retryQueue?.unload(); }")
 private fun logWasmError(operation: String, message: String): Unit = js("{ console.error('[PostHog] ' + operation + ' failed', message); }")
+private fun logWasmDebug(message: String): Unit = js("{ console.log('[PostHog] ' + message); }")

@@ -13,6 +13,8 @@ import swiftPMImport.com.posthog.posthog.kmp.PostHogConfig as NativePostHogConfi
 import swiftPMImport.com.posthog.posthog.kmp.PostHogEvent as NativePostHogEvent
 import swiftPMImport.com.posthog.posthog.kmp.PostHogFeatureFlagResult as NativeFeatureFlagResult
 import swiftPMImport.com.posthog.posthog.kmp.PostHogFeatureFlagsLoaded as NativeFeatureFlagsLoaded
+import swiftPMImport.com.posthog.posthog.kmp.PostHogCompressionGzip
+import swiftPMImport.com.posthog.posthog.kmp.PostHogCompressionNone
 import swiftPMImport.com.posthog.posthog.kmp.PostHogPersonProfilesAlways
 import swiftPMImport.com.posthog.posthog.kmp.PostHogPersonProfilesIdentifiedOnly
 import swiftPMImport.com.posthog.posthog.kmp.PostHogPersonProfilesNever
@@ -48,6 +50,16 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
             PersonProfiles.IDENTIFIED_ONLY -> PostHogPersonProfilesIdentifiedOnly
         }
         setDefaultPersonProperties = true
+        // Unset values keep the native SDK's defaults
+        config.captureAiCompression?.let {
+            captureAiCompression = when (it) {
+                PostHogCompression.GZIP -> PostHogCompressionGzip
+                PostHogCompression.NONE -> PostHogCompressionNone
+            }
+        }
+        config.captureAiMaxQueueSize?.let { captureAiMaxQueueSize = it.toLong() }
+        config.captureAiTimeout?.let { captureAiTimeout = it.toDouble() }
+        config.captureAiMaxEventBytes?.let { captureAiMaxEventBytes = it.toLong() }
         configurePlatformCapture(config)
 
         config.errorTracking?.let { errorTracking ->
@@ -79,10 +91,13 @@ private fun processBeforeSend(config: PostHogConfig, event: NativePostHogEvent?)
         .filterKeys { it is String }
         .mapKeys { it.key as String }
 
-    val processed = config.runBeforeSend(
-        PostHogEvent(event.event, event.distinctId, properties.toMap())
-    ) {
-        if (config.debug) NSLog("[PostHog] Before-send callback failed; event was dropped.")
+    val options = event.options
+        .filterKeys { it is String }
+        .mapKeys { it.key as String }
+
+    val input = PostHogEvent(event.event, event.distinctId, properties.toMap(), options.toMap())
+    val processed = config.runBeforeSend(input) { error ->
+        if (config.debug) NSLog("[PostHog] ${beforeSendFailureMessage(input, error).replace("%", "%%")}")
     } ?: return null
 
     event.event = processed.event
@@ -91,6 +106,10 @@ private fun processBeforeSend(config: PostHogConfig, event: NativePostHogEvent?)
     // objects they already are keeps a $snapshot payload off the main thread's critical path.
     val (removedKeys, changedValues) = propertyDelta(properties, processed.properties)
     event.properties = event.properties.withChanges(removedKeys, changedValues)
+    val (removedOptions, changedOptions) = propertyDelta(options, processed.options.orEmpty())
+    if (removedOptions.isNotEmpty() || changedOptions.isNotEmpty()) {
+        event.options = event.options.withChanges(removedOptions, changedOptions)
+    }
     return event
 }
 
@@ -134,7 +153,8 @@ internal actual fun platformCapture(
     event: String,
     properties: Map<String, Any>?,
     groups: Map<String, String>?,
-    timestamp: Long?
+    timestamp: Long?,
+    options: Map<String, Any>?
 ) {
     @Suppress("UNCHECKED_CAST")
     PostHogSDK.shared.captureWithEvent(
@@ -145,40 +165,71 @@ internal actual fun platformCapture(
         userPropertiesSetOnce = null,
         // Group values are strings; only booleans need rebuilding on the Objective-C side.
         groups = groups as? Map<Any?, *>,
-        timestamp = timestamp?.toNSDate()
+        timestamp = timestamp?.toNSDate(),
+        options = options.toNativeOptions()
     )
 }
 
+internal actual fun platformCaptureAi(
+    event: String,
+    properties: Map<String, Any>?,
+    groups: Map<String, String>?,
+    timestamp: Long?,
+    options: Map<String, Any>?
+): String? {
+    @Suppress("UNCHECKED_CAST")
+    return PostHogSDK.shared.captureAiWithEvent(
+        event = event,
+        distinctId = null,
+        properties = properties?.toNativeProperties(),
+        userProperties = null,
+        userPropertiesSetOnce = null,
+        groups = groups as? Map<Any?, *>,
+        timestamp = timestamp?.toNSDate(),
+        options = options.toNativeOptions()
+    )
+}
+
+private fun Map<String, Any>?.toNativeOptions(): Map<Any?, *>? = this?.toNativeProperties()
+
 internal fun Long.toNSDate(): NSDate = NSDate.dateWithTimeIntervalSince1970(toDouble() / 1000.0)
 
-internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?) {
-    PostHogSDK.shared.screenWithTitle(screenName, properties = properties?.toNativeProperties())
+internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?, options: Map<String, Any>?) {
+    PostHogSDK.shared.screenWithTitle(
+        screenName,
+        properties = properties?.toNativeProperties(),
+        options = options.toNativeOptions()
+    )
 }
 
 internal actual fun platformCaptureException(
     throwable: Throwable,
-    additionalProperties: Map<String, Any>?
+    additionalProperties: Map<String, Any>?,
+    options: Map<String, Any>?
 ) {
     PostHogSDK.shared.captureExceptionWithNSException(
         exception = throwable.toNSException(),
-        properties = additionalProperties?.toNativeProperties()
+        properties = additionalProperties?.toNativeProperties(),
+        options = options.toNativeOptions()
     )
 }
 
 internal actual fun platformIdentify(
     distinctId: String,
     userProperties: Map<String, Any>?,
-    userPropertiesSetOnce: Map<String, Any>?
+    userPropertiesSetOnce: Map<String, Any>?,
+    options: Map<String, Any>?
 ) {
     PostHogSDK.shared.identifyWithDistinctId(
         distinctId,
         userProperties = userProperties?.toNativeProperties(),
-        userPropertiesSetOnce = userPropertiesSetOnce?.toNativeProperties()
+        userPropertiesSetOnce = userPropertiesSetOnce?.toNativeProperties(),
+        options = options.toNativeOptions()
     )
 }
 
-internal actual fun platformAlias(alias: String) {
-    PostHogSDK.shared.alias(alias)
+internal actual fun platformAlias(alias: String, options: Map<String, Any>?) {
+    PostHogSDK.shared.alias(alias, options = options.toNativeOptions())
 }
 
 internal actual fun platformReset() {
@@ -196,6 +247,14 @@ internal actual fun platformUnregister(key: String) {
     PostHogSDK.shared.unregisterProperties(key)
 }
 
+internal actual fun platformRegisterOptions(options: Map<String, Any>) {
+    PostHogSDK.shared.registerOptionsForWrapper(options.toNativeProperties())
+}
+
+internal actual fun platformUnregisterOptions(key: String) {
+    PostHogSDK.shared.unregisterOptionsForWrapper(key)
+}
+
 internal actual fun platformSetAppLanguage(language: String?) {
     PostHogSDK.shared.setAppLanguage(language)
 }
@@ -203,9 +262,10 @@ internal actual fun platformSetAppLanguage(language: String?) {
 internal actual fun platformGroup(
     type: String,
     key: String,
-    groupProperties: Map<String, Any>?
+    groupProperties: Map<String, Any>?,
+    options: Map<String, Any>?
 ) {
-    PostHogSDK.shared.groupWithType(type, key, groupProperties?.toNativeProperties())
+    PostHogSDK.shared.groupWithType(type, key, groupProperties?.toNativeProperties(), options = options.toNativeOptions())
 }
 
 internal actual fun platformIsFeatureEnabled(key: String, defaultValue: Boolean, sendFeatureFlagEvent: Boolean): Boolean =
@@ -316,10 +376,12 @@ internal actual fun platformSetDebug(enabled: Boolean) {
 
 internal actual fun platformSetPersonProperties(
     userProperties: Map<String, Any>?,
-    userPropertiesSetOnce: Map<String, Any>?
+    userPropertiesSetOnce: Map<String, Any>?,
+    options: Map<String, Any>?
 ) {
     PostHogSDK.shared.setPersonPropertiesWithUserPropertiesToSet(
         userProperties?.toNativeProperties(),
-        userPropertiesToSetOnce = userPropertiesSetOnce?.toNativeProperties()
+        userPropertiesToSetOnce = userPropertiesSetOnce?.toNativeProperties(),
+        options = options.toNativeOptions()
     )
 }

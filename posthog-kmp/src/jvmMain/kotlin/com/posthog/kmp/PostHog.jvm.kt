@@ -31,6 +31,7 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
 
         personProfiles = config.personProfiles.toCorePersonProfiles()
         configureErrorTracking(config.errorTracking)
+        configureCaptureAi(config)
         configureBeforeSend(config)
     }
 

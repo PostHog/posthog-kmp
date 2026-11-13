@@ -277,6 +277,35 @@ class PostHogWasmJsTest {
     }
 
     @Test
+    fun eventOptionsAreSentAsLegacyPropertiesThatWin() {
+        PostHog.capture(
+            "checkout",
+            mapOf("\$cookieless_mode" to false),
+            CaptureOptions(
+                eventOptions = mapOf(PostHogEventOptions.COOKIELESS_MODE to true, PostHogEventOptions.PRODUCT_TOUR_ID to "tour")
+            )
+        )
+
+        assertTrue(readNestedBoolean(fakePostHog, "properties", "\$cookieless_mode"))
+        assertEquals("tour", readNestedString(fakePostHog, "properties", "\$product_tour_id"))
+    }
+
+    @Test
+    fun captureAiSendsNothingAndReturnsNull() {
+        assertNull(PostHog.captureAi("\$ai_generation"))
+        assertFalse(hasProperty(fakePostHog, "event"))
+    }
+
+    @Test
+    fun registerOptionsRegistersLegacyProperties() {
+        PostHog.registerOptions(mapOf(PostHogEventOptions.DISABLE_SKEW_CORRECTION to true))
+        PostHog.unregisterOptions("disable_skew_correction")
+
+        assertTrue(readNestedBoolean(fakePostHog, "registered", "\$ignore_sent_at"))
+        assertEquals("\$ignore_sent_at", readString(fakePostHog, "unregisteredKey"))
+    }
+
+    @Test
     fun propertiesForFlagsRouteToPostHogJs() {
         PostHog.setPersonPropertiesForFlags(mapOf("plan" to "pro", "drop" to null), reloadFeatureFlags = false)
         PostHog.setGroupPropertiesForFlags("company", mapOf("plan" to "enterprise"))
@@ -390,6 +419,8 @@ private fun createFakePostHog(): PostHogJsApi = js(
                 return key === 'checkout' ? 'blue' : undefined;
             },
             reset() { this.resetCalls = (this.resetCalls || 0) + 1; },
+            register(properties) { this.registered = properties; },
+            unregister(key) { this.unregisteredKey = key; },
             capture(event, properties, options) {
                 this.event = event;
                 this.properties = properties;
@@ -490,3 +521,4 @@ private fun hasFlagsCallback(target: PostHogJsApi): Boolean = js("target.flagsCa
 private fun readEvaluationContexts(target: PostHogJsApi): String = js("target.options.evaluation_contexts.join(',')")
 private fun hasNestedProperty(target: PostHogJsApi, parent: String, key: String): Boolean =
     js("Object.prototype.hasOwnProperty.call(target[parent], key)")
+private fun hasProperty(target: PostHogJsApi, key: String): Boolean = js("key in target")
