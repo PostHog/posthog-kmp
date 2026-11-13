@@ -207,6 +207,10 @@ public object PostHog {
      * restarts until [unregisterOptions] removes them or [reset] clears them. On Android, JVM, iOS
      * and macOS, [PostHogConfig.beforeSend] callbacks see them in [PostHogEvent.options].
      *
+     * On Android, JVM, iOS and macOS, a registered [PostHogEventOptions.PROCESS_PERSON_PROFILE]
+     * skips the events [identify], [alias], [group] and [setPersonProperties] send. A value passed
+     * on those calls still applies.
+     *
      * Use this instead of registering a legacy property such as `$cookieless_mode`.
      *
      * On JavaScript and Wasm, posthog-js has no options, so the keys [PostHogEventOptions] lists are

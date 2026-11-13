@@ -18,7 +18,7 @@
 - **Breaking:** leave out `$feature_flag_response` on `$feature_flag_called` for a missing flag on Android, JVM, iOS and macOS — filter on *is not set* instead of `""` or `false`
 - **Breaking:** return a `null` `FeatureFlagResult.payload` for a payload that isn't valid JSON on Android, JVM, iOS and macOS
 - **Breaking:** let `register()` super properties override properties the SDK sets, such as `$os_name`, on Android, JVM, iOS and macOS
-- **Breaking:** apply a registered `$process_person_profile = false` to every event, including those `identify()`, `alias()`, `group()` and `setPersonProperties()` send, so PostHog drops the `$identify`, `$create_alias` and `$groupidentify` events and doesn't update the person from `$set`, on Android, JVM, iOS and macOS — use `personProfiles` instead
+- **Breaking:** apply a registered `$process_person_profile = false` to every event except those `identify()`, `alias()`, `group()` and `setPersonProperties()` send, on Android, JVM, iOS and macOS — use `personProfiles` instead
 - **Breaking:** change `$locale` to the device's preferred language and region on Android, iOS and macOS, and to a BCP 47 tag that keeps the script, such as `zh-Hant-TW`, on JVM
 - **Breaking:** remove the `version` and `build` properties from `Application Installed`, `Application Updated` and `Application Opened` on iOS and macOS — use `$app_version` and `$app_build`
 - Add the `$app_language` property with the language the app displays on Android 13+, iOS and macOS, and `PostHog.setAppLanguage()` to set it on every platform except JavaScript and Wasm
