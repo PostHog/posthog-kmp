@@ -17,6 +17,7 @@ okio = "3.18.2"
 posthog-ios = "4.0.0"
 posthog-js = "1.435.8"
 mavenPublish = "0.37.0"
+dokka = "2.3.0"
 detekt = "1.23.8"
 
 # Testing
@@ -51,6 +52,7 @@ androidKmpLibrary = { id = "com.android.kotlin.multiplatform.library", version.r
 androidApplication = { id = "com.android.application", version.ref = "agp" }
 posthogAndroid = { id = "com.posthog.android", version.ref = "posthog-android-gradle-plugin" }
 mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "mavenPublish" }
+dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "compose-multiplatform" }
 composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }

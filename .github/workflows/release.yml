@@ -363,6 +363,40 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-konan-
 
+      # Best-effort, like the step below: Python only serves the SDK reference.
+      - name: Set up Python
+        id: python
+        continue-on-error: true
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13'
+
+      # Best-effort: a failure never blocks the release. Run generate-references.yml to retry.
+      # The pages ride in the version bump commit below, which commits everything git status lists.
+      - name: Regenerate the SDK reference
+        id: reference
+        if: steps.python.outcome == 'success'
+        continue-on-error: true
+        run: |
+          gh repo clone PostHog/sdk-specs "$RUNNER_TEMP/sdk-specs" -- --depth 1
+          python3 -m pip install --quiet -r scripts/requirements.txt
+          python3 scripts/generate_markdown.py --sdk-specs "$RUNNER_TEMP/sdk-specs"
+          git add references
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      # Gradle can touch tracked files (like .swiftpm-locks), and a failed run can leave partial pages.
+      # Keep only the staged release candidate and pages, so nothing else lands in the release commit.
+      - name: Drop unstaged changes from the reference run
+        if: always()
+        run: |
+          git checkout -- .
+          git clean -fdq references
+
+      - name: Warn if the SDK reference didn't regenerate
+        if: steps.python.outcome == 'failure' || steps.reference.outcome == 'failure'
+        run: echo "::warning::The SDK reference didn't regenerate. Run generate-references.yml to retry."
+
       # Installation tokens live 60 minutes; everything from here on (commit,
       # publish, tag, release) must fit inside that window.
       - name: Get GitHub App token

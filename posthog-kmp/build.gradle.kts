@@ -7,6 +7,8 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidKmpLibrary)
     alias(libs.plugins.mavenPublish)
+    // Builds the HTML that scripts/generate_markdown.py turns into references/. Not published.
+    alias(libs.plugins.dokka)
 }
 
 val versionProperties = Properties().apply {
