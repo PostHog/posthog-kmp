@@ -28,6 +28,7 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
 
     val bootstrap = createJsObject()
     setJsProperty(options, "bootstrap", bootstrap)
+    config.evaluationContexts?.let { setJsProperty(options, "evaluation_contexts", it.toJsArray()) }
     if (config.beforeSend.isNotEmpty()) {
         setBeforeSendCallback(options) { captureResult -> processBeforeSend(config, captureResult) }
     }
@@ -39,6 +40,9 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
     if (config.optOut) {
         PostHogJs.opt_out_capturing()
     }
+
+    pendingFeatureFlagsListeners.forEach { it.attach() }
+    pendingFeatureFlagsListeners.clear()
 }
 
 private fun PersonProfiles.postHogValue(): String = when (this) {
@@ -63,6 +67,16 @@ internal actual fun platformCapture(
     event: String,
     properties: Map<String, Any>?,
     groups: Map<String, String>?,
+    timestamp: Long?,
+    options: Map<String, Any>?
+) {
+    captureEvent(event, withLegacyOptionProperties(properties, options), groups, timestamp)
+}
+
+private fun captureEvent(
+    event: String,
+    properties: Map<String, Any>?,
+    groups: Map<String, String>?,
     timestamp: Long?
 ) {
     val options = createJsObject()
@@ -80,18 +94,33 @@ internal actual fun platformCapture(
     PostHogJs.capture(event, mergedProperties, options)
 }
 
-internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?) {
+@Suppress("UNUSED_PARAMETER")
+internal actual fun platformCaptureAi(
+    event: String,
+    properties: Map<String, Any>?,
+    groups: Map<String, String>?,
+    timestamp: Long?,
+    options: Map<String, Any>?
+): String? {
+    if (currentConfig?.debug == true) logWasmDebug("captureAi isn't supported on Wasm; $event was not sent.")
+    return null
+}
+
+internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?, options: Map<String, Any>?) {
     val screenProperties = buildMap<String, Any?> {
         put("\$screen_name", screenName)
-        properties?.let { putAll(it) }
+        withLegacyOptionProperties(properties, options)?.let { putAll(it) }
     }
     PostHogJs.capture("\$screen", screenProperties.toJsObject())
 }
 
+// posthog-js's identify, alias, group and setPersonProperties take no event properties, so their options are dropped
+@Suppress("UNUSED_PARAMETER")
 internal actual fun platformIdentify(
     distinctId: String,
     userProperties: Map<String, Any>?,
-    userPropertiesSetOnce: Map<String, Any>?
+    userPropertiesSetOnce: Map<String, Any>?,
+    options: Map<String, Any>?
 ) {
     PostHogJs.identify(
         distinctId,
@@ -100,7 +129,8 @@ internal actual fun platformIdentify(
     )
 }
 
-internal actual fun platformAlias(alias: String) {
+@Suppress("UNUSED_PARAMETER")
+internal actual fun platformAlias(alias: String, options: Map<String, Any>?) {
     PostHogJs.alias(alias)
 }
 
@@ -118,11 +148,31 @@ internal actual fun platformRegister(key: String, value: Any) {
     PostHogJs.register(properties)
 }
 
+// posthog-js has no options, so they are registered as the legacy properties it reads
+internal actual fun platformRegisterOptions(options: Map<String, Any>) {
+    options.forEach { (key, value) -> LEGACY_OPTION_PROPERTIES[key]?.let { platformRegister(it, value) } }
+}
+
+internal actual fun platformUnregisterOptions(key: String) {
+    LEGACY_OPTION_PROPERTIES[key]?.let { platformUnregister(it) }
+}
+
 internal actual fun platformUnregister(key: String) {
     PostHogJs.unregister(key)
 }
 
-internal actual fun platformGroup(type: String, key: String, groupProperties: Map<String, Any>?) {
+@Suppress("UNUSED_PARAMETER")
+internal actual fun platformSetAppLanguage(language: String?) {
+    // posthog-js has no $app_language yet, so Wasm doesn't send it
+}
+
+@Suppress("UNUSED_PARAMETER")
+internal actual fun platformGroup(
+    type: String,
+    key: String,
+    groupProperties: Map<String, Any>?,
+    options: Map<String, Any>?
+) {
     PostHogJs.group(type, key, groupProperties?.toJsObject())
 }
 
@@ -157,24 +207,107 @@ internal actual fun platformGetAllFeatureFlags(): Map<String, FeatureFlagResult>
     }
 }
 
-internal actual fun platformReloadFeatureFlags(callback: (() -> Unit)?) {
+internal actual fun platformReloadFeatureFlags(callback: ((PostHogFeatureFlagsLoaded) -> Unit)?) {
     if (callback == null) {
         PostHogJs.reloadFeatureFlags()
+        return
+    }
+    if (!isPostHogJsLoaded(PostHogJs)) {
+        callback(PostHogFeatureFlagsLoaded(emptyMap(), errorsLoading = true))
         return
     }
 
     var registered = false
     var done = false
     var unsubscribe: JsAny? = null
-    unsubscribe = PostHogJs.onFeatureFlags {
+    unsubscribe = PostHogJs.onFeatureFlags { _, variants, context ->
         if (registered && !done) {
             done = true
-            callback()
             unsubscribe?.let(::invokeJsFunction)
+            callback(featureFlagsLoaded(variants, context))
         }
     }
     registered = true
     PostHogJs.reloadFeatureFlags()
+}
+
+/** [PostHog.onFeatureFlags] registrations made before setup; posthog-js drops them until it's initialized. */
+private val pendingFeatureFlagsListeners = mutableListOf<FeatureFlagsListener>()
+
+private class FeatureFlagsListener(private val callback: (PostHogFeatureFlagsLoaded) -> Unit) {
+    private var unsubscribe: JsAny? = null
+    private var active = true
+
+    fun attach() {
+        if (!active) return
+        // posthog-js iterates a snapshot of its listeners, so one unsubscribed mid-delivery still gets called
+        unsubscribe = PostHogJs.onFeatureFlags { _, variants, context ->
+            if (active) callback(featureFlagsLoaded(variants, context))
+        }
+    }
+
+    fun detach() {
+        active = false
+        pendingFeatureFlagsListeners.remove(this)
+        unsubscribe?.let(::invokeJsFunction)
+        unsubscribe = null
+    }
+}
+
+internal actual fun platformOnFeatureFlags(callback: (PostHogFeatureFlagsLoaded) -> Unit): PostHogFeatureFlagsSubscription {
+    val listener = FeatureFlagsListener(callback)
+    if (isPostHogJsLoaded(PostHogJs)) listener.attach() else pendingFeatureFlagsListeners.add(listener)
+    return PostHogFeatureFlagsSubscription { listener.detach() }
+}
+
+private fun featureFlagsLoaded(variants: JsAny?, context: JsAny?): PostHogFeatureFlagsLoaded = PostHogFeatureFlagsLoaded(
+    featureFlags = variants?.takeIf { isPlainJsObject(it) }?.toKotlinMap().orEmpty(),
+    errorsLoading = context?.let { getJsProperty(it, "errorsLoading") }?.takeIf { isJsBoolean(it) }?.toKotlinBoolean()
+        ?: latestFeatureFlagsLoadFailed()
+)
+
+/** The posthog-js property that holds the errors of the latest flag load. */
+private const val FEATURE_FLAG_ERRORS_PROPERTY = "\$feature_flag_errors"
+
+/** Flags loaded, but some couldn't be computed; posthog-js reports that load with `errorsLoading = false`. */
+private const val ERRORS_WHILE_COMPUTING_FLAGS = "errors_while_computing_flags"
+
+/**
+ * posthog-js leaves `errorsLoading` out when it replays cached flags to a new listener, and when
+ * flags change without a load. It stores the errors of its latest load, so read them instead.
+ */
+private fun latestFeatureFlagsLoadFailed(): Boolean = wasmCall("onFeatureFlags") {
+    val errors = PostHogJs.get_property(FEATURE_FLAG_ERRORS_PROPERTY)?.takeIf { isJsArray(it) } ?: return@wasmCall false
+    (0 until jsArrayLength(errors)).any { index ->
+        jsArrayItem(errors, index)?.takeIf { isJsString(it) }?.toKotlinString() != ERRORS_WHILE_COMPUTING_FLAGS
+    }
+} ?: false
+
+internal actual fun platformSetPersonPropertiesForFlags(properties: Map<String, Any>, reloadFeatureFlags: Boolean) {
+    if (!isPostHogJsLoaded(PostHogJs)) return
+    PostHogJs.setPersonPropertiesForFlags(properties.toJsObject(), reloadFeatureFlags)
+}
+
+internal actual fun platformResetPersonPropertiesForFlags(reloadFeatureFlags: Boolean) {
+    if (!isPostHogJsLoaded(PostHogJs)) return
+    PostHogJs.resetPersonPropertiesForFlags(reloadFeatureFlags)
+}
+
+internal actual fun platformSetGroupPropertiesForFlags(
+    type: String,
+    properties: Map<String, Any>,
+    reloadFeatureFlags: Boolean
+) {
+    if (!isPostHogJsLoaded(PostHogJs)) return
+    // The posthog-js facade turns on person processing first, and drops the call with `person_profiles: 'never'`
+    PostHogJs.featureFlags?.setGroupPropertiesForFlags(mapOf(type to properties).toJsObject(), reloadFeatureFlags)
+}
+
+internal actual fun platformResetGroupPropertiesForFlags(type: String?, reloadFeatureFlags: Boolean) {
+    if (!isPostHogJsLoaded(PostHogJs)) return
+    // posthog-js has no reload option here and never reloads
+    PostHogJs.resetGroupPropertiesForFlags(type)
+    if (reloadFeatureFlags) PostHogJs.reloadFeatureFlags()
 }
 
 internal actual fun platformGetFeatureFlagResult(
@@ -189,15 +322,15 @@ private fun JsAny.toFeatureFlagResult(): FeatureFlagResult? {
     val enabled = getJsProperty(this, "enabled")?.toKotlinBoolean() ?: false
     val variant = getJsProperty(this, "variant")?.toKotlinString()
     val payload = getJsProperty(this, "payload")?.toKotlinValue()
-    return FeatureFlagResult(key = key, enabled = enabled, variant = variant, payload = payload)
+    return featureFlagResult(key = key, enabled = enabled, variant = variant, payload = payload)
 }
 
 private fun processBeforeSend(config: PostHogConfig, captureResult: JsAny?): JsAny? {
     captureResult ?: return null
     return try {
         val event = captureResult.toPostHogEvent() ?: return null
-        val processed = config.runBeforeSend(event) {
-            if (config.debug) logWasmError("beforeSend", "callback failed; event was dropped")
+        val processed = config.runBeforeSend(event) { error ->
+            if (config.debug) logWasmError("beforeSend", beforeSendFailureMessage(event, error))
         } ?: return null
 
         val processedProperties = processed.properties.toJsObject()
@@ -219,14 +352,18 @@ private fun JsAny.toPostHogEvent(): PostHogEvent? {
     return PostHogEvent(event, distinctId, properties - "distinct_id")
 }
 
-internal actual fun platformCaptureException(throwable: Throwable, additionalProperties: Map<String, Any>?) {
+internal actual fun platformCaptureException(
+    throwable: Throwable,
+    additionalProperties: Map<String, Any>?,
+    options: Map<String, Any>?
+) {
     PostHogJs.captureException(
         createJsError(
             throwable::class.simpleName ?: "Error",
             throwable.message ?: throwable.toString(),
             throwable.stackTraceToString()
         ),
-        additionalProperties?.toJsObject()
+        withLegacyOptionProperties(additionalProperties, options)?.toJsObject()
     )
 }
 
@@ -262,9 +399,11 @@ internal actual fun platformSetDebug(enabled: Boolean) {
     wasmCall("setDebug") { PostHogJs.debug(enabled) }
 }
 
+@Suppress("UNUSED_PARAMETER")
 internal actual fun platformSetPersonProperties(
     userProperties: Map<String, Any>?,
-    userPropertiesSetOnce: Map<String, Any>?
+    userPropertiesSetOnce: Map<String, Any>?,
+    options: Map<String, Any>?
 ) {
     PostHogJs.setPersonProperties(
         userProperties?.toJsObject() ?: createJsObject(),
@@ -361,7 +500,10 @@ private fun jsStringValue(value: JsAny): String = js("value")
 private fun jsBooleanValue(value: JsAny): Boolean = js("value")
 private fun jsNumberValue(value: JsAny): Double = js("value")
 private fun invokeJsFunction(callable: JsAny): Unit = js("{ callable(); }")
+/** posthog-js sets `__loaded` in `init()`; before it, flag calls reach no persistence. */
+private fun isPostHogJsLoaded(instance: PostHogJsApi): Boolean = js("instance.__loaded === true")
 private fun overrideSdkInfo(instance: PostHogJsApi, sdkName: String, sdkVersion: String): Unit =
     js("{ instance._overrideSDKInfo?.(sdkName, sdkVersion); }")
 private fun flushPostHogQueues(instance: PostHogJsApi): Unit = js("{ instance._requestQueue?.unload(); instance._retryQueue?.unload(); }")
 private fun logWasmError(operation: String, message: String): Unit = js("{ console.error('[PostHog] ' + operation + ' failed', message); }")
+private fun logWasmDebug(message: String): Unit = js("{ console.log('[PostHog] ' + message); }")

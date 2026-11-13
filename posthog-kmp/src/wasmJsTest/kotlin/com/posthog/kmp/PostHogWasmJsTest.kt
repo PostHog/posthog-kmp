@@ -41,7 +41,8 @@ class PostHogWasmJsTest {
                 personProfiles = PersonProfiles.ALWAYS,
                 sessionRecording = SessionRecordingConfig(captureLogs = true),
                 autocapture = true,
-                errorTracking = ErrorTrackingConfig(autoCapture = true)
+                errorTracking = ErrorTrackingConfig(autoCapture = true),
+                evaluationContexts = listOf("web", "checkout")
             ),
             PostHogContext()
         )
@@ -57,6 +58,7 @@ class PostHogWasmJsTest {
         assertTrue(readDeepBoolean(fakePostHog, "options", "session_recording", "captureLogs"))
         assertTrue(readBoolean(fakePostHog, "optedOut"))
         assertEquals("posthog-kmp", readString(fakePostHog, "sdkName"))
+        assertEquals("web,checkout", readEvaluationContexts(fakePostHog))
     }
 
     @Test
@@ -214,20 +216,112 @@ class PostHogWasmJsTest {
 
     @Test
     fun reloadFeatureFlagsCallbackIgnoresStaleImmediateFire() {
-        var callbackCount = 0
+        val results = mutableListOf<PostHogFeatureFlagsLoaded>()
 
-        PostHog.reloadFeatureFlags { callbackCount++ }
+        PostHog.reloadFeatureFlags { results.add(it) }
 
-        assertEquals(0, callbackCount, "registration must not deliver stale flags")
+        assertEquals(0, results.size, "registration must not deliver stale flags")
         assertEquals(1.0, readNumber(fakePostHog, "reloadCount"))
         assertFalse(readBoolean(fakePostHog, "unsubscribed"))
 
         notifyFeatureFlags(fakePostHog)
-        assertEquals(1, callbackCount)
+        assertEquals(mapOf<String, Any>("beta" to "test"), results.single().variants)
+        assertTrue(results.single().errorsLoading)
         assertTrue(readBoolean(fakePostHog, "unsubscribed"))
 
         notifyFeatureFlags(fakePostHog)
-        assertEquals(1, callbackCount, "an already queued notification must not fire twice")
+        assertEquals(1, results.size, "an already queued notification must not fire twice")
+    }
+
+    @Test
+    fun reloadFeatureFlagsCallbackBeforeSetupReportsError() {
+        markUnloaded(fakePostHog)
+        val results = mutableListOf<PostHogFeatureFlagsLoaded>()
+
+        PostHog.reloadFeatureFlags { results.add(it) }
+
+        assertTrue(results.single().errorsLoading)
+        assertFalse(hasFlagsCallback(fakePostHog))
+    }
+
+    @Test
+    fun onFeatureFlagsRegisteredBeforeSetupAttachesAtSetup() {
+        markUnloaded(fakePostHog)
+        val results = mutableListOf<PostHogFeatureFlagsLoaded>()
+        val subscription = PostHog.onFeatureFlags { results.add(it) }
+        assertFalse(hasFlagsCallback(fakePostHog))
+
+        PostHog.setup(PostHogConfig(projectToken = "phc_test"), PostHogContext())
+        notifyFeatureFlags(fakePostHog)
+        assertEquals(listOf(listOf("stale"), listOf("beta")), results.map { it.flags })
+
+        subscription.unsubscribe()
+        subscription.unsubscribe()
+        assertTrue(readBoolean(fakePostHog, "unsubscribed"))
+    }
+
+    @Test
+    fun onFeatureFlagsReadsLatestLoadErrorsWhenContextIsMissing() {
+        // Like posthog-js: each load stores its errors, and a new listener gets cached flags without a context
+        fun lateListenerErrorsLoading(errors: String): Boolean {
+            setFeatureFlagErrors(fakePostHog, errors)
+            val results = mutableListOf<PostHogFeatureFlagsLoaded>()
+            PostHog.onFeatureFlags { results.add(it) }
+            return results.single().errorsLoading
+        }
+
+        assertFalse(lateListenerErrorsLoading(""))
+        assertTrue(lateListenerErrorsLoading("connection_error"), "a failed load must reach a late listener")
+        assertTrue(lateListenerErrorsLoading("quota_limited"), "a quota-limited load fires no callback but still failed")
+        assertFalse(lateListenerErrorsLoading("errors_while_computing_flags"), "posthog-js reports this load with errorsLoading = false")
+    }
+
+    @Test
+    fun eventOptionsAreSentAsLegacyPropertiesThatWin() {
+        PostHog.capture(
+            "checkout",
+            mapOf("\$cookieless_mode" to false),
+            CaptureOptions(
+                eventOptions = mapOf(PostHogEventOptions.COOKIELESS_MODE to true, PostHogEventOptions.PRODUCT_TOUR_ID to "tour")
+            )
+        )
+
+        assertTrue(readNestedBoolean(fakePostHog, "properties", "\$cookieless_mode"))
+        assertEquals("tour", readNestedString(fakePostHog, "properties", "\$product_tour_id"))
+    }
+
+    @Test
+    fun captureAiSendsNothingAndReturnsNull() {
+        assertNull(PostHog.captureAi("\$ai_generation"))
+        assertFalse(hasProperty(fakePostHog, "event"))
+    }
+
+    @Test
+    fun registerOptionsRegistersLegacyProperties() {
+        PostHog.registerOptions(mapOf(PostHogEventOptions.DISABLE_SKEW_CORRECTION to true))
+        PostHog.unregisterOptions("disable_skew_correction")
+
+        assertTrue(readNestedBoolean(fakePostHog, "registered", "\$ignore_sent_at"))
+        assertEquals("\$ignore_sent_at", readString(fakePostHog, "unregisteredKey"))
+    }
+
+    @Test
+    fun propertiesForFlagsRouteToPostHogJs() {
+        PostHog.setPersonPropertiesForFlags(mapOf("plan" to "pro", "drop" to null), reloadFeatureFlags = false)
+        PostHog.setGroupPropertiesForFlags("company", mapOf("plan" to "enterprise"))
+        PostHog.resetGroupPropertiesForFlags()
+
+        assertEquals("pro", readDeepString(fakePostHog, "personForFlags", "properties", "plan"))
+        assertFalse(hasNestedProperty(readNestedObject(fakePostHog, "personForFlags"), "properties", "drop"))
+        assertFalse(readNestedBoolean(fakePostHog, "personForFlags", "reload"))
+        assertTrue(readNestedBoolean(fakePostHog, "groupForFlags", "reload"))
+        assertEquals("all", readString(fakePostHog, "resetGroupType"))
+        assertEquals(1.0, readNumber(fakePostHog, "reloadCount"))
+    }
+
+    @Test
+    fun emptyVariantResultReadsAsDisabled() {
+        assertFalse(assertNotNull(PostHog.getFeatureFlagResult("empty")).enabled)
     }
 
     @Test
@@ -298,9 +392,11 @@ class PostHogWasmJsTest {
 private fun createFakePostHog(): PostHogJsApi = js(
     """(() => {
         const fake = {
+            __loaded: true,
             init(apiKey, options) {
                 this.apiKey = apiKey;
                 this.options = options;
+                this.__loaded = true;
                 return this;
             },
             _overrideSDKInfo(sdkName, sdkVersion) {
@@ -323,6 +419,8 @@ private fun createFakePostHog(): PostHogJsApi = js(
                 return key === 'checkout' ? 'blue' : undefined;
             },
             reset() { this.resetCalls = (this.resetCalls || 0) + 1; },
+            register(properties) { this.registered = properties; },
+            unregister(key) { this.unregisteredKey = key; },
             capture(event, properties, options) {
                 this.event = event;
                 this.properties = properties;
@@ -336,14 +434,19 @@ private fun createFakePostHog(): PostHogJsApi = js(
             unsubscribed: false,
             onFeatureFlags(callback) {
                 this.flagsCallback = callback;
-                callback();
+                this.unsubscribed = false;
+                callback(['stale'], { stale: true });
                 return () => { this.unsubscribed = true; };
             },
+            setPersonPropertiesForFlags(properties, reload) { this.personForFlags = { properties, reload }; },
+            setGroupPropertiesForFlags() { throw new Error('turns on person processing'); },
+            resetGroupPropertiesForFlags(groupType) { this.resetGroupType = groupType == null ? 'all' : groupType; },
             reloadFeatureFlags() {
                 this.reloadCount = (this.reloadCount || 0) + 1;
             },
             getFeatureFlagResult(key, options) {
                 this.featureFlagOptions = options;
+                if (key === 'empty') return { key: key, enabled: true, variant: '' };
                 return { key: key, enabled: true, variant: 'test', payload: { color: 'blue' } };
             },
             getAllFeatureFlags() {
@@ -354,6 +457,7 @@ private fun createFakePostHog(): PostHogJsApi = js(
                 this.capturedErrorProperties = additionalProperties;
             }
         };
+        fake.featureFlags = { setGroupPropertiesForFlags(properties, reload) { fake.groupForFlags = { properties, reload }; } };
         fake._requestQueue = { unload() { fake.requestQueueUnloaded = true; } };
         fake._retryQueue = { unload() { fake.retryQueueUnloaded = true; } };
         return fake;
@@ -367,6 +471,7 @@ private fun createUninitializedFakePostHog(): PostHogJsApi = js(
 private fun readString(target: PostHogJsApi, key: String): String = js("target[key]")
 private fun readBoolean(target: PostHogJsApi, key: String): Boolean = js("target[key]")
 private fun readNumber(target: PostHogJsApi, key: String): Double = js("target[key]")
+private fun readNestedObject(target: PostHogJsApi, key: String): PostHogJsApi = js("target[key]")
 private fun readNestedString(target: PostHogJsApi, parent: String, key: String): String = js("target[parent][key]")
 private fun readNestedBoolean(target: PostHogJsApi, parent: String, key: String): Boolean = js("target[parent][key]")
 private fun readNestedNumber(target: PostHogJsApi, parent: String, key: String): Double = js("target[parent][key]")
@@ -401,6 +506,19 @@ private fun readDeepJsDateTime(target: JsAny, parent: String, key: String): Doub
 private fun invokeBeforeSendWithThrowingGetter(target: PostHogJsApi): JsAny? =
     js("target.options.before_send(new Proxy({ event: 'checkout' }, " +
         "{ get(target, key) { if (key === 'properties') throw Error('failed'); return target[key]; } }))")
-private fun notifyFeatureFlags(target: PostHogJsApi): Unit = js("{ target.flagsCallback(); }")
+private fun notifyFeatureFlags(target: PostHogJsApi): Unit =
+    js("{ target.flagsCallback(['beta'], { beta: 'test', off: false }, { errorsLoading: true }); }")
+/** Sets the errors posthog-js stores for its latest flag load; [errors] is comma-separated. */
+private fun setFeatureFlagErrors(target: PostHogJsApi, errors: String): Unit = js(
+    """{
+        const stored = errors ? errors.split(',') : [];
+        const getProperty = target.get_property;
+        target.get_property = function (key) { return key === '${'$'}feature_flag_errors' ? stored : getProperty.call(target, key); };
+    }"""
+)
+private fun markUnloaded(target: PostHogJsApi): Unit = js("{ target.__loaded = false; }")
+private fun hasFlagsCallback(target: PostHogJsApi): Boolean = js("target.flagsCallback !== undefined")
+private fun readEvaluationContexts(target: PostHogJsApi): String = js("target.options.evaluation_contexts.join(',')")
 private fun hasNestedProperty(target: PostHogJsApi, parent: String, key: String): Boolean =
     js("Object.prototype.hasOwnProperty.call(target[parent], key)")
+private fun hasProperty(target: PostHogJsApi, key: String): Boolean = js("key in target")

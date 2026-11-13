@@ -103,17 +103,27 @@ class PostHogConfigTest {
         assertEquals(true, config.maskAllImages)
         assertEquals(false, config.captureLogs)
         assertEquals(true, config.captureLogcat)
-        assertEquals(1000L, config.debouncerDelayMs)
+        assertEquals(1000L, config.throttleDelayMs)
         assertEquals(false, config.verifyScreenshotMaskAlignment)
+    }
+
+    @Test
+    @Suppress("DEPRECATION")
+    fun deprecatedDebouncerDelayMsSetsThrottleDelayMs() {
+        val config = SessionRecordingConfig(debouncerDelayMs = 250L, captureLogs = true)
+
+        assertEquals(250L, config.throttleDelayMs)
+        assertEquals(250L, config.debouncerDelayMs)
+        assertEquals(true, config.captureLogs)
     }
 
     @Test
     fun copyPreservesScreenshotMaskAlignmentVerification() {
         val config = SessionRecordingConfig(verifyScreenshotMaskAlignment = true)
 
-        val copy = config.copy(screenshot = true)
+        val copy = config.copy(captureLogs = true)
 
-        assertEquals(true, copy.screenshot)
+        assertEquals(true, copy.captureLogs)
         assertEquals(true, copy.verifyScreenshotMaskAlignment)
         assertEquals(false, copy.copy(verifyScreenshotMaskAlignment = false).verifyScreenshotMaskAlignment)
     }
@@ -140,6 +150,40 @@ class PostHogConfigTest {
         val result = config.runBeforeSend(PostHogEvent("checkout", "user-1", emptyMap()))
 
         assertEquals(mapOf("first" to true, "saw_first" to true), result?.properties)
+    }
+
+    @Test
+    fun beforeSendKeepsOptionsSetByEarlierCallback() {
+        val config = PostHogConfig(
+            projectToken = "phc_test",
+            beforeSend = listOf(
+                PostHogBeforeSend { it.copy(options = mapOf("process_person_profile" to false)) },
+                PostHogBeforeSend { PostHogEvent(it.event, it.distinctId, it.properties) }
+            )
+        )
+
+        val result = config.runBeforeSend(
+            PostHogEvent("checkout", "user-1", emptyMap(), mapOf("process_person_profile" to true))
+        )
+
+        assertEquals(mapOf<String, Any?>("process_person_profile" to false), result?.options)
+    }
+
+    @Test
+    fun beforeSendFailureMessageNamesEventAndExceptionTypeOnly() {
+        val message = beforeSendFailureMessage(
+            PostHogEvent("checkout", "user-1", emptyMap()),
+            IllegalStateException("secret@example.com")
+        )
+
+        assertEquals("Before-send callback threw IllegalStateException; event \"checkout\" was dropped.", message)
+    }
+
+    @Test
+    fun copyKeepsCaptureAiConfig() {
+        val config = PostHogConfig(projectToken = "phc_test", captureAiMaxQueueSize = 7)
+
+        assertEquals(7, config.copy(debug = true).captureAiMaxQueueSize)
     }
 
     @Test

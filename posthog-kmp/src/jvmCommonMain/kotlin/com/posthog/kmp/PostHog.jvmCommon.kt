@@ -1,10 +1,56 @@
 package com.posthog.kmp
 
+import com.posthog.PostHogFeatureFlagsCallback
 import com.posthog.PostHogInterface
+import com.posthog.PostHogInternal
 import java.util.Date
 
 @Volatile
 internal var postHogInstance: PostHogInterface? = null
+    set(value) {
+        field = value
+        featureFlagsListeners.attachAll(value)
+    }
+
+/**
+ * [PostHog.onFeatureFlags] registrations. Each one is registered on the native instance, so it gets
+ * the native replay and threading, and is moved to the new instance on every setup.
+ */
+private val featureFlagsListeners = FeatureFlagsListeners()
+
+private class FeatureFlagsListeners {
+    private class Registration(val callback: PostHogFeatureFlagsCallback) {
+        var native: com.posthog.PostHogFeatureFlagsSubscription? = null
+    }
+
+    private val registrations = mutableListOf<Registration>()
+
+    @Synchronized
+    fun add(callback: (PostHogFeatureFlagsLoaded) -> Unit): PostHogFeatureFlagsSubscription {
+        val registration = Registration { loaded -> callback(loaded.toFeatureFlagsLoaded()) }
+        registrations.add(registration)
+        registration.native = postHogInstance?.onFeatureFlags(registration.callback)
+        return PostHogFeatureFlagsSubscription { remove(registration) }
+    }
+
+    @Synchronized
+    fun attachAll(instance: PostHogInterface?) {
+        registrations.forEach { registration ->
+            registration.native?.unsubscribe()
+            registration.native = instance?.onFeatureFlags(registration.callback)
+        }
+    }
+
+    @Synchronized
+    private fun remove(registration: Registration) {
+        registrations.remove(registration)
+        registration.native?.unsubscribe()
+        registration.native = null
+    }
+}
+
+private fun com.posthog.PostHogFeatureFlagsLoaded.toFeatureFlagsLoaded(): PostHogFeatureFlagsLoaded =
+    PostHogFeatureFlagsLoaded(variants, errorsLoading)
 
 internal const val SDK_NAME = "posthog-kmp"
 
@@ -15,18 +61,33 @@ internal fun com.posthog.PostHogConfig.configureErrorTracking(config: ErrorTrack
     errorTrackingConfig.ignoredExceptionTypes.addAll(config.ignoredExceptionTypes.map { it.java })
 }
 
+internal fun com.posthog.PostHogConfig.configureCaptureAi(config: PostHogConfig) {
+    // Unset values keep the native SDK's defaults
+    config.captureAiCompression?.let {
+        captureAiCompression = when (it) {
+            PostHogCompression.GZIP -> com.posthog.PostHogCompression.GZIP
+            PostHogCompression.NONE -> com.posthog.PostHogCompression.NONE
+        }
+    }
+    config.captureAiMaxQueueSize?.let { captureAiMaxQueueSize = it }
+    config.captureAiTimeout?.let { captureAiTimeout = it }
+    config.captureAiMaxEventBytes?.let { captureAiMaxEventBytes = it }
+}
+
 internal fun com.posthog.PostHogConfig.configureBeforeSend(config: PostHogConfig) {
     if (config.beforeSend.isEmpty()) return
 
     addBeforeSend { event ->
+        val input = PostHogEvent(
+            event = event.event,
+            distinctId = event.distinctId,
+            properties = event.properties.orEmpty(),
+            options = event.options.orEmpty()
+        )
         config.runBeforeSend(
-            PostHogEvent(
-                event = event.event,
-                distinctId = event.distinctId,
-                properties = event.properties.orEmpty()
-            ),
-            onError = {
-                if (config.debug) logger.log("Before-send callback failed; event was dropped.")
+            input,
+            onError = { error ->
+                if (config.debug) logger.log(beforeSendFailureMessage(input, error))
             }
         )?.let { processed ->
             event.copy(
@@ -35,7 +96,11 @@ internal fun com.posthog.PostHogConfig.configureBeforeSend(config: PostHogConfig
                 properties = processed.properties.mapNotNull { (key, value) ->
                     value?.let { key to it }
                 }.toMap().toMutableMap()
-            )
+            ).apply {
+                options = processed.options.orEmpty().mapNotNull { (key, value) ->
+                    value?.let { key to it }
+                }.toMap().toMutableMap()
+            }
         }
     }
 }
@@ -44,37 +109,58 @@ internal actual fun platformCapture(
     event: String,
     properties: Map<String, Any>?,
     groups: Map<String, String>?,
-    timestamp: Long?
+    timestamp: Long?,
+    options: Map<String, Any>?
 ) {
     postHogInstance?.capture(
         event = event,
         properties = properties,
         groups = groups,
-        timestamp = timestamp?.let { Date(it) }
+        timestamp = timestamp?.let { Date(it) },
+        options = options
     )
 }
 
-internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?) {
+internal actual fun platformCaptureAi(
+    event: String,
+    properties: Map<String, Any>?,
+    groups: Map<String, String>?,
+    timestamp: Long?,
+    options: Map<String, Any>?
+): String? {
+    return postHogInstance?.captureAi(
+        event = event,
+        properties = properties,
+        groups = groups,
+        timestamp = timestamp?.let { Date(it) },
+        options = options
+    )?.toString()
+}
+
+internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?, options: Map<String, Any>?) {
     postHogInstance?.screen(
         screenTitle = screenName,
-        properties = properties
+        properties = properties,
+        options = options
     )
 }
 
 internal actual fun platformIdentify(
     distinctId: String,
     userProperties: Map<String, Any>?,
-    userPropertiesSetOnce: Map<String, Any>?
+    userPropertiesSetOnce: Map<String, Any>?,
+    options: Map<String, Any>?
 ) {
     postHogInstance?.identify(
         distinctId = distinctId,
         userProperties = userProperties,
-        userPropertiesSetOnce = userPropertiesSetOnce
+        userPropertiesSetOnce = userPropertiesSetOnce,
+        options = options
     )
 }
 
-internal actual fun platformAlias(alias: String) {
-    postHogInstance?.alias(alias)
+internal actual fun platformAlias(alias: String, options: Map<String, Any>?) {
+    postHogInstance?.alias(alias, options)
 }
 
 internal actual fun platformReset() {
@@ -93,15 +179,31 @@ internal actual fun platformUnregister(key: String) {
     postHogInstance?.unregister(key)
 }
 
+@OptIn(PostHogInternal::class)
+internal actual fun platformRegisterOptions(options: Map<String, Any>) {
+    postHogInstance?.registerOptionsForWrapper(options)
+}
+
+@OptIn(PostHogInternal::class)
+internal actual fun platformUnregisterOptions(key: String) {
+    postHogInstance?.unregisterOptionsForWrapper(key)
+}
+
+internal actual fun platformSetAppLanguage(language: String?) {
+    postHogInstance?.setAppLanguage(language)
+}
+
 internal actual fun platformGroup(
     type: String,
     key: String,
-    groupProperties: Map<String, Any>?
+    groupProperties: Map<String, Any>?,
+    options: Map<String, Any>?
 ) {
     postHogInstance?.group(
         type = type,
         key = key,
-        groupProperties = groupProperties
+        groupProperties = groupProperties,
+        options = options
     )
 }
 
@@ -119,12 +221,36 @@ internal actual fun platformGetAllFeatureFlags(): Map<String, FeatureFlagResult>
     } ?: emptyMap()
 }
 
-internal actual fun platformReloadFeatureFlags(callback: (() -> Unit)?) {
-    if (callback != null) {
-        postHogInstance?.reloadFeatureFlags { callback() }
-    } else {
-        postHogInstance?.reloadFeatureFlags()
+internal actual fun platformReloadFeatureFlags(callback: ((PostHogFeatureFlagsLoaded) -> Unit)?) {
+    val instance = postHogInstance
+    when {
+        callback == null -> instance?.reloadFeatureFlags()
+        instance == null -> callback(PostHogFeatureFlagsLoaded(emptyMap(), errorsLoading = true))
+        else -> instance.reloadFeatureFlags { loaded -> callback(loaded.toFeatureFlagsLoaded()) }
     }
+}
+
+internal actual fun platformOnFeatureFlags(callback: (PostHogFeatureFlagsLoaded) -> Unit): PostHogFeatureFlagsSubscription =
+    featureFlagsListeners.add(callback)
+
+internal actual fun platformSetPersonPropertiesForFlags(properties: Map<String, Any>, reloadFeatureFlags: Boolean) {
+    postHogInstance?.setPersonPropertiesForFlags(properties, reloadFeatureFlags)
+}
+
+internal actual fun platformResetPersonPropertiesForFlags(reloadFeatureFlags: Boolean) {
+    postHogInstance?.resetPersonPropertiesForFlags(reloadFeatureFlags)
+}
+
+internal actual fun platformSetGroupPropertiesForFlags(
+    type: String,
+    properties: Map<String, Any>,
+    reloadFeatureFlags: Boolean
+) {
+    postHogInstance?.setGroupPropertiesForFlags(type, properties, reloadFeatureFlags)
+}
+
+internal actual fun platformResetGroupPropertiesForFlags(type: String?, reloadFeatureFlags: Boolean) {
+    postHogInstance?.resetGroupPropertiesForFlags(type, reloadFeatureFlags)
 }
 
 internal actual fun platformGetFeatureFlagResult(key: String, sendFeatureFlagEvent: Boolean): FeatureFlagResult? {
@@ -133,11 +259,13 @@ internal actual fun platformGetFeatureFlagResult(key: String, sendFeatureFlagEve
 
 internal actual fun platformCaptureException(
     throwable: Throwable,
-    additionalProperties: Map<String, Any>?
+    additionalProperties: Map<String, Any>?,
+    options: Map<String, Any>?
 ) {
     postHogInstance?.captureException(
         throwable = throwable,
-        properties = additionalProperties
+        properties = additionalProperties,
+        options = options
     )
 }
 
@@ -176,9 +304,10 @@ internal actual fun platformSetDebug(enabled: Boolean) {
 
 internal actual fun platformSetPersonProperties(
     userProperties: Map<String, Any>?,
-    userPropertiesSetOnce: Map<String, Any>?
+    userPropertiesSetOnce: Map<String, Any>?,
+    options: Map<String, Any>?
 ) {
-    postHogInstance?.setPersonProperties(userProperties, userPropertiesSetOnce)
+    postHogInstance?.setPersonProperties(userProperties, userPropertiesSetOnce, options)
 }
 
 internal fun PersonProfiles.toCorePersonProfiles(): com.posthog.PersonProfiles {
@@ -190,7 +319,7 @@ internal fun PersonProfiles.toCorePersonProfiles(): com.posthog.PersonProfiles {
 }
 
 internal fun com.posthog.FeatureFlagResult.toFeatureFlagResult(): FeatureFlagResult {
-    return FeatureFlagResult(
+    return featureFlagResult(
         key = key,
         enabled = enabled,
         variant = variant,

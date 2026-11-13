@@ -22,14 +22,10 @@ class PostHogAndroidConfigTest {
         for (verify in listOf(false, true)) {
             val nativeConfig = PostHogConfig(
                 projectToken = "phc_test",
-                sessionRecording = SessionRecordingConfig(
-                    screenshot = true,
-                    verifyScreenshotMaskAlignment = verify
-                )
+                sessionRecording = SessionRecordingConfig(verifyScreenshotMaskAlignment = verify)
             ).toAndroidConfig()
 
             assertEquals(true, nativeConfig.sessionReplay)
-            assertEquals(true, nativeConfig.sessionReplayConfig.screenshot)
             assertEquals(verify, nativeConfig.sessionReplayConfig.verifyScreenshotMaskAlignment)
         }
     }
@@ -58,5 +54,15 @@ class PostHogAndroidConfigTest {
                 assertEquals(opened, nativeConfig.capturePushNotificationOpened)
             }
         }
+    }
+
+    @Test
+    fun mapsEvaluationContexts() {
+        assertEquals(null, PostHogConfig(projectToken = "phc_test").toAndroidConfig().evaluationContexts)
+        assertEquals(
+            listOf("production", "checkout"),
+            PostHogConfig(projectToken = "phc_test", evaluationContexts = listOf("production", "checkout"))
+                .toAndroidConfig().evaluationContexts
+        )
     }
 }

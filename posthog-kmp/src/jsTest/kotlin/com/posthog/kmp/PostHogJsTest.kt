@@ -275,26 +275,134 @@ class PostHogJsTest {
 
     @Test
     fun testReloadFeatureFlagsCallbackIgnoresStaleImmediateFire() {
-        var handler: (() -> Unit)? = null
-        fakeJs.onFeatureFlags = { cb: () -> Unit ->
+        fakeJs.__loaded = true
+        var handler: ((dynamic, dynamic, dynamic) -> Unit)? = null
+        fakeJs.onFeatureFlags = { cb: (dynamic, dynamic, dynamic) -> Unit ->
             handler = cb
-            cb()
+            cb(js("['old']"), js("({ old: true })"), undefined)
             val unSub: () -> Unit = { handler = null }
             unSub
         }
 
-        var callbackCount = 0
-        PostHog.reloadFeatureFlags { callbackCount++ }
+        val results = mutableListOf<PostHogFeatureFlagsLoaded>()
+        PostHog.reloadFeatureFlags { results.add(it) }
         getCall("reloadFeatureFlags")
-        assertEquals(0, callbackCount, "callback must not fire with pre-reload flags")
+        assertEquals(0, results.size, "callback must not fire with pre-reload flags")
 
         val registeredHandler = assertNotNull(handler)
-        registeredHandler()
-        assertEquals(1, callbackCount)
+        registeredHandler(js("['beta']"), js("({ beta: 'test', off: false })"), js("({ errorsLoading: true })"))
+        assertEquals(mapOf<String, Any>("beta" to "test"), results.single().variants)
+        assertTrue(results.single().errorsLoading)
         assertNull(handler, "reload must unsubscribe")
 
-        registeredHandler()
-        assertEquals(1, callbackCount, "an already queued notification must not fire the callback twice")
+        registeredHandler(js("[]"), js("({})"), undefined)
+        assertEquals(1, results.size, "an already queued notification must not fire the callback twice")
+    }
+
+    @Test
+    fun testReloadFeatureFlagsCallbackBeforeSetupReportsError() {
+        val results = mutableListOf<PostHogFeatureFlagsLoaded>()
+        PostHog.reloadFeatureFlags { results.add(it) }
+        assertTrue(results.single().errorsLoading)
+        assertEquals(emptyMap(), results.single().variants)
+        assertTrue(calledMethods.none { it.first == "reloadFeatureFlags" || it.first == "onFeatureFlags" })
+    }
+
+    @Test
+    fun testOnFeatureFlagsRegisteredBeforeSetupAttachesAtSetup() {
+        var handler: ((dynamic, dynamic, dynamic) -> Unit)? = null
+        fakeJs.onFeatureFlags = { cb: (dynamic, dynamic, dynamic) -> Unit ->
+            handler = cb
+            val unSub: () -> Unit = { handler = null }
+            unSub
+        }
+        fakeJs.init = { _: String, _: dynamic -> fakeJs.__loaded = true }
+        val results = mutableListOf<PostHogFeatureFlagsLoaded>()
+        val subscription = PostHog.onFeatureFlags { results.add(it) }
+        assertNull(handler)
+
+        PostHog.setup(PostHogConfig(projectToken = "key"), PostHogContext())
+        assertNotNull(handler)(js("['beta']"), js("({ beta: true })"), undefined)
+        assertEquals(listOf("beta"), results.single().flags)
+        assertFalse(results.single().errorsLoading)
+
+        subscription.unsubscribe()
+        subscription.unsubscribe()
+        assertNull(handler)
+    }
+
+    @Test
+    fun testOnFeatureFlagsSkipsListenerUnsubscribedDuringDelivery() {
+        // posthog-js keeps calling the handlers it snapshotted before an unsubscribe
+        var handler: ((dynamic, dynamic, dynamic) -> Unit)? = null
+        fakeJs.__loaded = true
+        fakeJs.onFeatureFlags = { cb: (dynamic, dynamic, dynamic) -> Unit ->
+            handler = cb
+            val unSub: () -> Unit = { }
+            unSub
+        }
+        val results = mutableListOf<PostHogFeatureFlagsLoaded>()
+        val subscription = PostHog.onFeatureFlags { results.add(it) }
+        val snapshotted = assertNotNull(handler)
+
+        subscription.unsubscribe()
+        snapshotted(js("['beta']"), js("({ beta: true })"), js("({ errorsLoading: false })"))
+        assertTrue(results.isEmpty())
+    }
+
+    @Test
+    fun testOnFeatureFlagsReadsLatestLoadErrorsWhenContextIsMissing() {
+        // Like posthog-js: each load stores its errors, and a new listener gets cached flags without a context
+        var flagErrors: dynamic = js("[]")
+        fakeJs.__loaded = true
+        fakeJs.get_property = { key: String -> if (key == "\$feature_flag_errors") flagErrors else null }
+        fakeJs.onFeatureFlags = { cb: (dynamic, dynamic, dynamic) -> Unit ->
+            cb(js("['beta']"), js("({ beta: true })"), undefined)
+            val unSub: () -> Unit = { }
+            unSub
+        }
+        fun lateListenerErrorsLoading(): Boolean {
+            val results = mutableListOf<PostHogFeatureFlagsLoaded>()
+            PostHog.onFeatureFlags { results.add(it) }
+            return results.single().errorsLoading
+        }
+
+        assertFalse(lateListenerErrorsLoading())
+        flagErrors = js("['connection_error']")
+        assertTrue(lateListenerErrorsLoading(), "a failed load must reach a late listener")
+        flagErrors = js("['quota_limited']")
+        assertTrue(lateListenerErrorsLoading(), "a quota-limited load fires no callback but still failed")
+        flagErrors = js("['errors_while_computing_flags']")
+        assertFalse(lateListenerErrorsLoading(), "posthog-js reports this load with errorsLoading = false")
+    }
+
+    @Test
+    fun testPropertiesForFlagsRouteToPostHogJs() {
+        fakeJs.__loaded = true
+        fakeJs.setPersonPropertiesForFlags = { props: dynamic, reload: Boolean ->
+            calledMethods.add("setPersonPropertiesForFlags" to arrayOf<dynamic>(props, reload))
+        }
+        fakeJs.featureFlags = js("{}")
+        fakeJs.featureFlags.setGroupPropertiesForFlags = { props: dynamic, reload: Boolean ->
+            calledMethods.add("setGroupPropertiesForFlags" to arrayOf<dynamic>(props, reload))
+        }
+        fakeJs.resetGroupPropertiesForFlags = { type: dynamic ->
+            calledMethods.add("resetGroupPropertiesForFlags" to arrayOf<dynamic>(type))
+        }
+
+        PostHog.setPersonPropertiesForFlags(mapOf("plan" to "pro", "drop" to null), reloadFeatureFlags = false)
+        PostHog.setGroupPropertiesForFlags("company", mapOf("seats" to 5))
+        PostHog.resetGroupPropertiesForFlags("company")
+
+        val person = getCall("setPersonPropertiesForFlags")
+        assertEquals("pro", person[0]["plan"] as String)
+        assertEquals(false, person[0].hasOwnProperty("drop") as Boolean)
+        assertEquals(false, person[1] as Boolean)
+        val group = getCall("setGroupPropertiesForFlags")
+        assertEquals(5, group[0]["company"]["seats"] as Int)
+        assertEquals(true, group[1] as Boolean)
+        assertEquals("company", getCall("resetGroupPropertiesForFlags")[0] as String)
+        getCall("reloadFeatureFlags")
     }
 
     @Test
@@ -322,6 +430,18 @@ class PostHogJsTest {
         assertEquals(true, call[1]["advanced_disable_feature_flags_on_first_load"] as Boolean)
         assertNull(call[1]["advanced_disable_feature_flags"], "flag evaluation must not be disabled permanently")
         assertNull(call[1]["capture_exceptions"], "error tracking must remain unset unless configured")
+        assertNull(call[1]["evaluation_contexts"])
+    }
+
+    @Test
+    fun testSetupMapsEvaluationContexts() {
+        fakeJs.init = { apiKey: String, options: dynamic ->
+            calledMethods.add("init" to arrayOf<dynamic>(apiKey, options))
+        }
+        PostHog.setup(PostHogConfig(projectToken = "key", evaluationContexts = listOf("web", "checkout")), PostHogContext())
+
+        val contexts = getCall("init")[1]["evaluation_contexts"]
+        assertEquals(listOf("web", "checkout"), (contexts as Array<String>).toList())
     }
 
     @Test
@@ -444,6 +564,8 @@ class PostHogJsTest {
         val disabled = assertNotNull(PostHog.getFeatureFlagResult("disabled"))
         assertFalse(disabled.enabled)
         assertNull(disabled.variant)
+        fakeJs.getFeatureFlagResult = { _: String, _: dynamic -> js("({ key: 'empty', enabled: true, variant: '' })") }
+        assertFalse(assertNotNull(PostHog.getFeatureFlagResult("empty")).enabled)
     }
 
     @Test

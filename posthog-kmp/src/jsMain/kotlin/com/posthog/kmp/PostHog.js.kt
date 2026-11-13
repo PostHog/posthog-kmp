@@ -41,6 +41,7 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
     options["persistence"] = "localStorage"
     options["defaults"] = "2026-05-30"
     options["bootstrap"] = js("{}")
+    config.evaluationContexts?.let { options["evaluation_contexts"] = it.toTypedArray() }
 
     if (config.beforeSend.isNotEmpty()) {
         options["before_send"] = { captureResult: dynamic ->
@@ -79,9 +80,22 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
     if (config.optOut) {
         PostHogJs.opt_out_capturing()
     }
+
+    pendingFeatureFlagsListeners.forEach { it.attach() }
+    pendingFeatureFlagsListeners.clear()
 }
 
 internal actual fun platformCapture(
+    event: String,
+    properties: Map<String, Any>?,
+    groups: Map<String, String>?,
+    timestamp: Long?,
+    options: Map<String, Any>?
+) {
+    captureEvent(event, withLegacyOptionProperties(properties, options), groups, timestamp)
+}
+
+private fun captureEvent(
     event: String,
     properties: Map<String, Any>?,
     groups: Map<String, String>?,
@@ -105,18 +119,33 @@ internal actual fun platformCapture(
     PostHogJs.capture(event, mergedProperties, options)
 }
 
-internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?) {
+@Suppress("UNUSED_PARAMETER")
+internal actual fun platformCaptureAi(
+    event: String,
+    properties: Map<String, Any>?,
+    groups: Map<String, String>?,
+    timestamp: Long?,
+    options: Map<String, Any>?
+): String? {
+    if (currentConfig?.debug == true) console.log("[PostHog] captureAi isn't supported on JavaScript; $event was not sent.")
+    return null
+}
+
+internal actual fun platformScreen(screenName: String, properties: Map<String, Any>?, options: Map<String, Any>?) {
     val screenProperties = buildMap {
         put("\$screen_name", screenName)
-        properties?.forEach { (key, value) -> put(key, value) }
+        withLegacyOptionProperties(properties, options)?.forEach { (key, value) -> put(key, value) }
     }
     PostHogJs.capture("\$screen", screenProperties.toJsObject())
 }
 
+// posthog-js's identify, alias, group and setPersonProperties take no event properties, so their options are dropped
+@Suppress("UNUSED_PARAMETER")
 internal actual fun platformIdentify(
     distinctId: String,
     userProperties: Map<String, Any>?,
-    userPropertiesSetOnce: Map<String, Any>?
+    userPropertiesSetOnce: Map<String, Any>?,
+    options: Map<String, Any>?
 ) {
     PostHogJs.identify(
         distinctId,
@@ -125,7 +154,8 @@ internal actual fun platformIdentify(
     )
 }
 
-internal actual fun platformAlias(alias: String) {
+@Suppress("UNUSED_PARAMETER")
+internal actual fun platformAlias(alias: String, options: Map<String, Any>?) {
     PostHogJs.alias(alias)
 }
 
@@ -144,14 +174,30 @@ internal actual fun platformRegister(key: String, value: Any) {
     PostHogJs.register(props)
 }
 
+// posthog-js has no options, so they are registered as the legacy properties it reads
+internal actual fun platformRegisterOptions(options: Map<String, Any>) {
+    options.forEach { (key, value) -> LEGACY_OPTION_PROPERTIES[key]?.let { platformRegister(it, value) } }
+}
+
+internal actual fun platformUnregisterOptions(key: String) {
+    LEGACY_OPTION_PROPERTIES[key]?.let { platformUnregister(it) }
+}
+
 internal actual fun platformUnregister(key: String) {
     PostHogJs.unregister(key)
 }
 
+@Suppress("UNUSED_PARAMETER")
+internal actual fun platformSetAppLanguage(language: String?) {
+    // posthog-js has no $app_language yet, so JS doesn't send it
+}
+
+@Suppress("UNUSED_PARAMETER")
 internal actual fun platformGroup(
     type: String,
     key: String,
-    groupProperties: Map<String, Any>?
+    groupProperties: Map<String, Any>?,
+    options: Map<String, Any>?
 ) {
     if (groupProperties != null) {
         PostHogJs.group(type, key, groupProperties.toJsObject())
@@ -183,7 +229,7 @@ internal actual fun platformGetAllFeatureFlags(): Map<String, FeatureFlagResult>
         for (i in 0 until length) {
             val result = flags[i]
             val key = result.key as? String ?: continue
-            map[key] = FeatureFlagResult(
+            map[key] = featureFlagResult(
                 key = key,
                 enabled = result.enabled as? Boolean ?: false,
                 variant = result.variant as? String,
@@ -196,9 +242,13 @@ internal actual fun platformGetAllFeatureFlags(): Map<String, FeatureFlagResult>
     }
 }
 
-internal actual fun platformReloadFeatureFlags(callback: (() -> Unit)?) {
+internal actual fun platformReloadFeatureFlags(callback: ((PostHogFeatureFlagsLoaded) -> Unit)?) {
     if (callback == null) {
         PostHogJs.reloadFeatureFlags()
+        return
+    }
+    if (!isPostHogJsLoaded()) {
+        callback(PostHogFeatureFlagsLoaded(emptyMap(), errorsLoading = true))
         return
     }
 
@@ -207,15 +257,97 @@ internal actual fun platformReloadFeatureFlags(callback: (() -> Unit)?) {
     var registered = false
     var done = false
     var unSub: dynamic = null
-    unSub = PostHogJs.onFeatureFlags {
+    unSub = PostHogJs.onFeatureFlags { _: dynamic, variants: dynamic, context: dynamic ->
         if (registered && !done) {
             done = true
-            callback()
             unSub()
+            callback(featureFlagsLoaded(variants, context))
         }
     }
     registered = true
     PostHogJs.reloadFeatureFlags()
+}
+
+/** [PostHog.onFeatureFlags] registrations made before setup; posthog-js drops them until it's initialized. */
+private val pendingFeatureFlagsListeners = mutableListOf<FeatureFlagsListener>()
+
+private class FeatureFlagsListener(private val callback: (PostHogFeatureFlagsLoaded) -> Unit) {
+    private var unsubscribe: dynamic = null
+    private var active = true
+
+    fun attach() {
+        if (!active) return
+        // posthog-js iterates a snapshot of its listeners, so one unsubscribed mid-delivery still gets called
+        unsubscribe = PostHogJs.onFeatureFlags { _: dynamic, variants: dynamic, context: dynamic ->
+            if (active) callback(featureFlagsLoaded(variants, context))
+        }
+    }
+
+    fun detach() {
+        active = false
+        pendingFeatureFlagsListeners.remove(this)
+        if (unsubscribe != null) unsubscribe()
+        unsubscribe = null
+    }
+}
+
+internal actual fun platformOnFeatureFlags(callback: (PostHogFeatureFlagsLoaded) -> Unit): PostHogFeatureFlagsSubscription {
+    val listener = FeatureFlagsListener(callback)
+    if (isPostHogJsLoaded()) listener.attach() else pendingFeatureFlagsListeners.add(listener)
+    return PostHogFeatureFlagsSubscription { listener.detach() }
+}
+
+/** posthog-js sets `__loaded` in `init()`; before it, flag calls reach no persistence. */
+private fun isPostHogJsLoaded(): Boolean = PostHogJs.__loaded == true
+
+private fun featureFlagsLoaded(variants: dynamic, context: dynamic): PostHogFeatureFlagsLoaded =
+    PostHogFeatureFlagsLoaded(
+        dynamicToMap(variants),
+        errorsLoading = context?.errorsLoading as? Boolean ?: latestFeatureFlagsLoadFailed()
+    )
+
+/** The posthog-js property that holds the errors of the latest flag load. */
+private const val FEATURE_FLAG_ERRORS_PROPERTY = "\$feature_flag_errors"
+
+/** Flags loaded, but some couldn't be computed; posthog-js reports that load with `errorsLoading = false`. */
+private const val ERRORS_WHILE_COMPUTING_FLAGS = "errors_while_computing_flags"
+
+/**
+ * posthog-js leaves `errorsLoading` out when it replays cached flags to a new listener, and when
+ * flags change without a load. It stores the errors of its latest load, so read them instead.
+ */
+private fun latestFeatureFlagsLoadFailed(): Boolean = try {
+    val errors: Any? = PostHogJs.get_property(FEATURE_FLAG_ERRORS_PROPERTY)
+    errors is Array<*> && errors.any { it != ERRORS_WHILE_COMPUTING_FLAGS }
+} catch (e: Throwable) {
+    false
+}
+
+internal actual fun platformSetPersonPropertiesForFlags(properties: Map<String, Any>, reloadFeatureFlags: Boolean) {
+    if (!isPostHogJsLoaded()) return
+    PostHogJs.setPersonPropertiesForFlags(properties.toJsObject(), reloadFeatureFlags)
+}
+
+internal actual fun platformResetPersonPropertiesForFlags(reloadFeatureFlags: Boolean) {
+    if (!isPostHogJsLoaded()) return
+    PostHogJs.resetPersonPropertiesForFlags(reloadFeatureFlags)
+}
+
+internal actual fun platformSetGroupPropertiesForFlags(
+    type: String,
+    properties: Map<String, Any>,
+    reloadFeatureFlags: Boolean
+) {
+    if (!isPostHogJsLoaded()) return
+    // The posthog-js facade turns on person processing first, and drops the call with `person_profiles: 'never'`
+    PostHogJs.featureFlags?.setGroupPropertiesForFlags(mapOf(type to properties).toJsObject(), reloadFeatureFlags)
+}
+
+internal actual fun platformResetGroupPropertiesForFlags(type: String?, reloadFeatureFlags: Boolean) {
+    if (!isPostHogJsLoaded()) return
+    // posthog-js has no reload option here and never reloads
+    if (type == null) PostHogJs.resetGroupPropertiesForFlags() else PostHogJs.resetGroupPropertiesForFlags(type)
+    if (reloadFeatureFlags) PostHogJs.reloadFeatureFlags()
 }
 
 internal actual fun platformGetFeatureFlagResult(key: String, sendFeatureFlagEvent: Boolean): FeatureFlagResult? {
@@ -230,7 +362,7 @@ internal actual fun platformGetFeatureFlagResult(key: String, sendFeatureFlagEve
     val variant = result.variant as? String
     val payload = result.payload
 
-    return FeatureFlagResult(
+    return featureFlagResult(
         key = key,
         enabled = isEnabled,
         variant = variant,
@@ -240,11 +372,12 @@ internal actual fun platformGetFeatureFlagResult(key: String, sendFeatureFlagEve
 
 internal actual fun platformCaptureException(
     throwable: Throwable,
-    additionalProperties: Map<String, Any>?
+    additionalProperties: Map<String, Any>?,
+    options: Map<String, Any>?
 ) {
     val jsThrowable: dynamic = throwable
     throwable::class.simpleName?.let { jsThrowable.name = it }
-    PostHogJs.captureException(jsThrowable, additionalProperties?.toJsObject())
+    PostHogJs.captureException(jsThrowable, withLegacyOptionProperties(additionalProperties, options)?.toJsObject())
 }
 
 internal actual fun platformGetAnonymousId(): String? {
@@ -323,8 +456,8 @@ private fun processBeforeSend(config: PostHogConfig, captureResult: dynamic): dy
 
     return try {
         val event = dynamicToPostHogEvent(captureResult) ?: return null
-        val processed = config.runBeforeSend(event) {
-            if (config.debug) console.error("[PostHog] Before-send callback failed; event was dropped.")
+        val processed = config.runBeforeSend(event) { error ->
+            if (config.debug) console.error("[PostHog] ${beforeSendFailureMessage(event, error)}")
         } ?: return null
 
         captureResult.event = processed.event
@@ -391,9 +524,11 @@ private fun Any?.toJsValue(): dynamic = when (this) {
     else -> this
 }
 
+@Suppress("UNUSED_PARAMETER")
 internal actual fun platformSetPersonProperties(
     userProperties: Map<String, Any>?,
-    userPropertiesSetOnce: Map<String, Any>?
+    userPropertiesSetOnce: Map<String, Any>?,
+    options: Map<String, Any>?
 ) {
     PostHogJs.setPersonProperties(
         userProperties?.toJsObject() ?: js("{}"),
