@@ -34,17 +34,20 @@ import kotlin.reflect.KClass
  *   have at least one of these evaluation tags, plus flags with no evaluation tags. Example:
  *   `PostHogConfig(projectToken = "phc_...", evaluationContexts = listOf("production", "checkout"))`.
  * @property captureAiCompression How [PostHog.captureAi] request bodies are compressed (defaults to
- *   [PostHogCompression.GZIP]). Other requests aren't affected. Android, JVM, iOS and macOS only.
+ *   null, which uses the native SDK's default, [PostHogCompression.GZIP]). Other requests aren't
+ *   affected. Android, JVM, iOS and macOS only.
  * @property captureAiMaxQueueSize Maximum number of [PostHog.captureAi] events kept in their
- *   on-disk queue before the oldest are dropped (defaults to 100). The queue also keeps at most
- *   50 MiB of AI events. A value of 0 or less uses the default. Android, JVM, iOS and macOS only.
+ *   on-disk queue before the oldest are dropped (defaults to null, which uses the native SDK's
+ *   default, 100). The queue also keeps at most 50 MiB of AI events. A value of 0 or less uses the
+ *   default. Android, JVM, iOS and macOS only.
  * @property captureAiTimeout How long, in seconds, a [PostHog.captureAi] request can go without
- *   network activity before it times out (defaults to 60). A value of 0 or less uses the default.
- *   Android, JVM, iOS and macOS only.
+ *   network activity before it times out (defaults to null, which uses the native SDK's default,
+ *   60). A value of 0 or less uses the default. Android, JVM, iOS and macOS only.
  * @property captureAiMaxEventBytes Maximum size, in bytes, of a serialized [PostHog.captureAi]
- *   event (defaults to 8 MiB plus 64 KiB). The SDK drops a larger event, and `captureAi` returns
- *   `null`. It can only be lowered: a larger value uses the default and logs a warning. A value of 0
- *   or less uses the default. Android, JVM, iOS and macOS only.
+ *   event (defaults to null, which uses the native SDK's default, 8 MiB plus 64 KiB). The SDK drops
+ *   a larger event, and `captureAi` returns `null`. It can only be lowered: a larger value uses the
+ *   default and logs a warning. A value of 0 or less uses the default. Android, JVM, iOS and macOS
+ *   only.
  */
 public data class PostHogConfig(
     val projectToken: String,
@@ -68,10 +71,10 @@ public data class PostHogConfig(
     val capturePushNotificationSubscriptions: Boolean = true,
     val capturePushNotificationOpened: Boolean = true,
     val evaluationContexts: List<String>? = null,
-    val captureAiCompression: PostHogCompression = PostHogCompression.GZIP,
-    val captureAiMaxQueueSize: Int = 100,
-    val captureAiTimeout: Int = 60,
-    val captureAiMaxEventBytes: Int = 8 * 1024 * 1024 + 64 * 1024
+    val captureAiCompression: PostHogCompression? = null,
+    val captureAiMaxQueueSize: Int? = null,
+    val captureAiTimeout: Int? = null,
+    val captureAiMaxEventBytes: Int? = null
 ) {
     /** Retains the constructor signature, without `evaluationContexts`, used by existing JVM consumers. */
     public constructor(

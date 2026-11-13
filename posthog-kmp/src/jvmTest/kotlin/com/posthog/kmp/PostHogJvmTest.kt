@@ -538,6 +538,23 @@ class PostHogJvmTest {
     }
 
     @Test
+    fun testUnsetCaptureAiConfigKeepsNativeDefaults() {
+        val nativeConfig = com.posthog.PostHogConfig("key").apply {
+            captureAiCompression = com.posthog.PostHogCompression.NONE
+            captureAiMaxQueueSize = 7
+            captureAiTimeout = 90
+            captureAiMaxEventBytes = 1024
+        }
+
+        nativeConfig.configureCaptureAi(PostHogConfig(projectToken = "key"))
+
+        assertEquals(com.posthog.PostHogCompression.NONE, nativeConfig.captureAiCompression)
+        assertEquals(7, nativeConfig.captureAiMaxQueueSize)
+        assertEquals(90, nativeConfig.captureAiTimeout)
+        assertEquals(1024, nativeConfig.captureAiMaxEventBytes)
+    }
+
+    @Test
     fun testCaptureAiReturnsNullWhenNativeDropsTheEvent() {
         assertNull(PostHog.captureAi("\$ai_generation"))
     }

@@ -62,13 +62,16 @@ internal fun com.posthog.PostHogConfig.configureErrorTracking(config: ErrorTrack
 }
 
 internal fun com.posthog.PostHogConfig.configureCaptureAi(config: PostHogConfig) {
-    captureAiCompression = when (config.captureAiCompression) {
-        PostHogCompression.GZIP -> com.posthog.PostHogCompression.GZIP
-        PostHogCompression.NONE -> com.posthog.PostHogCompression.NONE
+    // Unset values keep the native SDK's defaults
+    config.captureAiCompression?.let {
+        captureAiCompression = when (it) {
+            PostHogCompression.GZIP -> com.posthog.PostHogCompression.GZIP
+            PostHogCompression.NONE -> com.posthog.PostHogCompression.NONE
+        }
     }
-    captureAiMaxQueueSize = config.captureAiMaxQueueSize
-    captureAiTimeout = config.captureAiTimeout
-    captureAiMaxEventBytes = config.captureAiMaxEventBytes
+    config.captureAiMaxQueueSize?.let { captureAiMaxQueueSize = it }
+    config.captureAiTimeout?.let { captureAiTimeout = it }
+    config.captureAiMaxEventBytes?.let { captureAiMaxEventBytes = it }
 }
 
 internal fun com.posthog.PostHogConfig.configureBeforeSend(config: PostHogConfig) {

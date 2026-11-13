@@ -50,13 +50,16 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
             PersonProfiles.IDENTIFIED_ONLY -> PostHogPersonProfilesIdentifiedOnly
         }
         setDefaultPersonProperties = true
-        captureAiCompression = when (config.captureAiCompression) {
-            PostHogCompression.GZIP -> PostHogCompressionGzip
-            PostHogCompression.NONE -> PostHogCompressionNone
+        // Unset values keep the native SDK's defaults
+        config.captureAiCompression?.let {
+            captureAiCompression = when (it) {
+                PostHogCompression.GZIP -> PostHogCompressionGzip
+                PostHogCompression.NONE -> PostHogCompressionNone
+            }
         }
-        captureAiMaxQueueSize = config.captureAiMaxQueueSize.toLong()
-        captureAiTimeout = config.captureAiTimeout.toDouble()
-        captureAiMaxEventBytes = config.captureAiMaxEventBytes.toLong()
+        config.captureAiMaxQueueSize?.let { captureAiMaxQueueSize = it.toLong() }
+        config.captureAiTimeout?.let { captureAiTimeout = it.toDouble() }
+        config.captureAiMaxEventBytes?.let { captureAiMaxEventBytes = it.toLong() }
         configurePlatformCapture(config)
 
         config.errorTracking?.let { errorTracking ->
