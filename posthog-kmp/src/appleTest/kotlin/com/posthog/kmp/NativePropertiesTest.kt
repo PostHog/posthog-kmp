@@ -118,7 +118,7 @@ class NativePropertiesTest {
     @Test
     fun testSdkMetadataStampOverwritesNativeSdkValues() {
         @Suppress("UNCHECKED_CAST")
-        val nativeProperties = parse("""{"${'$'}lib":"posthog-ios","${'$'}lib_version":"3.64.1"}""") as Map<Any?, *>
+        val nativeProperties = parse("""{"${'$'}lib":"posthog-ios","${'$'}lib_version":"3.97.0"}""") as Map<Any?, *>
 
         assertEquals(
             """{"${'$'}lib":"posthog-kmp","${'$'}lib_version":"${PostHogKmpVersion.VERSION}"}""",
