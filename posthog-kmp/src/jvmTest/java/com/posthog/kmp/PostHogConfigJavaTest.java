@@ -43,4 +43,27 @@ public class PostHogConfigJavaTest {
         assertFalse(copy.getCapturePushNotificationSubscriptions());
         assertFalse(copy.getCapturePushNotificationOpened());
     }
+
+    @Test
+    public void pushCaptureConstructorAndCopySignaturesRemainCallable() {
+        PostHogConfig config = new PostHogConfig(
+            "phc_test", PostHogConfig.HOST_US, false, true, false, true, true, true,
+            20, 30, 1000, 50, false, PersonProfiles.IDENTIFIED_ONLY, null, false,
+            Collections.emptyList(), null, false, false
+        );
+        assertTrue(config.getSurveys());
+
+        PostHogConfig disabled = new PostHogConfig(
+            "phc_test", PostHogConfig.HOST_US, false, true, false, true, true, true,
+            20, 30, 1000, 50, false, PersonProfiles.IDENTIFIED_ONLY, null, false,
+            Collections.emptyList(), null, false, false, false
+        );
+        PostHogConfig copy = disabled.copy(
+            "phc_test", PostHogConfig.HOST_US, true, true, false, true, true, true,
+            20, 30, 1000, 50, false, PersonProfiles.IDENTIFIED_ONLY, null, false,
+            Collections.emptyList(), null, false, false
+        );
+        assertTrue(copy.getDebug());
+        assertFalse(copy.getSurveys());
+    }
 }

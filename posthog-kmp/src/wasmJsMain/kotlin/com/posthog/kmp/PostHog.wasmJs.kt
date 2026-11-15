@@ -25,6 +25,7 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
     setJsProperty(options, "defaults", "2026-05-30".toJsString())
     setJsProperty(options, "person_profiles", config.personProfiles.postHogValue().toJsString())
     setJsProperty(options, "advanced_disable_feature_flags_on_first_load", (!config.preloadFeatureFlags).toJsBoolean())
+    setJsProperty(options, "disable_surveys", (!config.surveys).toJsBoolean())
 
     val bootstrap = createJsObject()
     setJsProperty(options, "bootstrap", bootstrap)

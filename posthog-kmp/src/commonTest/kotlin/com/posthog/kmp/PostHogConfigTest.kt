@@ -54,6 +54,19 @@ class PostHogConfigTest {
         }
     }
 
+    @Test
+    fun surveysDefaultsToEnabled() {
+        assertEquals(true, PostHogConfig(projectToken = "phc_test").surveys)
+    }
+
+    @Test
+    fun copyPreservesSurveys() {
+        val config = PostHogConfig(projectToken = "phc_test", surveys = false)
+
+        assertEquals(false, config.copy(debug = true).surveys)
+        assertEquals(false, config.copy(capturePushNotificationOpened = false).surveys)
+    }
+
     @Suppress("DEPRECATION")
     @Test
     fun deprecatedApiKeySupportsPushNotificationCaptureOptions() {
