@@ -2,6 +2,10 @@ posthog-kmp@0.10.0:
   dir: ""
   intents:
     - puny-sloths-stay
+posthog-kmp@0.11.0:
+  dir: ""
+  intents:
+    - quiet-surveys-switch
 posthog-kmp@0.2.0:
   dir: ""
   intents:

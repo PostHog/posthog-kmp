@@ -619,7 +619,7 @@ Callbacks run in configuration order. Return the same or a modified PostHogEvent
 ### `PostHogConfig`
 
 ```kotlin
-data class PostHogConfig(val projectToken: String, val host: String = "https://us.i.posthog.com", val debug: Boolean = false, val captureApplicationLifecycleEvents: Boolean = true, val captureScreenViews: Boolean = false, val captureDeepLinks: Boolean = true, val sendFeatureFlagEvent: Boolean = true, val preloadFeatureFlags: Boolean = true, val flushAt: Int = 20, val flushIntervalSeconds: Int = 30, val maxQueueSize: Int = 1000, val maxBatchSize: Int = 50, val optOut: Boolean = false, val personProfiles: PersonProfiles = PersonProfiles.IDENTIFIED_ONLY, val sessionRecording: SessionRecordingConfig? = null, val autocapture: Boolean = false, val beforeSend: List<PostHogBeforeSend> = emptyList(), val errorTracking: ErrorTrackingConfig? = null, val capturePushNotificationSubscriptions: Boolean = true, val capturePushNotificationOpened: Boolean = true)
+data class PostHogConfig(val projectToken: String, val host: String = "https://us.i.posthog.com", val debug: Boolean = false, val captureApplicationLifecycleEvents: Boolean = true, val captureScreenViews: Boolean = false, val captureDeepLinks: Boolean = true, val sendFeatureFlagEvent: Boolean = true, val preloadFeatureFlags: Boolean = true, val flushAt: Int = 20, val flushIntervalSeconds: Int = 30, val maxQueueSize: Int = 1000, val maxBatchSize: Int = 50, val optOut: Boolean = false, val personProfiles: PersonProfiles = PersonProfiles.IDENTIFIED_ONLY, val sessionRecording: SessionRecordingConfig? = null, val autocapture: Boolean = false, val beforeSend: List<PostHogBeforeSend> = emptyList(), val errorTracking: ErrorTrackingConfig? = null, val capturePushNotificationSubscriptions: Boolean = true, val capturePushNotificationOpened: Boolean = true, val surveys: Boolean = true)
 ```
 
 Configuration options for PostHog SDK initialization.
@@ -647,6 +647,7 @@ Configuration options for PostHog SDK initialization.
 - `val projectToken: String`: Your PostHog project token (required), which starts with `phc_`. Find it in your project settings: https://us.posthog.com/settings/project-details#variables. Formerly named `apiKey`. Example: `PostHogConfig(projectToken = "phc_your_project_token")`.
 - `val sendFeatureFlagEvent: Boolean`: Send events when feature flags are evaluated
 - `val sessionRecording: SessionRecordingConfig?`: Enable session recording (platform dependent)
+- `val surveys: Boolean`: Load surveys and show the ones that match (defaults to true). Set to false to keep the SDK from loading or showing surveys. Applies on iOS 15+ and web. On Android, surveys display only when the app also depends on `com.posthog:posthog-android-surveys-compose`. Ignored on macOS and JVM.
 
 #### Companion
 
