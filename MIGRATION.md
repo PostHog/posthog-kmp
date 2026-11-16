@@ -1,15 +1,15 @@
 # Migrating posthog-kmp
 
-## 0.10 to 0.11
+## 0.11 to 0.12
 
-0.11 moves Android, JVM, iOS and macOS to the 4.0 native SDKs: posthog-android 4.0, the JVM core `com.posthog:posthog` 7.0 and posthog-ios 4.0. JavaScript and Wasm targets stay on posthog-js; of the breaking changes below, only the `SessionRecordingConfig` changes in [Session replay](#session-replay), which are compile errors in common code, and [Feature flags](#feature-flags) reach them.
+0.12 moves Android, JVM, iOS and macOS to the 4.0 native SDKs: posthog-android 4.0, the JVM core `com.posthog:posthog` 7.0 and posthog-ios 4.0. JavaScript and Wasm targets stay on posthog-js; of the breaking changes below, only the `SessionRecordingConfig` changes in [Session replay](#session-replay), which are compile errors in common code, and [Feature flags](#feature-flags) reach them.
 
 <!-- TODO(native-4.0-links): these tags don't exist until posthog-android 4.0.0 and posthog-ios 4.0.0 are released; check both links resolve before merging. -->
 The native SDKs list every change in their own guides: [posthog-android](https://github.com/PostHog/posthog-android/blob/android-v4.0.0/MIGRATION.md) and [posthog-ios](https://github.com/PostHog/posthog-ios/blob/4.0.0/MIGRATION.md). This guide covers what reaches a KMP app. If your app also calls posthog-android, posthog-ios or the JVM core `com.posthog:posthog` directly, that code moves to 4.0 (core 7.0) too, so follow those guides for it.
 
 ### Checklist
 
-- [ ] Recompile any library built against posthog-kmp 0.10. Its JVM and Android bytecode no longer links, because some signatures changed.
+- [ ] Recompile any library built against posthog-kmp 0.11 or earlier. Its JVM and Android bytecode no longer links, because some signatures changed.
 - [ ] If your Android or JVM build also uses `posthog-android-surveys-compose` or `posthog-server`, see [Other PostHog artifacts](#other-posthog-artifacts).
 - [ ] Build iOS and macOS apps with Xcode 26 or later, and set the macOS deployment target to 11.0 or later.
 - [ ] Build your Xcode app once and commit the updated `KotlinMultiplatformLinkedPackage`, which now pins posthog-ios 4.0. If that build stops with `Synthetic project state updated`, run it again.
@@ -31,14 +31,14 @@ posthog-ios 4.0 is published to Swift Package Manager only. KMP already imports 
 
 ### Binary compatibility
 
-Code compiled against 0.10 has to be recompiled against 0.11, including libraries you publish that depend on posthog-kmp. Some JVM signatures changed, so 0.10 bytecode fails at runtime with `NoSuchMethodError`:
+Code compiled against 0.11 has to be recompiled against 0.12, including libraries you publish that depend on posthog-kmp. Some JVM signatures changed, so 0.11 bytecode fails at runtime with `NoSuchMethodError`:
 
-- `SessionRecordingConfig` lost `screenshot` and stores the throttle delay in `throttleDelayMs` instead of `debouncerDelayMs`, which changes its constructor, `copy()` and `component7()` onward. `debouncerDelayMs` is still readable as a deprecated alias. `component6()` keeps its signature but now returns `captureLogcat` instead of `screenshot`, so 0.10 bytecode that calls it gets a different value without an error.
+- `SessionRecordingConfig` lost `screenshot` and stores the throttle delay in `throttleDelayMs` instead of `debouncerDelayMs`, which changes its constructor, `copy()` and `component7()` onward. `debouncerDelayMs` is still readable as a deprecated alias. `component6()` keeps its signature but now returns `captureLogcat` instead of `screenshot`, so 0.11 bytecode that calls it gets a different value without an error.
 - `reloadFeatureFlags()` takes a `(PostHogFeatureFlagsLoaded) -> Unit` callback instead of `() -> Unit`.
-- `CaptureOptions` gained `eventOptions` and `PostHogEvent` gained `options`, which changes their constructors and `copy()`. A `beforeSend` callback compiled against 0.10 that calls `event.copy(...)` fails.
+- `CaptureOptions` gained `eventOptions` and `PostHogEvent` gained `options`, which changes their constructors and `copy()`. A `beforeSend` callback compiled against 0.11 that calls `event.copy(...)` fails.
 - `screen()`, `identify()`, `alias()`, `group()`, `setPersonProperties()` and `captureException()` take a trailing `eventOptions` parameter. Java callers have no overload without it, so Java source that calls them, or `new CaptureOptions(groups, timestamp)`, has to pass the new argument.
 
-`PostHogConfig` keeps its 0.10 constructor as a public overload and its 0.10 `copy()` as a hidden overload, so code that only builds a `PostHogConfig` still links.
+`PostHogConfig` keeps its 0.10 and 0.11 constructors as public overloads and their `copy()` signatures as hidden overloads, so code that only builds a `PostHogConfig` still links.
 
 #### Other PostHog artifacts
 
@@ -52,10 +52,10 @@ The JVM core `com.posthog:posthog` 7.0 isn't binary compatible with artifacts bu
 Session replay always records masked screenshots. Wireframe recording and `SessionRecordingConfig.screenshot` are gone:
 
 ```kotlin
-// 0.10
+// 0.11
 SessionRecordingConfig(screenshot = true, maskAllImages = true)
 
-// 0.11
+// 0.12
 SessionRecordingConfig(maskAllImages = true)
 ```
 
@@ -63,7 +63,7 @@ Apps that kept the default `screenshot = false` now upload screenshots. Text inp
 
 On Android, Compose screens, including Compose Multiplatform UI, are now recorded; wireframe captured them as empty boxes. That can count against your replay quota and may need a consent or privacy disclosure update.
 
-On iOS, Compose Multiplatform screens are now recorded too; 0.10 recorded no frames for them. Compose draws its whole UI into a few views, so posthog-ios can't mask the text fields, text or images inside them one by one. While `maskAllTextInputs` or `maskAllImages` is on, it masks those views whole, so a Compose screen is recorded as one masked block. To show it, tag the Compose view `ph-no-mask`, which also records what users type:
+On iOS, Compose Multiplatform screens are now recorded too; 0.11 and earlier recorded no frames for them. Compose draws its whole UI into a few views, so posthog-ios can't mask the text fields, text or images inside them one by one. While `maskAllTextInputs` or `maskAllImages` is on, it masks those views whole, so a Compose screen is recorded as one masked block. To show it, tag the Compose view `ph-no-mask`, which also records what users type:
 
 ```swift
 let controller = MainViewControllerKt.MainViewController()
@@ -89,7 +89,7 @@ Capture requests follow only 307 and 308 redirects to the same origin as `host`,
 
 Retries also changed: 3xx responses are no longer retried, `Retry-After` is capped at 30 seconds, the wait between failed sends doubles with jitter, and a request carries at most about 5 MiB. See the Retries sections of the native guides.
 
-Events queued on disk by 0.10 are sent through capture v1 after the update.
+Events queued on disk by 0.11 are sent through capture v1 after the update.
 
 ### Event options
 
@@ -129,10 +129,10 @@ On Android, JVM, iOS and macOS, `FeatureFlagResult.payload` is `null` for a payl
 The `reloadFeatureFlags()` callback receives a `PostHogFeatureFlagsLoaded` with the enabled flags, their values, and `errorsLoading`, which is `true` when the reload failed. A lambda that ignores its parameter still compiles; a function reference or a `() -> Unit` value needs the parameter:
 
 ```kotlin
-// 0.10
+// 0.11
 PostHog.reloadFeatureFlags { showCheckout() }
 
-// 0.11
+// 0.12
 PostHog.reloadFeatureFlags { loaded ->
     if (!loaded.errorsLoading) showCheckout()
 }
@@ -156,7 +156,7 @@ To react to every flag load rather than one reload, use the new `PostHog.onFeatu
 | `$sdk_debug_replay_capture_mode` is always `screenshot`. | Android, iOS | Update filters on `wireframe`. |
 | `Deep Link Opened` leaves out query parameters whose name starts with `$`. | Android | Rename any `$`-prefixed parameter you read from the event. |
 | Super properties from `register()` override properties the SDK sets, such as `$os_name`. A registered `$session_id` replaces the SDK's session ID, which can detach events from their session replay. | Android, JVM, iOS, macOS | Don't register `$`-prefixed SDK properties unless you mean to replace them. |
-| A `$process_person_profile = false` registered with `register()`, or a `process_person_profile = false` registered with `registerOptions()`, now applies to every event except the ones `identify()`, `alias()`, `group()` and `setPersonProperties()` send. A value passed on those calls, or set in `beforeSend`, still applies. In 0.10, the SDK replaced a registered value with its own, so it had no effect. Events after `identify()` that get the registered value are still linked to the person and billed as identified events. | Android, JVM, iOS, macOS | Remove the registered value. To skip person profiles for anonymous users, rely on `personProfiles = PersonProfiles.IDENTIFIED_ONLY`, the default, which still lets `identify()` create the person. To create no person profiles at all, set `personProfiles = PersonProfiles.NEVER`. |
+| A `$process_person_profile = false` registered with `register()`, or a `process_person_profile = false` registered with `registerOptions()`, now applies to every event except the ones `identify()`, `alias()`, `group()` and `setPersonProperties()` send. A value passed on those calls, or set in `beforeSend`, still applies. In 0.11, the SDK replaced a registered value with its own, so it had no effect. Events after `identify()` that get the registered value are still linked to the person and billed as identified events. | Android, JVM, iOS, macOS | Remove the registered value. To skip person profiles for anonymous users, rely on `personProfiles = PersonProfiles.IDENTIFIED_ONLY`, the default, which still lets `identify()` create the person. To create no person profiles at all, set `personProfiles = PersonProfiles.NEVER`. |
 | `$locale` is the device's preferred language with its region, such as `de-CH`. On Android it's left out when the device reports no language, and the legacy codes `iw`, `in` and `ji` become `he`, `id` and `yi`. | Android, iOS, macOS | Filter on the new `$app_language` for the language the app shows, and update filters that match the legacy codes. |
 | `$locale` is a BCP 47 tag that keeps the script, such as `zh-Hant-TW`, and is `en` rather than `en-` when the locale has no region. | JVM | Update filters that match the old form. |
 | `Application Installed`, `Application Updated` and `Application Opened` no longer have `version` and `build`. | iOS, macOS | Use `$app_version` and `$app_build`. |
@@ -179,14 +179,15 @@ PostHog.setAppLanguage(null) // back to the detected language
 <!-- TODO(app-language-before-setup): remove the next sentence once Android and JVM keep a language set before setup(). -->
 On Android and JVM, call `setAppLanguage()` after `PostHog.setup()`: a call before setup is dropped. The value is kept in memory only and survives `reset()`. A `$app_language` super property set with `register()` takes precedence. JVM sends `$app_language` only after you call `setAppLanguage()`. JavaScript and Wasm don't send it yet, because posthog-js doesn't support it, so `setAppLanguage()` does nothing there; to send it now, call `PostHog.register("\$app_language", "pt-BR")`.
 
-### New in 0.11
+### New in 0.12
 
-These additions work on every platform, including JavaScript and Wasm, except `setAppLanguage()`, which does nothing on JavaScript and Wasm.
+These additions work on every platform, including JavaScript and Wasm, except `setAppLanguage()`, which does nothing on JavaScript and Wasm, and `iosCaptureMethod`, which applies on iOS only.
 
 - `PostHog.setPersonPropertiesForFlags()` and `PostHog.setGroupPropertiesForFlags()` evaluate feature flags with properties you just set, before PostHog processes them. Clear them with `resetPersonPropertiesForFlags()` and `resetGroupPropertiesForFlags()`.
 - `PostHogConfig.evaluationContexts` limits feature flag evaluation to the flags tagged with at least one of those contexts, plus flags with no tags.
 - `PostHog.onFeatureFlags()` calls you back on every feature flag load.
 - `PostHog.setAppLanguage()` sets `$app_language`; see [App language](#app-language).
+- `SessionRecordingConfig.iosCaptureMethod` chooses how iOS captures replay screenshots: `STANDARD` (the default) draws on the main thread, `BACKGROUND` draws on a background queue, and the experimental `GPU` renders a copy of the window's layers on the GPU.
 
 ```kotlin
 val config = PostHogConfig(projectToken = "phc_...", evaluationContexts = listOf("checkout"))
