@@ -29,6 +29,9 @@ import kotlin.reflect.KClass
  *   Messaging is available (Android only, defaults to true).
  * @property capturePushNotificationOpened Capture push notification opens automatically
  *   (Android only, defaults to true).
+ * @property surveys Load surveys and show the ones that match (defaults to true). Set to false to keep
+ *   the SDK from loading or showing surveys. Applies on iOS 15+ and web. On Android, surveys display only
+ *   when the app also depends on `com.posthog:posthog-android-surveys-compose`. Ignored on macOS and JVM.
  */
 public data class PostHogConfig(
     val projectToken: String,
@@ -50,8 +53,55 @@ public data class PostHogConfig(
     val beforeSend: List<PostHogBeforeSend> = emptyList(),
     val errorTracking: ErrorTrackingConfig? = null,
     val capturePushNotificationSubscriptions: Boolean = true,
-    val capturePushNotificationOpened: Boolean = true
+    val capturePushNotificationOpened: Boolean = true,
+    val surveys: Boolean = true
 ) {
+    /** Retains the constructor signature used by existing JVM consumers. */
+    public constructor(
+        projectToken: String,
+        host: String = "https://us.i.posthog.com",
+        debug: Boolean = false,
+        captureApplicationLifecycleEvents: Boolean = true,
+        captureScreenViews: Boolean = false,
+        captureDeepLinks: Boolean = true,
+        sendFeatureFlagEvent: Boolean = true,
+        preloadFeatureFlags: Boolean = true,
+        flushAt: Int = 20,
+        flushIntervalSeconds: Int = 30,
+        maxQueueSize: Int = 1000,
+        maxBatchSize: Int = 50,
+        optOut: Boolean = false,
+        personProfiles: PersonProfiles = PersonProfiles.IDENTIFIED_ONLY,
+        sessionRecording: SessionRecordingConfig? = null,
+        autocapture: Boolean = false,
+        beforeSend: List<PostHogBeforeSend> = emptyList(),
+        errorTracking: ErrorTrackingConfig? = null,
+        capturePushNotificationSubscriptions: Boolean = true,
+        capturePushNotificationOpened: Boolean = true
+    ) : this(
+        projectToken = projectToken,
+        host = host,
+        debug = debug,
+        captureApplicationLifecycleEvents = captureApplicationLifecycleEvents,
+        captureScreenViews = captureScreenViews,
+        captureDeepLinks = captureDeepLinks,
+        sendFeatureFlagEvent = sendFeatureFlagEvent,
+        preloadFeatureFlags = preloadFeatureFlags,
+        flushAt = flushAt,
+        flushIntervalSeconds = flushIntervalSeconds,
+        maxQueueSize = maxQueueSize,
+        maxBatchSize = maxBatchSize,
+        optOut = optOut,
+        personProfiles = personProfiles,
+        sessionRecording = sessionRecording,
+        autocapture = autocapture,
+        beforeSend = beforeSend,
+        errorTracking = errorTracking,
+        capturePushNotificationSubscriptions = capturePushNotificationSubscriptions,
+        capturePushNotificationOpened = capturePushNotificationOpened,
+        surveys = true
+    )
+
     /** Retains the constructor signature used by existing JVM consumers. */
     public constructor(
         projectToken: String,
@@ -193,6 +243,52 @@ public data class PostHogConfig(
         sessionRecording: SessionRecordingConfig? = this.sessionRecording,
         autocapture: Boolean = this.autocapture,
         beforeSend: List<PostHogBeforeSend> = this.beforeSend,
+        errorTracking: ErrorTrackingConfig? = this.errorTracking,
+        capturePushNotificationSubscriptions: Boolean = this.capturePushNotificationSubscriptions,
+        capturePushNotificationOpened: Boolean = this.capturePushNotificationOpened
+    ): PostHogConfig = PostHogConfig(
+        projectToken = projectToken,
+        host = host,
+        debug = debug,
+        captureApplicationLifecycleEvents = captureApplicationLifecycleEvents,
+        captureScreenViews = captureScreenViews,
+        captureDeepLinks = captureDeepLinks,
+        sendFeatureFlagEvent = sendFeatureFlagEvent,
+        preloadFeatureFlags = preloadFeatureFlags,
+        flushAt = flushAt,
+        flushIntervalSeconds = flushIntervalSeconds,
+        maxQueueSize = maxQueueSize,
+        maxBatchSize = maxBatchSize,
+        optOut = optOut,
+        personProfiles = personProfiles,
+        sessionRecording = sessionRecording,
+        autocapture = autocapture,
+        beforeSend = beforeSend,
+        errorTracking = errorTracking,
+        capturePushNotificationSubscriptions = capturePushNotificationSubscriptions,
+        capturePushNotificationOpened = capturePushNotificationOpened,
+        surveys = surveys
+    )
+
+    /** Retains the copy signature used by existing JVM consumers. */
+    public fun copy(
+        projectToken: String = this.projectToken,
+        host: String = this.host,
+        debug: Boolean = this.debug,
+        captureApplicationLifecycleEvents: Boolean = this.captureApplicationLifecycleEvents,
+        captureScreenViews: Boolean = this.captureScreenViews,
+        captureDeepLinks: Boolean = this.captureDeepLinks,
+        sendFeatureFlagEvent: Boolean = this.sendFeatureFlagEvent,
+        preloadFeatureFlags: Boolean = this.preloadFeatureFlags,
+        flushAt: Int = this.flushAt,
+        flushIntervalSeconds: Int = this.flushIntervalSeconds,
+        maxQueueSize: Int = this.maxQueueSize,
+        maxBatchSize: Int = this.maxBatchSize,
+        optOut: Boolean = this.optOut,
+        personProfiles: PersonProfiles = this.personProfiles,
+        sessionRecording: SessionRecordingConfig? = this.sessionRecording,
+        autocapture: Boolean = this.autocapture,
+        beforeSend: List<PostHogBeforeSend> = this.beforeSend,
         errorTracking: ErrorTrackingConfig? = this.errorTracking
     ): PostHogConfig = PostHogConfig(
         projectToken = projectToken,
@@ -214,7 +310,8 @@ public data class PostHogConfig(
         beforeSend = beforeSend,
         errorTracking = errorTracking,
         capturePushNotificationSubscriptions = capturePushNotificationSubscriptions,
-        capturePushNotificationOpened = capturePushNotificationOpened
+        capturePushNotificationOpened = capturePushNotificationOpened,
+        surveys = surveys
     )
 
     @Deprecated("Retained for binary compatibility", level = DeprecationLevel.HIDDEN)
@@ -256,7 +353,8 @@ public data class PostHogConfig(
         beforeSend = beforeSend,
         errorTracking = errorTracking,
         capturePushNotificationSubscriptions = capturePushNotificationSubscriptions,
-        capturePushNotificationOpened = capturePushNotificationOpened
+        capturePushNotificationOpened = capturePushNotificationOpened,
+        surveys = surveys
     )
 
     @Deprecated("Retained for binary compatibility", level = DeprecationLevel.HIDDEN)
@@ -297,7 +395,8 @@ public data class PostHogConfig(
         beforeSend = beforeSend,
         errorTracking = errorTracking,
         capturePushNotificationSubscriptions = capturePushNotificationSubscriptions,
-        capturePushNotificationOpened = capturePushNotificationOpened
+        capturePushNotificationOpened = capturePushNotificationOpened,
+        surveys = surveys
     )
 
     /** Deprecated alias for [projectToken]. */

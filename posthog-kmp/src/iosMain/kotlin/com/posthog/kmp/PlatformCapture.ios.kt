@@ -6,6 +6,7 @@ import swiftPMImport.com.posthog.posthog.kmp.PostHogConfig as NativePostHogConfi
 
 internal actual fun NativePostHogConfig.configurePlatformCapture(config: PostHogConfig) {
     captureElementInteractions = config.autocapture
+    surveys = config.surveys
     val sessionConfig = config.sessionRecording
     if (sessionConfig?.enabled == true) {
         sessionReplay = true
