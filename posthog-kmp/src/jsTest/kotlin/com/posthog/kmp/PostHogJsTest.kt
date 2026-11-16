@@ -431,6 +431,7 @@ class PostHogJsTest {
         assertNull(call[1]["advanced_disable_feature_flags"], "flag evaluation must not be disabled permanently")
         assertNull(call[1]["capture_exceptions"], "error tracking must remain unset unless configured")
         assertNull(call[1]["evaluation_contexts"])
+        assertEquals(false, call[1]["disable_surveys"] as Boolean)
     }
 
     @Test
@@ -442,6 +443,16 @@ class PostHogJsTest {
 
         val contexts = getCall("init")[1]["evaluation_contexts"]
         assertEquals(listOf("web", "checkout"), (contexts as Array<String>).toList())
+    }
+
+    @Test
+    fun testSetupMapsSurveysToDisableSurveys() {
+        fakeJs.init = { apiKey: String, options: dynamic ->
+            calledMethods.add("init" to arrayOf<dynamic>(apiKey, options))
+        }
+        PostHog.setup(PostHogConfig(projectToken = "key", surveys = false), PostHogContext())
+
+        assertEquals(true, getCall("init")[1]["disable_surveys"] as Boolean)
     }
 
     @Test

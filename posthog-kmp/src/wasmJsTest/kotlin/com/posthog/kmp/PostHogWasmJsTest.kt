@@ -42,7 +42,8 @@ class PostHogWasmJsTest {
                 sessionRecording = SessionRecordingConfig(captureLogs = true),
                 autocapture = true,
                 errorTracking = ErrorTrackingConfig(autoCapture = true),
-                evaluationContexts = listOf("web", "checkout")
+                evaluationContexts = listOf("web", "checkout"),
+                surveys = false
             ),
             PostHogContext()
         )
@@ -54,6 +55,7 @@ class PostHogWasmJsTest {
         assertTrue(readNestedBoolean(fakePostHog, "options", "autocapture"))
         assertTrue(readNestedBoolean(fakePostHog, "options", "capture_exceptions"))
         assertTrue(readNestedBoolean(fakePostHog, "options", "advanced_disable_feature_flags_on_first_load"))
+        assertTrue(readNestedBoolean(fakePostHog, "options", "disable_surveys"))
         assertEquals("always", readNestedString(fakePostHog, "options", "person_profiles"))
         assertTrue(readDeepBoolean(fakePostHog, "options", "session_recording", "captureLogs"))
         assertTrue(readBoolean(fakePostHog, "optedOut"))

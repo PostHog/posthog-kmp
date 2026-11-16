@@ -65,4 +65,13 @@ class PostHogAndroidConfigTest {
                 .toAndroidConfig().evaluationContexts
         )
     }
+
+    @Test
+    fun mapsSurveys() {
+        for (surveys in listOf(false, true)) {
+            val nativeConfig = PostHogConfig(projectToken = "phc_test", surveys = surveys).toAndroidConfig()
+
+            assertEquals(surveys, nativeConfig.surveys)
+        }
+    }
 }

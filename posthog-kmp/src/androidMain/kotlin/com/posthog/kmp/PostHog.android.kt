@@ -20,6 +20,7 @@ internal fun PostHogConfig.toAndroidConfig(): PostHogAndroidConfig {
         captureDeepLinks = config.captureDeepLinks
         capturePushNotificationSubscriptions = config.capturePushNotificationSubscriptions
         capturePushNotificationOpened = config.capturePushNotificationOpened
+        surveys = config.surveys
         sendFeatureFlagEvent = config.sendFeatureFlagEvent
         preloadFeatureFlags = config.preloadFeatureFlags
 
