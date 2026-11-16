@@ -14,7 +14,7 @@ The native SDKs list every change in their own guides: [posthog-android](https:/
 - [ ] Build iOS and macOS apps with Xcode 26 or later, and set the macOS deployment target to 11.0 or later.
 - [ ] Build your Xcode app once and commit the updated `KotlinMultiplatformLinkedPackage`, which now pins posthog-ios 4.0. If that build stops with `Synthetic project state updated`, run it again.
 - [ ] Remove `screenshot` from `SessionRecordingConfig`, and mask custom-drawn content before you ship.
-- [ ] If you record session replay on iOS with Compose Multiplatform, mask the Compose view first: its text fields aren't masked (see [Session replay](#session-replay)).
+- [ ] If you record session replay on iOS with Compose Multiplatform, expect Compose screens to be recorded fully masked (see [Session replay](#session-replay)).
 - [ ] If you send events through a reverse proxy or a self-hosted instance, serve `/i/v1/analytics/events`, forward its `Authorization`, `PostHog-*`, `Content-Type`, `Content-Encoding` and `User-Agent` headers, and pass the response body through unchanged.
 - [ ] Update `reloadFeatureFlags` callbacks that are function references or `() -> Unit` values to take the new `PostHogFeatureFlagsLoaded` parameter.
 - [ ] Check that `projectToken` is your project token (`phc_...`), not a personal API key (`phx_...`).
@@ -63,11 +63,11 @@ Apps that kept the default `screenshot = false` now upload screenshots. Text inp
 
 On Android, Compose screens, including Compose Multiplatform UI, are now recorded; wireframe captured them as empty boxes. That can count against your replay quota and may need a consent or privacy disclosure update.
 
-On iOS, Compose Multiplatform screens are now recorded too; 0.10 recorded no frames for them. posthog-ios finds what to mask through UIKit views, and Compose draws its whole UI into one view, so `maskAllTextInputs` and `maskAllImages` don't mask the text fields, text or images inside it: what users type is recorded. Until that's fixed, mask the whole Compose view where you create it, or enable `sessionRecording` on Android only:
+On iOS, Compose Multiplatform screens are now recorded too; 0.10 recorded no frames for them. Compose draws its whole UI into a few views, so posthog-ios can't mask the text fields, text or images inside them one by one. While `maskAllTextInputs` or `maskAllImages` is on, it masks those views whole, so a Compose screen is recorded as one masked block. To show it, tag the Compose view `ph-no-mask`, which also records what users type:
 
 ```swift
 let controller = MainViewControllerKt.MainViewController()
-controller.view.accessibilityIdentifier = "ph-no-capture"
+controller.view.accessibilityIdentifier = "ph-no-mask"
 ```
 
 `debouncerDelayMs` is deprecated in favor of `throttleDelayMs`, which now applies on iOS as well as Android. The constructor still accepts `debouncerDelayMs` as a named argument, but `copy(debouncerDelayMs = ...)` no longer compiles: use `copy(throttleDelayMs = ...)`.
