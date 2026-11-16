@@ -3,6 +3,9 @@
 package com.posthog.kmp
 
 import swiftPMImport.com.posthog.posthog.kmp.PostHogConfig as NativePostHogConfig
+import swiftPMImport.com.posthog.posthog.kmp.PostHogSessionReplayCaptureMethodBackground
+import swiftPMImport.com.posthog.posthog.kmp.PostHogSessionReplayCaptureMethodGpu
+import swiftPMImport.com.posthog.posthog.kmp.PostHogSessionReplayCaptureMethodStandard
 
 internal actual fun NativePostHogConfig.configurePlatformCapture(config: PostHogConfig) {
     captureElementInteractions = config.autocapture
@@ -14,5 +17,10 @@ internal actual fun NativePostHogConfig.configurePlatformCapture(config: PostHog
         sessionReplayConfig.captureNetworkTelemetry = sessionConfig.captureNetworkTelemetry
         sessionReplayConfig.captureLogs = sessionConfig.captureLogs
         sessionReplayConfig.throttleDelay = sessionConfig.throttleDelayMs / 1000.0
+        sessionReplayConfig.captureMethod = when (sessionConfig.iosCaptureMethod) {
+            IosCaptureMethod.STANDARD -> PostHogSessionReplayCaptureMethodStandard
+            IosCaptureMethod.BACKGROUND -> PostHogSessionReplayCaptureMethodBackground
+            IosCaptureMethod.GPU -> PostHogSessionReplayCaptureMethodGpu
+        }
     }
 }

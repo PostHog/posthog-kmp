@@ -554,6 +554,28 @@ public enum class PostHogCompression {
 }
 
 /**
+ * How iOS captures each session replay screenshot.
+ */
+public enum class IosCaptureMethod {
+    /** Draws the window on the main thread. */
+    STANDARD,
+
+    /**
+     * Draws the window on a background queue, so the main thread only reads mask positions.
+     * Triggers Main Thread Checker warnings in debug builds, and may briefly freeze the app the
+     * first time a screenshot is captured.
+     */
+    BACKGROUND,
+
+    /**
+     * Experimental. Copies the window's layers and renders the copy on the GPU, in short
+     * main-thread steps. Content from another process, such as a web view's page, and Metal
+     * content are not captured. Falls back to [STANDARD] when a capture can't be made this way.
+     */
+    GPU
+}
+
+/**
  * Person profile modes for feature flag targeting and person data.
  */
 public enum class PersonProfiles {
@@ -623,6 +645,8 @@ public data class ErrorTrackingConfig(
  *   Can preserve captures during pixel-only redraws, but adds view-hierarchy walks during capture.
  *   Defaults to false and is ignored on other platforms. Windows with a Compose root always use
  *   verification regardless of this flag.
+ * @property iosCaptureMethod How iOS captures each replay screenshot (iOS only). Defaults to
+ *   [IosCaptureMethod.STANDARD] and is ignored on other platforms.
  */
 public data class SessionRecordingConfig(
     val enabled: Boolean = true,
@@ -632,7 +656,8 @@ public data class SessionRecordingConfig(
     val captureLogs: Boolean = false,
     val captureLogcat: Boolean = true,
     val throttleDelayMs: Long = 1000L,
-    val verifyScreenshotMaskAlignment: Boolean = false
+    val verifyScreenshotMaskAlignment: Boolean = false,
+    val iosCaptureMethod: IosCaptureMethod = IosCaptureMethod.STANDARD
 ) {
     /** Deprecated alias for [throttleDelayMs]. */
     @Deprecated(
