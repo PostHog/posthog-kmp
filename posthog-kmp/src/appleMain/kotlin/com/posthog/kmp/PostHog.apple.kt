@@ -28,6 +28,21 @@ import swiftPMImport.com.posthog.posthog.kmp.setSdkName
  */
 
 
+internal fun NativePostHogConfig.applyErrorTracking(errorTracking: ErrorTrackingConfig?) {
+    // posthog-ios 4.0 defaults inAppByDefault to false, so frames count as in-app only when they come
+    // from the app's executable. The app's Kotlin code ships in its own framework, which posthog-ios
+    // then marks not in-app unless it's linked statically. Always send the KMP default (true) instead.
+    errorTrackingConfig.inAppByDefault = (errorTracking ?: ErrorTrackingConfig()).inAppByDefault
+    if (errorTracking == null) return
+    errorTrackingConfig.autoCapture = errorTracking.autoCapture
+    errorTrackingConfig.inAppIncludes = errorTrackingConfig.inAppIncludes + errorTracking.inAppIncludes
+    errorTrackingConfig.ignoredExceptionTypes = errorTrackingConfig.ignoredExceptionTypes +
+        errorTracking.ignoredExceptionTypes
+            .flatMap { listOfNotNull(it.simpleName, it.qualifiedName) }
+            .distinct()
+    errorTrackingConfig.inAppExcludes = errorTrackingConfig.inAppExcludes + errorTracking.inAppExcludes
+}
+
 @Suppress("UNUSED_PARAMETER")
 internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext) {
     // posthog-ios stamps `$lib`/`$lib_version` and the PostHog-Sdk-Info header from this name and version.
@@ -62,16 +77,7 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         config.captureAiMaxEventBytes?.let { captureAiMaxEventBytes = it.toLong() }
         configurePlatformCapture(config)
 
-        config.errorTracking?.let { errorTracking ->
-            errorTrackingConfig.autoCapture = errorTracking.autoCapture
-            errorTrackingConfig.inAppIncludes = errorTrackingConfig.inAppIncludes + errorTracking.inAppIncludes
-            errorTrackingConfig.ignoredExceptionTypes = errorTrackingConfig.ignoredExceptionTypes +
-                errorTracking.ignoredExceptionTypes
-                    .flatMap { listOfNotNull(it.simpleName, it.qualifiedName) }
-                    .distinct()
-            errorTrackingConfig.inAppExcludes = errorTrackingConfig.inAppExcludes + errorTracking.inAppExcludes
-            errorTrackingConfig.inAppByDefault = errorTracking.inAppByDefault
-        }
+        applyErrorTracking(config.errorTracking)
 
         if (config.beforeSend.isNotEmpty()) {
             setBeforeSend(listOf(BoxedBeforeSendBlock { event -> processBeforeSend(config, event) }))
