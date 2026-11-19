@@ -187,7 +187,7 @@ These additions work on every platform, including JavaScript and Wasm, except `s
 - `PostHogConfig.evaluationContexts` limits feature flag evaluation to the flags tagged with at least one of those contexts, plus flags with no tags.
 - `PostHog.onFeatureFlags()` calls you back on every feature flag load.
 - `PostHog.setAppLanguage()` sets `$app_language`; see [App language](#app-language).
-- `SessionRecordingConfig.iosCaptureMethod` chooses how iOS captures replay screenshots: `STANDARD` (the default) draws on the main thread, `BACKGROUND` draws on a background queue, and the experimental `GPU` renders a copy of the window's layers on the GPU.
+- `SessionRecordingConfig.iosCaptureMethod` chooses how iOS captures replay screenshots: `STANDARD` (the default) draws on the main thread, and the experimental `GPU` renders a copy of the window's layers on the GPU.
 
 ```kotlin
 val config = PostHogConfig(projectToken = "phc_...", evaluationContexts = listOf("checkout"))
