@@ -555,6 +555,17 @@ class PostHogJvmTest {
     }
 
     @Test
+    fun testQueueStorageGivesAiEventsTheirOwnDiskQueue() {
+        val nativeConfig = com.posthog.PostHogConfig("key")
+        val storageDir = java.io.File("/tmp/posthog-kmp-test")
+
+        nativeConfig.configureQueueStorage(storageDir)
+
+        assertEquals(java.io.File(storageDir, "queue").absolutePath, nativeConfig.storagePrefix)
+        assertEquals(java.io.File(storageDir, "ai-queue").absolutePath, nativeConfig.aiStoragePrefix)
+    }
+
+    @Test
     fun testCaptureAiReturnsNullWhenNativeDropsTheEvent() {
         assertNull(PostHog.captureAi("\$ai_generation"))
     }
