@@ -230,6 +230,28 @@ class PostHogAppleTest {
     }
 
     @Test
+    fun testFeatureFlagsCallbackFailureWithFormatSpecifiersIsLoggedSafely() {
+        PostHog.setup(
+            PostHogConfig(
+                projectToken = "apple-unit-test",
+                host = "http://127.0.0.1:9",
+                debug = true,
+                preloadFeatureFlags = false,
+                captureApplicationLifecycleEvents = false,
+            ),
+            PostHogContext(),
+        )
+        PostHog.close()
+
+        var invoked = false
+        PostHog.reloadFeatureFlags {
+            invoked = true
+            error("format crash %@ %s %@ %s %@ %s %@ %s")
+        }
+        assertTrue(invoked)
+    }
+
+    @Test
     fun testTimestampConversionPreservesUtcInstant() {
         val timestamp = 1_704_164_645_678L
 

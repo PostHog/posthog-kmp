@@ -308,7 +308,7 @@ private fun deliverFeatureFlags(callback: (PostHogFeatureFlagsLoaded) -> Unit, l
     try {
         callback(PostHogFeatureFlagsLoaded(featureFlags, errorsLoading = loaded?.errorsLoading ?: true))
     } catch (e: Throwable) {
-        if (currentConfig?.debug == true) NSLog("[PostHog] Feature flags callback failed: ${e.message}")
+        if (currentConfig?.debug == true) NSLog("[PostHog] Feature flags callback failed: ${e.message}".replace("%", "%%"))
     }
 }
 
