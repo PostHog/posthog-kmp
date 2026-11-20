@@ -4,9 +4,9 @@
 
 - See the [0.11 to 0.12 migration guide](https://github.com/PostHog/posthog-kmp/blob/main/MIGRATION.md) for upgrade steps
 - **Breaking:** upgrade to posthog-android 4.0, the JVM core 7.0 and posthog-ios 4.0
-- **Breaking:** require Xcode 26 or later to build iOS and macOS apps, and macOS 11 or later
+- **Breaking:** require Xcode 26 or later to build iOS and macOS apps, and macOS 12 or later
 - **Breaking:** require recompiling libraries built against posthog-kmp 0.11 or earlier, which fail on Android and JVM with `NoSuchMethodError`
-- **Breaking:** require `posthog-server` 2.25.0 or later, and `posthog-android` 4.0.0 declared alongside `posthog-android-surveys-compose`, in the same Android or JVM build
+- **Breaking:** require `posthog-server` 2.26.0 or later, and `posthog-android` 4.0.0 declared alongside `posthog-android-surveys-compose`, in the same Android or JVM build
 - **Breaking:** send events to capture v1 (`/i/v1/analytics/events`) on Android, JVM, iOS and macOS — make sure your reverse proxy or self-hosted instance serves that path; only 307 and 308 redirects to the same origin are followed
 - **Breaking:** retry a capture 404 until the host serves capture v1, keeping events only until a full queue evicts them, stop retrying 3xx responses, and cap a request at about 5 MiB, on Android, JVM, iOS and macOS
 - **Breaking:** disable the SDK at setup when `projectToken` is a personal API key (`phx_...`) on Android, JVM, iOS and macOS

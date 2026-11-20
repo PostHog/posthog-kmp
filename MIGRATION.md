@@ -4,14 +4,13 @@
 
 0.12 moves Android, JVM, iOS and macOS to the 4.0 native SDKs: posthog-android 4.0, the JVM core `com.posthog:posthog` 7.0 and posthog-ios 4.0. JavaScript and Wasm targets stay on posthog-js; of the breaking changes below, only the `SessionRecordingConfig` changes in [Session replay](#session-replay), which are compile errors in common code, and [Feature flags](#feature-flags) reach them.
 
-<!-- TODO(native-4.0-links): these tags don't exist until posthog-android 4.0.0 and posthog-ios 4.0.0 are released; check both links resolve before merging. -->
 The native SDKs list every change in their own guides: [posthog-android](https://github.com/PostHog/posthog-android/blob/android-v4.0.0/MIGRATION.md) and [posthog-ios](https://github.com/PostHog/posthog-ios/blob/4.0.0/MIGRATION.md). This guide covers what reaches a KMP app. If your app also calls posthog-android, posthog-ios or the JVM core `com.posthog:posthog` directly, that code moves to 4.0 (core 7.0) too, so follow those guides for it.
 
 ### Checklist
 
 - [ ] Recompile any library built against posthog-kmp 0.11 or earlier. Its JVM and Android bytecode no longer links, because some signatures changed.
 - [ ] If your Android or JVM build also uses `posthog-android-surveys-compose` or `posthog-server`, see [Other PostHog artifacts](#other-posthog-artifacts).
-- [ ] Build iOS and macOS apps with Xcode 26 or later, and set the macOS deployment target to 11.0 or later.
+- [ ] Build iOS and macOS apps with Xcode 26 or later, and set the macOS deployment target to 12.0 or later.
 - [ ] Build your Xcode app once and commit the updated `KotlinMultiplatformLinkedPackage`, which now pins posthog-ios 4.0. If that build stops with `Synthetic project state updated`, run it again.
 - [ ] Remove `screenshot` from `SessionRecordingConfig`, and mask custom-drawn content before you ship.
 - [ ] If you record session replay on iOS with Compose Multiplatform, expect Compose screens to be recorded fully masked (see [Session replay](#session-replay)).
@@ -25,7 +24,7 @@ The native SDKs list every change in their own guides: [posthog-android](https:/
 
 ### Build requirements
 
-posthog-ios 4.0 uses `swift-tools-version` 6.2, so building the iOS and macOS targets needs Xcode 26. The minimum macOS version is now 11.0; the minimum iOS version stays 15.0.
+posthog-ios 4.0 uses `swift-tools-version` 6.2, so building the iOS and macOS targets needs Xcode 26. The minimum macOS version is now 12.0; the minimum iOS version stays 15.0.
 
 posthog-ios 4.0 is published to Swift Package Manager only. KMP already imports it through SwiftPM, so you don't need to change how you add the SDK. The generated `KotlinMultiplatformLinkedPackage` in your Xcode project updates to posthog-ios 4.0 on the next build; commit the change.
 
@@ -45,7 +44,7 @@ Code compiled against 0.11 has to be recompiled against 0.12, including librarie
 The JVM core `com.posthog:posthog` 7.0 isn't binary compatible with artifacts built against core 6.x, and Gradle resolves one version for the whole build. If your Android or JVM build also pulls in:
 
 - `com.posthog:posthog-android-surveys-compose`, keep its version and declare `com.posthog:posthog-android` 4.0.0 or later, so Gradle doesn't resolve the 3.x version it depends on.
-- `com.posthog:posthog-server`, use 2.25.0 or later. Older versions fail at runtime against core 7.0 with errors such as `NoSuchMethodError`.
+- `com.posthog:posthog-server`, use 2.26.0 or later. Older versions are built against core 6.x and fail at runtime against core 7.0 with errors such as `NoSuchMethodError`.
 
 ### Session replay
 
@@ -187,7 +186,7 @@ These additions work on every platform, including JavaScript and Wasm, except `s
 - `PostHogConfig.evaluationContexts` limits feature flag evaluation to the flags tagged with at least one of those contexts, plus flags with no tags.
 - `PostHog.onFeatureFlags()` calls you back on every feature flag load.
 - `PostHog.setAppLanguage()` sets `$app_language`; see [App language](#app-language).
-- `SessionRecordingConfig.iosCaptureMethod` chooses how iOS captures replay screenshots: `STANDARD` (the default) draws on the main thread, `BACKGROUND` draws on a background queue, and the experimental `GPU` renders a copy of the window's layers on the GPU.
+- `SessionRecordingConfig.iosCaptureMethod` chooses how iOS captures replay screenshots: `STANDARD` (the default) draws on the main thread, and the experimental `GPU` renders a copy of the window's layers on the GPU.
 
 ```kotlin
 val config = PostHogConfig(projectToken = "phc_...", evaluationContexts = listOf("checkout"))
