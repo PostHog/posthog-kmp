@@ -14,6 +14,7 @@ The native SDKs list every change in their own guides: [posthog-android](https:/
 - [ ] Build your Xcode app once and commit the updated `KotlinMultiplatformLinkedPackage`, which now pins posthog-ios 4.0. If that build stops with `Synthetic project state updated`, run it again.
 - [ ] Remove `screenshot` from `SessionRecordingConfig`, and mask custom-drawn content before you ship.
 - [ ] If you record session replay on iOS with Compose Multiplatform, expect Compose screens to be recorded fully masked (see [Session replay](#session-replay)).
+- [ ] If you record session replay on iOS screens with web views or Metal content, set `iosCaptureMethod = IosCaptureMethod.STANDARD`: the new default `GPU` doesn't capture them (see [Session replay](#session-replay)).
 - [ ] If you send events through a reverse proxy or a self-hosted instance, serve `/i/v1/analytics/events`, forward its `Authorization`, `PostHog-*`, `Content-Type`, `Content-Encoding` and `User-Agent` headers, and pass the response body through unchanged.
 - [ ] Update `reloadFeatureFlags` callbacks that are function references or `() -> Unit` values to take the new `PostHogFeatureFlagsLoaded` parameter.
 - [ ] Check that `projectToken` is your project token (`phc_...`), not a personal API key (`phx_...`).
@@ -67,6 +68,12 @@ On iOS, Compose Multiplatform screens are now recorded too; 0.11 and earlier rec
 ```swift
 let controller = MainViewControllerKt.MainViewController()
 controller.view.accessibilityIdentifier = "ph-no-mask"
+```
+
+iOS now captures replay screenshots with the experimental GPU method by default (`SessionRecordingConfig.iosCaptureMethod`), which takes less main-thread time than drawing the window. It doesn't capture content from another process, such as a web view's page, or Metal content. To keep 0.11's capture, set `IosCaptureMethod.STANDARD`:
+
+```kotlin
+SessionRecordingConfig(iosCaptureMethod = IosCaptureMethod.STANDARD)
 ```
 
 `debouncerDelayMs` is deprecated in favor of `throttleDelayMs`, which now applies on iOS as well as Android. The constructor still accepts `debouncerDelayMs` as a named argument, but `copy(debouncerDelayMs = ...)` no longer compiles: use `copy(throttleDelayMs = ...)`.
