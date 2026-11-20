@@ -15,7 +15,7 @@ let package = Package(
   dependencies: [
     .package(
       url: "https://github.com/PostHog/posthog-ios.git",
-      exact: "4.0.0"
+      exact: "4.0.1"
     )
   ],
   targets: [
