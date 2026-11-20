@@ -1,6 +1,7 @@
 {
   "PostHog.alias": "alias",
   "PostHog.capture": "capture",
+  "PostHog.captureAi": "capture-ai",
   "PostHog.captureException": "capture-exception",
   "PostHog.close": "shutdown",
   "PostHog.flush": "flush",
@@ -14,15 +15,24 @@
   "PostHog.identify": "identify",
   "PostHog.isFeatureEnabled": "is-feature-enabled",
   "PostHog.isOptedOut": "is-opt-out",
+  "PostHog.onFeatureFlags": "on-feature-flags",
   "PostHog.optIn": "opt-in",
   "PostHog.optOut": "opt-in",
   "PostHog.register": "register",
+  "PostHog.registerOptions": "register",
   "PostHog.reloadFeatureFlags": "reload-feature-flags",
   "PostHog.reset": "reset",
+  "PostHog.resetGroupPropertiesForFlags": "reset-group-properties-for-flags",
+  "PostHog.resetPersonPropertiesForFlags": "reset-person-properties-for-flags",
   "PostHog.screen": "screen",
   "PostHog.setDebug": "debug",
+  "PostHog.setGroupPropertiesForFlags": "set-group-properties-for-flags",
   "PostHog.setPersonProperties": "set-person-properties",
+  "PostHog.setPersonPropertiesForFlags": "set-person-properties-for-flags",
   "PostHog.setup": "setup",
   "PostHog.unregister": "unregister",
-  "utils": []
+  "PostHog.unregisterOptions": "unregister",
+  "utils": [
+    "PostHog.setAppLanguage"
+  ]
 }

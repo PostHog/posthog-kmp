@@ -369,8 +369,12 @@ fun App(postHogContext: PostHogContext) {
                 ) {
                     Button(
                         onClick = {
-                            PostHog.reloadFeatureFlags {
-                                statusMessage = "Feature flags reloaded!"
+                            PostHog.reloadFeatureFlags { loaded ->
+                                statusMessage = if (loaded.errorsLoading) {
+                                    "Reloading feature flags failed"
+                                } else {
+                                    "Feature flags reloaded (${loaded.flags.size} enabled)"
+                                }
                             }
                         },
                         enabled = isInitialized,
