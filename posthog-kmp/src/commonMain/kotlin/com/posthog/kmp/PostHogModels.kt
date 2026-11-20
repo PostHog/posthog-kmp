@@ -155,8 +155,9 @@ public class PostHogFeatureFlagsLoaded internal constructor(
 /**
  * A registration returned by [PostHog.onFeatureFlags].
  *
- * The callback stays registered, including across [PostHog.close] and [PostHog.setup], until you
- * call [unsubscribe]. Keep a reference only if you want to unsubscribe later.
+ * The callback stays registered until you call [unsubscribe]. On Android, JVM, iOS and macOS that
+ * includes across [PostHog.close] and [PostHog.setup]; on JavaScript and Wasm, [PostHog.close] shuts
+ * posthog-js down for the page. Keep a reference only if you want to unsubscribe later.
  *
  * Example:
  * ```kotlin

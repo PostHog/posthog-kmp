@@ -387,8 +387,9 @@ public object PostHog {
      * [PostHogFeatureFlagsLoaded.errorsLoading] is `true` and the values are the last known flags.
      * Treat each invocation as "flags may have changed", not as an exactly-once event.
      *
-     * You can register before [setup], and the registration stays active across [close] and [setup]
-     * until you unsubscribe. On Android, iOS and macOS the callback runs on the main thread.
+     * You can register before [setup]. On Android, JVM, iOS and macOS the registration stays active
+     * across [close] and [setup] until you unsubscribe; on JavaScript and Wasm, [close] shuts posthog-js
+     * down for the page. On Android, iOS and macOS the callback runs on the main thread.
      *
      * ```kotlin
      * val subscription = PostHog.onFeatureFlags { loaded ->
