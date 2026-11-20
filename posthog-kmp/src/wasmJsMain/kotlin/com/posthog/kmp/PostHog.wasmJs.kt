@@ -42,8 +42,12 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         PostHogJs.opt_out_capturing()
     }
 
-    pendingFeatureFlagsListeners.forEach { it.attach() }
-    pendingFeatureFlagsListeners.clear()
+    // a failed init leaves them pending; attach can deliver synchronously and unsubscribe, so drain a copy
+    if (isPostHogJsLoaded(PostHogJs)) {
+        val pending = pendingFeatureFlagsListeners.toList()
+        pendingFeatureFlagsListeners.clear()
+        pending.forEach { it.attach() }
+    }
 }
 
 private fun PersonProfiles.postHogValue(): String = when (this) {
@@ -242,9 +246,11 @@ private class FeatureFlagsListener(private val callback: (PostHogFeatureFlagsLoa
     fun attach() {
         if (!active) return
         // posthog-js iterates a snapshot of its listeners, so one unsubscribed mid-delivery still gets called
-        unsubscribe = PostHogJs.onFeatureFlags { _, variants, context ->
+        val unsubscribeNative = PostHogJs.onFeatureFlags { _, variants, context ->
             if (active) callback(featureFlagsLoaded(variants, context))
         }
+        // the callback may have unsubscribed synchronously, before there was anything to detach
+        if (active) unsubscribe = unsubscribeNative else invokeJsFunction(unsubscribeNative)
     }
 
     fun detach() {

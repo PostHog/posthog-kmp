@@ -82,8 +82,12 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         PostHogJs.opt_out_capturing()
     }
 
-    pendingFeatureFlagsListeners.forEach { it.attach() }
-    pendingFeatureFlagsListeners.clear()
+    // a failed init leaves them pending; attach can deliver synchronously and unsubscribe, so drain a copy
+    if (isPostHogJsLoaded()) {
+        val pending = pendingFeatureFlagsListeners.toList()
+        pendingFeatureFlagsListeners.clear()
+        pending.forEach { it.attach() }
+    }
 }
 
 internal actual fun platformCapture(
@@ -279,9 +283,11 @@ private class FeatureFlagsListener(private val callback: (PostHogFeatureFlagsLoa
     fun attach() {
         if (!active) return
         // posthog-js iterates a snapshot of its listeners, so one unsubscribed mid-delivery still gets called
-        unsubscribe = PostHogJs.onFeatureFlags { _: dynamic, variants: dynamic, context: dynamic ->
+        val unsubscribeNative: dynamic = PostHogJs.onFeatureFlags { _: dynamic, variants: dynamic, context: dynamic ->
             if (active) callback(featureFlagsLoaded(variants, context))
         }
+        // the callback may have unsubscribed synchronously, before there was anything to detach
+        if (active) unsubscribe = unsubscribeNative else unsubscribeNative()
     }
 
     fun detach() {
