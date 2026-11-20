@@ -118,7 +118,7 @@ class PostHogConfigTest {
         assertEquals(true, config.captureLogcat)
         assertEquals(1000L, config.throttleDelayMs)
         assertEquals(false, config.verifyScreenshotMaskAlignment)
-        assertEquals(IosCaptureMethod.STANDARD, config.iosCaptureMethod)
+        assertEquals(IosCaptureMethod.GPU, config.iosCaptureMethod)
     }
 
     @Test
