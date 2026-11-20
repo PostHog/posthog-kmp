@@ -669,13 +669,6 @@ public enum class IosCaptureMethod {
     STANDARD,
 
     /**
-     * Draws the window on a background queue, so the main thread only reads mask positions.
-     * Triggers Main Thread Checker warnings in debug builds, and may briefly freeze the app the
-     * first time a screenshot is captured.
-     */
-    BACKGROUND,
-
-    /**
      * Experimental. Copies the window's layers and renders the copy on the GPU, in short
      * main-thread steps. Content from another process, such as a web view's page, and Metal
      * content are not captured. Falls back to [STANDARD] when a capture can't be made this way.
