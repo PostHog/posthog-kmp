@@ -16,17 +16,17 @@ class SessionReplayConfigIosTest {
         return native
     }
 
-    // posthog-ios defaults to .standard, so the KMP default has to be passed explicitly.
     @Test
-    fun testDefaultCaptureMethodIsGpu() {
+    fun testDefaultCaptureMethodIsStandard() {
         val native = nativeConfigFor(SessionRecordingConfig())
-        assertEquals(PostHogSessionReplayCaptureMethodGpu, native.sessionReplayConfig.captureMethod)
+        assertEquals(PostHogSessionReplayCaptureMethodStandard, native.sessionReplayConfig.captureMethod)
     }
 
+    // posthog-ios defaults to .standard, so only an opt-in to GPU shows the mapping is passed through.
     @Test
-    fun testStandardCaptureMethodIsApplied() {
-        val native = nativeConfigFor(SessionRecordingConfig(iosCaptureMethod = IosCaptureMethod.STANDARD))
-        assertEquals(PostHogSessionReplayCaptureMethodStandard, native.sessionReplayConfig.captureMethod)
+    fun testGpuCaptureMethodIsApplied() {
+        val native = nativeConfigFor(SessionRecordingConfig(iosCaptureMethod = IosCaptureMethod.GPU))
+        assertEquals(PostHogSessionReplayCaptureMethodGpu, native.sessionReplayConfig.captureMethod)
     }
 
     @Test
