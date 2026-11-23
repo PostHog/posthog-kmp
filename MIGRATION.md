@@ -12,7 +12,7 @@
 - [ ] Rename the `additionalProperties` argument of `captureException()` to `properties`.
 - [ ] Replace `copy()` calls and destructuring on `PostHogConfig`, `SessionReplayConfig`, `ErrorTrackingConfig`, `CaptureOptions` and `FeatureFlagResult` (see [Config classes](#config-classes)).
 - [ ] On Android, make sure you pass `PostHogContext(application)` to `PostHog.setup()`, and stop reading `PostHogContext.application` (see [PostHogContext on Android](#posthogcontext-on-android)).
-- [ ] Recompile any library built against posthog-kmp 0.12 or earlier that uses `apiKey`, `sessionRecording`, `captureException()` or `copy()` on these classes.
+- [ ] Recompile any library built against posthog-kmp 0.12 or earlier. Its compiled calls to the `PostHogConfig` constructor no longer link, because the session replay parameter's type is renamed.
 
 ### Session replay naming
 
@@ -57,7 +57,7 @@ Two configs with the same options are no longer equal, so compare the options yo
 
 `FeatureFlagResult` has an internal constructor and no `copy()` or `componentN()`, because the SDK creates it. Two results with the same values are still equal.
 
-Their constructors use `@JvmOverloads`, so Java code can pass any leading part of the arguments, such as `new PostHogConfig("phc_...")`, and the rest take their defaults. That includes the 0.10 and 0.11 argument lists. New options are added at the end, so later releases keep these constructors working.
+Their constructors use `@JvmOverloads`, so Java code can pass any leading part of the arguments, such as `new PostHogConfig("phc_...")`, and the rest take their defaults. Java source written for the 0.10 or 0.11 argument list compiles again, once any `SessionRecordingConfig` in it is renamed to `SessionReplayConfig`. New options are added at the end, so later releases keep these Java calls working. Kotlin code uses default arguments instead, which compile to a constructor that changes with every new option, so a library compiled with Kotlin has to be recompiled when a release adds one.
 
 ### apiKey
 

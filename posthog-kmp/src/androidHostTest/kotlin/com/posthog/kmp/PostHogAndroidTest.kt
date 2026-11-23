@@ -34,8 +34,7 @@ class PostHogAndroidTest {
     }
 
     @Test
-    fun setupWithoutApplicationLeavesSdkDisabledAndWarns() {
-        postHogInstance = null
+    fun setupWithoutApplicationDisablesSdkAndWarns() {
         val warnings = mutableListOf<String>()
         val defaultLogger = androidWarningLogger
         androidWarningLogger = { warnings += it }
@@ -43,6 +42,7 @@ class PostHogAndroidTest {
             PostHog.setup(PostHogConfig(projectToken = "phc_test"), PostHogContext())
 
             assertNull(postHogInstance)
+            assertEquals(listOf("close"), fakeInterface.calledMethods.map { it.first })
             assertEquals(listOf(MISSING_APPLICATION_WARNING), warnings)
         } finally {
             androidWarningLogger = defaultLogger

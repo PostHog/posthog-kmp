@@ -11,4 +11,4 @@
 - **Breaking:** turn `captureScreenViews` on by default, like posthog-android and posthog-ios, so Android, iOS and web send screen and page views unless you set it to `false`
 - **Breaking:** stop throwing from `PostHogContext()` on Android — `PostHog.setup()` with it now leaves the SDK disabled and logs a warning, so pass `PostHogContext(application)`
 - **Breaking:** make `PostHogContext.application` internal on Android
-- Let Java pass any leading part of the `PostHogConfig`, `SessionReplayConfig`, `ErrorTrackingConfig` and `CaptureOptions` constructor arguments, including `PostHogConfig`'s 0.10 and 0.11 argument lists, so new options no longer break Java callers or compiled libraries
+- Let Java pass any leading part of the `PostHogConfig`, `SessionReplayConfig`, `ErrorTrackingConfig` and `CaptureOptions` constructor arguments, so adding an option in a later release no longer breaks Java callers

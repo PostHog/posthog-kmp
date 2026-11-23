@@ -61,7 +61,7 @@ This section is for external contributors. PostHog maintainers (members of the P
 
 The module uses Kotlin's explicit API mode, so any declaration you mark `public` is public API.
 
-Add a new option to `PostHogConfig`, `SessionReplayConfig`, `ErrorTrackingConfig`, or `CaptureOptions` at the end of its constructor, with a default value. Their constructors use `@JvmOverloads`, so appending keeps earlier argument lists working for Java callers and for libraries compiled against an earlier version. Don't make them `data` classes: the generated `copy()` and `componentN()` change with every new option. `FeatureFlagResult` has an internal constructor, so you can add fields to it freely.
+Add a new option to `PostHogConfig`, `SessionReplayConfig`, `ErrorTrackingConfig`, or `CaptureOptions` at the end of its constructor, with a default value. Their constructors use `@JvmOverloads`, so appending keeps Java callers working. Kotlin callers that leave out arguments go through a compiler-generated constructor whose signature changes with every new option, so Kotlin code compiled against an earlier version, such as a library built on posthog-kmp, has to be recompiled. Don't make them `data` classes: the generated `copy()` and `componentN()` change with every new option too. `FeatureFlagResult` has an internal constructor, so Kotlin code can't build one. Java still can, because Kotlin compiles internal constructors as public.
 
 ## Docs
 

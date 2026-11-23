@@ -16,6 +16,9 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
     val application = context.application
     if (application == null) {
         androidWarningLogger(MISSING_APPLICATION_WARNING)
+        // Stop an instance from an earlier setup too, so the SDK is disabled as the warning says.
+        postHogInstance?.close()
+        postHogInstance = null
         return
     }
     postHogInstance = PostHogAndroid.with(application, config.toAndroidConfig())
