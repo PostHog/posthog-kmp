@@ -28,6 +28,7 @@ class PostHogJvmTest {
     fun tearDown() {
         postHogInstance = null
         currentConfig = null
+        appLanguage = null
     }
 
     private fun assertMethodCalled(methodName: String, vararg args: Any?) {
@@ -169,6 +170,20 @@ class PostHogJvmTest {
             listOf(listOf<Any?>("pt-BR"), listOf<Any?>(null)),
             fakeInterface.calledMethods.filter { it.first == "setAppLanguage" }.map { it.second }
         )
+    }
+
+    @Test
+    fun testSetAppLanguageBeforeSetupIsAppliedOnSetupAndClearedByClose() {
+        postHogInstance = null
+        PostHog.setAppLanguage("de")
+
+        postHogInstance = fakeInterface.proxy
+        assertMethodCalled("setAppLanguage", "de")
+
+        PostHog.close()
+        val next = FakePostHogInterface()
+        postHogInstance = next.proxy
+        assertTrue(next.calledMethods.none { it.first == "setAppLanguage" })
     }
 
     @Test

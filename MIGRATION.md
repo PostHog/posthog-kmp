@@ -175,8 +175,7 @@ PostHog.setAppLanguage("pt-BR")
 PostHog.setAppLanguage(null) // back to the detected language
 ```
 
-<!-- TODO(app-language-before-setup): remove the next sentence once Android and JVM keep a language set before setup(). -->
-On Android and JVM, call `setAppLanguage()` after `PostHog.setup()`: a call before setup is dropped. The value is kept in memory only and survives `reset()`. A `$app_language` super property set with `register()` takes precedence. JVM sends `$app_language` only after you call `setAppLanguage()`. JavaScript and Wasm don't send it yet, because posthog-js doesn't support it, so `setAppLanguage()` does nothing there; to send it now, call `PostHog.register("\$app_language", "pt-BR")`.
+You can call `setAppLanguage()` before or after `PostHog.setup()`. The value is kept in memory only, survives `reset()`, and is cleared by `close()`. A `$app_language` super property set with `register()` takes precedence. JVM sends `$app_language` only after you call `setAppLanguage()`. JavaScript and Wasm don't send it yet, because posthog-js doesn't support it, so `setAppLanguage()` does nothing there; to send it now, call `PostHog.register("\$app_language", "pt-BR")`.
 
 ### New in 0.12
 

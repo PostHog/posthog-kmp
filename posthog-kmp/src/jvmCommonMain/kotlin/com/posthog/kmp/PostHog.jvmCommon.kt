@@ -10,7 +10,12 @@ internal var postHogInstance: PostHogInterface? = null
     set(value) {
         field = value
         featureFlagsListeners.attachAll(value)
+        appLanguage?.let { value?.setAppLanguage(it) }
     }
+
+/** The last [PostHog.setAppLanguage] value, applied on setup so a call before it isn't lost. Cleared on close, as on iOS. */
+@Volatile
+internal var appLanguage: String? = null
 
 /**
  * [PostHog.onFeatureFlags] registrations. Each one is registered on the native instance, so it gets
@@ -190,6 +195,7 @@ internal actual fun platformUnregisterOptions(key: String) {
 }
 
 internal actual fun platformSetAppLanguage(language: String?) {
+    appLanguage = language
     postHogInstance?.setAppLanguage(language)
 }
 
@@ -296,6 +302,7 @@ internal actual fun platformFlush() {
 internal actual fun platformClose() {
     postHogInstance?.close()
     postHogInstance = null
+    appLanguage = null
 }
 
 internal actual fun platformSetDebug(enabled: Boolean) {
