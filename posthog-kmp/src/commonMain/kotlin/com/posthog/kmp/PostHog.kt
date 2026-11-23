@@ -36,7 +36,7 @@ public object PostHog {
      *
      * This should be called once at application startup before any other PostHog methods.
      *
-     * @param config PostHog configuration with your API key and options
+     * @param config PostHog configuration with your project token and options
      * @param context Platform-specific context (Application on Android, empty on other platforms)
      */
     public fun setup(config: PostHogConfig, context: PostHogContext) {
