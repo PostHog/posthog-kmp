@@ -32,7 +32,7 @@ posthog-ios 4.0 is published to Swift Package Manager only. KMP already imports 
 
 Code compiled against 0.11 has to be recompiled against 0.12, including libraries you publish that depend on posthog-kmp. Some JVM signatures changed, so 0.11 bytecode fails at runtime with `NoSuchMethodError`:
 
-- `SessionRecordingConfig` lost `screenshot` and stores the throttle delay in `throttleDelayMs` instead of `debouncerDelayMs`, which changes its constructor, `copy()` and `component7()` onward. `debouncerDelayMs` is still readable as a deprecated alias. `component6()` keeps its signature but now returns `captureLogcat` instead of `screenshot`, so 0.11 bytecode that calls it gets a different value without an error.
+- `SessionRecordingConfig` lost `screenshot` and stores the throttle delay in `throttleDelayMs` instead of `debouncerDelayMs`, which changes its constructor, `copy()` and `component7()` onward. `component6()` keeps its signature but now returns `captureLogcat` instead of `screenshot`, so 0.11 bytecode that calls it gets a different value without an error.
 - `reloadFeatureFlags()` takes a `(PostHogFeatureFlagsLoaded) -> Unit` callback instead of `() -> Unit`.
 - `CaptureOptions` gained `eventOptions` and `PostHogEvent` gained `options`, which changes their constructors and `copy()`. A `beforeSend` callback compiled against 0.11 that calls `event.copy(...)` fails.
 - `screen()`, `identify()`, `alias()`, `group()`, `setPersonProperties()` and `captureException()` take a trailing `eventOptions` parameter. Java callers have no overload without it, so Java source that calls them, or `new CaptureOptions(groups, timestamp)`, has to pass the new argument.
@@ -69,9 +69,9 @@ let controller = MainViewControllerKt.MainViewController()
 controller.view.accessibilityIdentifier = "ph-no-mask"
 ```
 
-`debouncerDelayMs` is deprecated in favor of `throttleDelayMs`, which now applies on iOS as well as Android. The constructor still accepts `debouncerDelayMs` as a named argument, but `copy(debouncerDelayMs = ...)` no longer compiles: use `copy(throttleDelayMs = ...)`.
+`debouncerDelayMs` is removed. Use `throttleDelayMs`, which now applies on iOS as well as Android.
 
-Because `screenshot` is gone, positional arguments and destructuring shift: `throttleDelayMs` (a `Long`) now sits where `captureLogcat` was. Rewrite positional calls with named arguments. Java callers of `new SessionRecordingConfig(...)` drop the `screenshot` argument and pass `throttleDelayMs`; `debouncerDelayMs` is only reachable from Java through `SessionRecordingConfig.Companion.invoke(...)`.
+Because `screenshot` is gone, positional arguments and destructuring shift: `throttleDelayMs` (a `Long`) now sits where `captureLogcat` was. Rewrite positional calls with named arguments. Java callers of `new SessionRecordingConfig(...)` drop the `screenshot` argument and pass `throttleDelayMs`.
 
 ### Capture v1
 
