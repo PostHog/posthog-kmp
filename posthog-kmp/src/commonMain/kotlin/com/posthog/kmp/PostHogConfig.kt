@@ -11,7 +11,11 @@ import kotlin.reflect.KClass
  * @property host PostHog instance URL (defaults to US cloud)
  * @property debug Enable debug logging
  * @property captureApplicationLifecycleEvents Automatically capture app lifecycle events
- * @property captureScreenViews Automatically capture screen/page views
+ * @property captureScreenViews Automatically capture screen and page views (defaults to true, like the
+ *   native SDKs). Android sends a `$screen` event with the Activity's label when it starts, iOS sends one
+ *   when a view controller appears, and web sends `$pageview` and `$pageleave`. A Compose Multiplatform app
+ *   usually has one Activity or view controller, so call [PostHog.screen] for each Compose screen. Ignored
+ *   on macOS and JVM.
  * @property captureDeepLinks Capture deep link opens (Android only)
  * @property sendFeatureFlagEvent Send events when feature flags are evaluated
  * @property preloadFeatureFlags Preload feature flags on initialization
@@ -57,7 +61,7 @@ public data class PostHogConfig(
     val host: String = "https://us.i.posthog.com",
     val debug: Boolean = false,
     val captureApplicationLifecycleEvents: Boolean = true,
-    val captureScreenViews: Boolean = false,
+    val captureScreenViews: Boolean = true,
     val captureDeepLinks: Boolean = true,
     val sendFeatureFlagEvent: Boolean = true,
     val preloadFeatureFlags: Boolean = true,

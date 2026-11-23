@@ -15,6 +15,11 @@ class PostHogConfigTest {
     }
 
     @Test
+    fun captureScreenViewsDefaultsToEnabled() {
+        assertEquals(true, PostHogConfig(projectToken = "phc_test").captureScreenViews)
+    }
+
+    @Test
     fun defaultsToIdentifiedOnlyPersonProfiles() {
         assertEquals(PersonProfiles.IDENTIFIED_ONLY, PostHogConfig(projectToken = "phc_test").personProfiles)
     }

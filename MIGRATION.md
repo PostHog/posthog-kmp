@@ -2,10 +2,11 @@
 
 ## 0.12 to 1.0
 
-1.0 removes the `PostHogConfig` API that was kept only for compatibility. Nothing else changes, and code compiled against 0.12 that doesn't use the removed API keeps working.
+1.0 removes the `PostHogConfig` API that was kept only for compatibility, and turns `captureScreenViews` on by default.
 
 ### Checklist
 
+- [ ] Set `captureScreenViews = false` if you don't want automatic screen and page views (see [Screen views](#screen-views)).
 - [ ] Replace `apiKey` with `projectToken` when you build a `PostHogConfig` or read the token from it.
 - [ ] Update Java code that calls `new PostHogConfig(...)` or `copy(...)` with the 0.11 or earlier argument list, without `evaluationContexts` and the `captureAi*` options, so it passes every argument.
 
@@ -24,6 +25,16 @@ config.projectToken
 ```
 
 `PostHogConfig` has one constructor and one `copy()`, which take every option. The constructor and `copy()` overloads that kept the 0.10, 0.11 and older argument lists are removed, so libraries compiled against them fail with `NoSuchMethodError` and have to be recompiled. Kotlin code that passes named arguments compiles unchanged. Java code that calls `new PostHogConfig(...)` or `copy(...)` passes every argument, in declaration order.
+
+### Screen views
+
+`captureScreenViews` defaults to `true`, as in posthog-android and posthog-ios. Unless you set it to `false`:
+
+- **Android** sends a `$screen` event with the Activity's label each time an Activity starts.
+- **iOS** sends a `$screen` event each time a view controller appears.
+- **Web** sends `$pageview` and `$pageleave` events.
+
+macOS and JVM ignore it. A Compose Multiplatform app usually has a single Activity or view controller, so its automatic screen view names the whole app rather than a screen. Keep calling `PostHog.screen()` for each Compose screen, or set `captureScreenViews = false` to send only those.
 
 ## 0.11 to 0.12
 
