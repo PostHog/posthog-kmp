@@ -2,29 +2,47 @@
 
 ## 0.12 to 1.0
 
-1.0 changes the config classes so that adding an option no longer breaks Java callers or compiled libraries, renames session recording to session replay, removes the `apiKey` alias, turns `captureScreenViews` on by default, and stops `PostHogContext()` from throwing on Android.
+1.0 replaces the config constructors with builders, so later 1.x releases can add options without breaking your code or the libraries you depend on. It also renames session recording to session replay, removes the `apiKey` alias, turns `captureScreenViews` on by default, and stops `PostHogContext()` from throwing on Android.
 
 ### Checklist
 
+- [ ] Build `PostHogConfig` and `CaptureOptions` with the new builder blocks, and set session replay and error tracking with `sessionReplay { }` and `errorTracking { }` (see [Builders](#builders)).
 - [ ] Set `captureScreenViews = false` if you don't want automatic screen and page views (see [Screen views](#screen-views)).
-- [ ] Replace `apiKey` with `projectToken` when you build a `PostHogConfig` or read the token from it.
-- [ ] Rename `sessionRecording` to `sessionReplay` and `SessionRecordingConfig` to `SessionReplayConfig` (see [Session replay naming](#session-replay-naming)).
+- [ ] Replace `apiKey` with `projectToken` when you read the token from a `PostHogConfig`.
 - [ ] Rename the `additionalProperties` argument of `captureException()` to `properties`.
-- [ ] Replace `copy()` calls and destructuring on `PostHogConfig`, `SessionReplayConfig`, `ErrorTrackingConfig`, `CaptureOptions` and `FeatureFlagResult` (see [Config classes](#config-classes)).
+- [ ] Replace `copy()` calls and destructuring on `PostHogConfig`, `SessionReplayConfig`, `ErrorTrackingConfig`, `CaptureOptions` and `FeatureFlagResult`.
 - [ ] On Android, make sure you pass `PostHogContext(application)` to `PostHog.setup()`, and stop reading `PostHogContext.application` (see [PostHogContext on Android](#posthogcontext-on-android)).
-- [ ] Recompile any library built against posthog-kmp 0.12 or earlier. Its compiled calls to the `PostHogConfig` constructor no longer link, because the session replay parameter's type is renamed.
+- [ ] Recompile any library built against posthog-kmp 0.12 or earlier.
 
-### Session replay naming
+### Builders
 
-The session replay option and its config class use the product's name, as in posthog-android and posthog-ios:
+`PostHogConfig` takes the project token and a block that sets the other options. Session replay and error tracking have their own blocks, and `CaptureOptions` takes a block too:
 
 ```kotlin
 // 0.12
-PostHogConfig(projectToken = "phc_...", sessionRecording = SessionRecordingConfig(maskAllImages = false))
+val config = PostHogConfig(
+    projectToken = "phc_...",
+    debug = true,
+    sessionRecording = SessionRecordingConfig(maskAllImages = false),
+    errorTracking = ErrorTrackingConfig(autoCapture = true),
+)
+PostHog.capture("checkout", options = CaptureOptions(groups = mapOf("company" to "acme")))
 
 // 1.0
-PostHogConfig(projectToken = "phc_...", sessionReplay = SessionReplayConfig(maskAllImages = false))
+val config = PostHogConfig("phc_...") {
+    debug = true
+    sessionReplay { maskAllImages = false }
+    errorTracking { autoCapture = true }
+}
+PostHog.capture("checkout", options = CaptureOptions { groups = mapOf("company" to "acme") })
 ```
+
+- **Option names** are the same, except that `sessionRecording` is now `sessionReplay`, as in posthog-android and posthog-ios. Session replay stays off unless you call `sessionReplay { }`. `SessionRecordingConfig` is now `SessionReplayConfig`, and you no longer create it or `ErrorTrackingConfig` yourself.
+- **Reading options:** a built `PostHogConfig` has the same read-only properties as before, such as `config.debug` and `config.sessionReplay`.
+- **No `copy()` or value equality:** the config classes, `CaptureOptions` and `FeatureFlagResult` no longer have `copy()`, `component1()` and the rest. The config classes and `CaptureOptions` also no longer compare by value; `FeatureFlagResult` still does. Where you called `copy()`, build a new config, for example from a function that takes the options that differ.
+- **Java** calls the same functions, `PostHogConfigKt.PostHogConfig(token, builder -> { builder.setDebug(true); return Unit.INSTANCE; })` and `PostHogModelsKt.CaptureOptions(...)`, and sets options with the builder's setters.
+
+New options in later 1.x releases are added as builder properties. That doesn't change any existing function or constructor, so code and libraries compiled against 1.0 keep working. CI checks the public ABI of every target to keep it that way.
 
 ### captureException
 
@@ -38,30 +56,9 @@ PostHog.captureException(error, additionalProperties = mapOf("screen" to "checko
 PostHog.captureException(error, properties = mapOf("screen" to "checkout"))
 ```
 
-### Config classes
-
-`PostHogConfig`, `SessionReplayConfig`, `ErrorTrackingConfig` and `CaptureOptions` are regular classes instead of data classes. They no longer have `copy()`, `component1()` and the rest, or value-based `equals()`, `hashCode()` and `toString()`. Constructing them doesn't change: Kotlin code that passes named arguments compiles unchanged.
-
-Build a new config where you called `copy()`:
-
-```kotlin
-// 0.12
-val debugConfig = config.copy(debug = true)
-
-// 1.0
-fun makeConfig(debug: Boolean) = PostHogConfig(projectToken = "phc_...", debug = debug)
-val debugConfig = makeConfig(debug = true)
-```
-
-Two configs with the same options are no longer equal, so compare the options you care about instead of the configs.
-
-`FeatureFlagResult` has an internal constructor and no `copy()` or `componentN()`, because the SDK creates it. Two results with the same values are still equal.
-
-Their constructors use `@JvmOverloads`, so Java code can pass any leading part of the arguments, such as `new PostHogConfig("phc_...")`, and the rest take their defaults. Java source written for the 0.10 or 0.11 argument list compiles again, once any `SessionRecordingConfig` in it is renamed to `SessionReplayConfig`. New options are added at the end, so later releases keep these Java calls working. Kotlin code uses default arguments instead, which compile to a constructor that changes with every new option, so a library compiled with Kotlin has to be recompiled when a release adds one.
-
 ### apiKey
 
-The `apiKey` alias, deprecated since 0.8, is removed. Use `projectToken`:
+The `apiKey` alias, deprecated since 0.8, is removed. Pass the token as the first argument of `PostHogConfig`, and read it from `projectToken`:
 
 ```kotlin
 // 0.12
@@ -69,7 +66,7 @@ PostHogConfig(apiKey = "phc_...")
 config.apiKey
 
 // 1.0
-PostHogConfig(projectToken = "phc_...")
+PostHogConfig("phc_...")
 config.projectToken
 ```
 

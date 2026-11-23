@@ -38,7 +38,7 @@ class PostHogJsPendingFeatureFlagsTest {
         var secondCalls = 0
         PostHog.onFeatureFlags { secondCalls++ }
 
-        PostHog.setup(PostHogConfig(projectToken = "key"), PostHogContext())
+        PostHog.setup(PostHogConfig("key"), PostHogContext())
 
         assertEquals(1, secondCalls)
         assertEquals(1, nativeUnsubscribes, "the self-unsubscribed listener must release its native registration")
@@ -55,11 +55,11 @@ class PostHogJsPendingFeatureFlagsTest {
         fakeJs.init = { _: String, _: dynamic -> }
         PostHog.onFeatureFlags { }
 
-        PostHog.setup(PostHogConfig(projectToken = "key"), PostHogContext())
+        PostHog.setup(PostHogConfig("key"), PostHogContext())
         assertEquals(0, attached)
 
         fakeJs.init = { _: String, _: dynamic -> fakeJs.__loaded = true }
-        PostHog.setup(PostHogConfig(projectToken = "key"), PostHogContext())
+        PostHog.setup(PostHogConfig("key"), PostHogContext())
         assertEquals(1, attached)
     }
 }

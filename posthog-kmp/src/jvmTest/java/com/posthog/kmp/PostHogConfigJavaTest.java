@@ -1,5 +1,6 @@
 package com.posthog.kmp;
 
+import kotlin.Unit;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -9,16 +10,25 @@ import static org.junit.Assert.assertTrue;
 public class PostHogConfigJavaTest {
 
     @Test
-    public void configConstructorsTakeAnyLeadingArguments() {
-        assertEquals(PostHogConfig.HOST_US, new PostHogConfig("phc_test").getHost());
+    public void javaBuildsConfigsThroughTheBuilders() {
+        PostHogConfig config = PostHogConfigKt.PostHogConfig("phc_test", builder -> {
+            builder.setHost(PostHogConfig.HOST_EU);
+            builder.setDebug(true);
+            builder.sessionReplay(replay -> {
+                replay.setMaskAllImages(false);
+                return Unit.INSTANCE;
+            });
+            return Unit.INSTANCE;
+        });
 
-        PostHogConfig config = new PostHogConfig("phc_test", PostHogConfig.HOST_EU, true);
         assertEquals(PostHogConfig.HOST_EU, config.getHost());
         assertTrue(config.getDebug());
-        assertTrue(config.getCaptureScreenViews());
+        assertFalse(config.getSessionReplay().getMaskAllImages());
 
-        assertFalse(new SessionReplayConfig(false).getEnabled());
-        assertTrue(new ErrorTrackingConfig(true).getAutoCapture());
-        assertEquals(Long.valueOf(42L), new CaptureOptions(null, 42L).getTimestamp());
+        CaptureOptions options = PostHogModelsKt.CaptureOptions(builder -> {
+            builder.setTimestamp(42L);
+            return Unit.INSTANCE;
+        });
+        assertEquals(Long.valueOf(42L), options.getTimestamp());
     }
 }

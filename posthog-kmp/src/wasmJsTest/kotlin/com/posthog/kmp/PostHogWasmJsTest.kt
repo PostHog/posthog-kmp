@@ -31,20 +31,19 @@ class PostHogWasmJsTest {
     @Test
     fun setupDelegatesConfigurationToPostHogJs() {
         PostHog.setup(
-            PostHogConfig(
-                projectToken = "phc_test",
-                host = "https://example.com",
-                debug = true,
-                captureScreenViews = true,
-                preloadFeatureFlags = false,
-                optOut = true,
-                personProfiles = PersonProfiles.ALWAYS,
-                sessionReplay = SessionReplayConfig(captureLogs = true),
-                autocapture = true,
-                errorTracking = ErrorTrackingConfig(autoCapture = true),
-                evaluationContexts = listOf("web", "checkout"),
+            PostHogConfig("phc_test") {
+                host = "https://example.com"
+                debug = true
+                captureScreenViews = true
+                preloadFeatureFlags = false
+                optOut = true
+                personProfiles = PersonProfiles.ALWAYS
+                sessionReplay { captureLogs = true }
+                autocapture = true
+                errorTracking { autoCapture = true }
+                evaluationContexts = listOf("web", "checkout")
                 surveys = false
-            ),
+            },
             PostHogContext()
         )
 
@@ -66,8 +65,7 @@ class PostHogWasmJsTest {
     @Test
     fun setupMapsBeforeSendToPostHogJs() {
         PostHog.setup(
-            PostHogConfig(
-                projectToken = "phc_test",
+            PostHogConfig("phc_test") {
                 beforeSend = listOf(
                     PostHogBeforeSend {
                         it.copy(
@@ -77,7 +75,7 @@ class PostHogWasmJsTest {
                         )
                     }
                 )
-            ),
+            },
             PostHogContext()
         )
 
@@ -99,8 +97,7 @@ class PostHogWasmJsTest {
     fun beforeSendContainsCallbackExceptions() {
         var sentinelCalled = false
         PostHog.setup(
-            PostHogConfig(
-                projectToken = "phc_test",
+            PostHogConfig("phc_test") {
                 beforeSend = listOf(
                     PostHogBeforeSend { it.copy(event = "transformed") },
                     PostHogBeforeSend { throw IllegalStateException("failed") },
@@ -109,7 +106,7 @@ class PostHogWasmJsTest {
                         it
                     }
                 )
-            ),
+            },
             PostHogContext()
         )
 
@@ -121,10 +118,12 @@ class PostHogWasmJsTest {
     fun beforeSendContainsPropertyConversionExceptions() {
         var callbackCalled = false
         PostHog.setup(
-            PostHogConfig(projectToken = "key", beforeSend = listOf(PostHogBeforeSend {
-                callbackCalled = true
-                it
-            })),
+            PostHogConfig("key") {
+                beforeSend = listOf(PostHogBeforeSend {
+                    callbackCalled = true
+                    it
+                })
+            },
             PostHogContext()
         )
 
@@ -149,10 +148,10 @@ class PostHogWasmJsTest {
                 "nested" to mapOf("source" to "wasm"),
                 "items" to listOf("one", "two")
             ),
-            options = CaptureOptions(
-                groups = mapOf("company" to "posthog"),
+            options = CaptureOptions {
+                groups = mapOf("company" to "posthog")
                 timestamp = 1_700_000_000_000
-            )
+            }
         )
 
         assertEquals("checkout", readString(fakePostHog, "event"))
@@ -253,7 +252,7 @@ class PostHogWasmJsTest {
         val subscription = PostHog.onFeatureFlags { results.add(it) }
         assertFalse(hasFlagsCallback(fakePostHog))
 
-        PostHog.setup(PostHogConfig(projectToken = "phc_test"), PostHogContext())
+        PostHog.setup(PostHogConfig("phc_test"), PostHogContext())
         notifyFeatureFlags(fakePostHog)
         assertEquals(listOf(listOf("stale"), listOf("beta")), results.map { it.flags })
 
@@ -283,9 +282,7 @@ class PostHogWasmJsTest {
         PostHog.capture(
             "checkout",
             mapOf("\$cookieless_mode" to false),
-            CaptureOptions(
-                eventOptions = mapOf(PostHogEventOptions.COOKIELESS_MODE to true, PostHogEventOptions.PRODUCT_TOUR_ID to "tour")
-            )
+            CaptureOptions { eventOptions = mapOf(PostHogEventOptions.COOKIELESS_MODE to true, PostHogEventOptions.PRODUCT_TOUR_ID to "tour") }
         )
 
         assertTrue(readNestedBoolean(fakePostHog, "properties", "\$cookieless_mode"))
@@ -348,7 +345,7 @@ class PostHogWasmJsTest {
 
     @Test
     fun featureFlagConfiguredEventOptionIsForwarded() {
-        currentConfig = PostHogConfig(projectToken = "key", sendFeatureFlagEvent = false)
+        currentConfig = PostHogConfig("key") { sendFeatureFlagEvent = false }
         assertFalse(PostHog.isFeatureEnabled("disabled", defaultValue = true))
         assertFalse(readNestedBoolean(fakePostHog, "featureFlagOptions", "send_event"))
         assertFalse(PostHog.isFeatureEnabled("disabled", sendFeatureFlagEvent = true))

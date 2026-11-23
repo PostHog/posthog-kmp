@@ -8,7 +8,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.posthog.kmp.ErrorTrackingConfig
 import com.posthog.kmp.PostHog
 import com.posthog.kmp.PostHogBeforeSend
 import com.posthog.kmp.PostHogConfig
@@ -93,13 +92,12 @@ fun App(postHogContext: PostHogContext) {
                         if (apiKey.isNotBlank()) {
                             isInitialized = true
                             PostHog.setup(
-                                config = PostHogConfig(
-                                    projectToken = apiKey,
-                                    debug = true,
-                                    errorTracking = ErrorTrackingConfig(
-                                        autoCapture = true,
+                                config = PostHogConfig(apiKey) {
+                                    debug = true
+                                    errorTracking {
+                                        autoCapture = true
                                         inAppIncludes = listOf("com.posthog.kmp.sample")
-                                    ),
+                                    }
                                     beforeSend = listOf(
                                         PostHogBeforeSend { event ->
                                             if (event.event == "before_send_drop_test") {
@@ -112,7 +110,7 @@ fun App(postHogContext: PostHogContext) {
                                             }
                                         }
                                     )
-                                ),
+                                },
                                 context = postHogContext
                             )
                             statusMessage = if (isInitialized) {

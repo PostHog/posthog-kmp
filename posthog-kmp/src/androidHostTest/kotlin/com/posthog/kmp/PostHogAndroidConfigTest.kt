@@ -8,10 +8,7 @@ class PostHogAndroidConfigTest {
     @Test
     fun screenshotMaskAlignmentVerificationDefaultsToDisabled() {
         for (sessionReplay in listOf(null, SessionReplayConfig())) {
-            val nativeConfig = PostHogConfig(
-                projectToken = "phc_test",
-                sessionReplay = sessionReplay
-            ).toAndroidConfig()
+            val nativeConfig = PostHogConfig("phc_test") { sessionReplayConfig = sessionReplay }.toAndroidConfig()
 
             assertEquals(false, nativeConfig.sessionReplayConfig.verifyScreenshotMaskAlignment)
         }
@@ -20,10 +17,7 @@ class PostHogAndroidConfigTest {
     @Test
     fun mapsScreenshotMaskAlignmentVerification() {
         for (verify in listOf(false, true)) {
-            val nativeConfig = PostHogConfig(
-                projectToken = "phc_test",
-                sessionReplay = SessionReplayConfig(verifyScreenshotMaskAlignment = verify)
-            ).toAndroidConfig()
+            val nativeConfig = PostHogConfig("phc_test") { sessionReplay { verifyScreenshotMaskAlignment = verify } }.toAndroidConfig()
 
             assertEquals(true, nativeConfig.sessionReplay)
             assertEquals(verify, nativeConfig.sessionReplayConfig.verifyScreenshotMaskAlignment)
@@ -32,7 +26,7 @@ class PostHogAndroidConfigTest {
 
     @Test
     fun pushNotificationCaptureDefaultsMatchNativeSdk() {
-        val nativeConfig = PostHogConfig(projectToken = "phc_test").toAndroidConfig()
+        val nativeConfig = PostHogConfig("phc_test").toAndroidConfig()
 
         assertEquals(true, nativeConfig.capturePushNotificationSubscriptions)
         assertEquals(true, nativeConfig.capturePushNotificationOpened)
@@ -42,11 +36,10 @@ class PostHogAndroidConfigTest {
     fun mapsPushNotificationCaptureOptionsIndependently() {
         for (subscriptions in listOf(false, true)) {
             for (opened in listOf(false, true)) {
-                val config = PostHogConfig(
-                    projectToken = "phc_test",
-                    capturePushNotificationSubscriptions = subscriptions,
+                val config = PostHogConfig("phc_test") {
+                    capturePushNotificationSubscriptions = subscriptions
                     capturePushNotificationOpened = opened
-                )
+                }
 
                 val nativeConfig = config.toAndroidConfig()
 
@@ -58,10 +51,10 @@ class PostHogAndroidConfigTest {
 
     @Test
     fun mapsEvaluationContexts() {
-        assertEquals(null, PostHogConfig(projectToken = "phc_test").toAndroidConfig().evaluationContexts)
+        assertEquals(null, PostHogConfig("phc_test").toAndroidConfig().evaluationContexts)
         assertEquals(
             listOf("production", "checkout"),
-            PostHogConfig(projectToken = "phc_test", evaluationContexts = listOf("production", "checkout"))
+            PostHogConfig("phc_test") { evaluationContexts = listOf("production", "checkout") }
                 .toAndroidConfig().evaluationContexts
         )
     }
@@ -69,7 +62,7 @@ class PostHogAndroidConfigTest {
     @Test
     fun mapsSurveys() {
         for (surveys in listOf(false, true)) {
-            val nativeConfig = PostHogConfig(projectToken = "phc_test", surveys = surveys).toAndroidConfig()
+            val nativeConfig = PostHogConfig("phc_test") { this.surveys = surveys }.toAndroidConfig()
 
             assertEquals(surveys, nativeConfig.surveys)
         }

@@ -9,22 +9,22 @@ class PostHogConfigTest {
 
     @Test
     fun defaultsToUsCloudHost() {
-        assertEquals(PostHogConfig.HOST_US, PostHogConfig(projectToken = "phc_test").host)
+        assertEquals(PostHogConfig.HOST_US, PostHogConfig("phc_test").host)
     }
 
     @Test
     fun captureScreenViewsDefaultsToEnabled() {
-        assertEquals(true, PostHogConfig(projectToken = "phc_test").captureScreenViews)
+        assertEquals(true, PostHogConfig("phc_test").captureScreenViews)
     }
 
     @Test
     fun defaultsToIdentifiedOnlyPersonProfiles() {
-        assertEquals(PersonProfiles.IDENTIFIED_ONLY, PostHogConfig(projectToken = "phc_test").personProfiles)
+        assertEquals(PersonProfiles.IDENTIFIED_ONLY, PostHogConfig("phc_test").personProfiles)
     }
 
     @Test
     fun pushNotificationCaptureDefaultsToEnabled() {
-        val config = PostHogConfig(projectToken = "phc_test")
+        val config = PostHogConfig("phc_test")
 
         assertEquals(true, config.capturePushNotificationSubscriptions)
         assertEquals(true, config.capturePushNotificationOpened)
@@ -32,12 +32,12 @@ class PostHogConfigTest {
 
     @Test
     fun surveysDefaultsToEnabled() {
-        assertEquals(true, PostHogConfig(projectToken = "phc_test").surveys)
+        assertEquals(true, PostHogConfig("phc_test").surveys)
     }
 
     @Test
     fun defaultsErrorTrackingToNull() {
-        assertNull(PostHogConfig(projectToken = "phc_test").errorTracking)
+        assertNull(PostHogConfig("phc_test").errorTracking)
     }
 
     @Test
@@ -65,21 +65,20 @@ class PostHogConfigTest {
     @Test
     fun beforeSendWithoutCallbacksPreservesEvent() {
         val event = PostHogEvent("checkout", "user-1", mapOf("plan" to "paid"))
-        val config = PostHogConfig(projectToken = "key")
+        val config = PostHogConfig("key")
         assertSame(event, config.runBeforeSend(event))
     }
 
     @Test
     fun beforeSendCallbacksRunInOrder() {
-        val config = PostHogConfig(
-            projectToken = "phc_test",
+        val config = PostHogConfig("phc_test") {
             beforeSend = listOf(
                 PostHogBeforeSend { it.copy(properties = it.properties + ("first" to true)) },
                 PostHogBeforeSend {
                     it.copy(properties = it.properties + ("saw_first" to it.properties.containsKey("first")))
                 }
             )
-        )
+        }
 
         val result = config.runBeforeSend(PostHogEvent("checkout", "user-1", emptyMap()))
 
@@ -88,13 +87,12 @@ class PostHogConfigTest {
 
     @Test
     fun beforeSendKeepsOptionsSetByEarlierCallback() {
-        val config = PostHogConfig(
-            projectToken = "phc_test",
+        val config = PostHogConfig("phc_test") {
             beforeSend = listOf(
                 PostHogBeforeSend { it.copy(options = mapOf("process_person_profile" to false)) },
                 PostHogBeforeSend { PostHogEvent(it.event, it.distinctId, it.properties) }
             )
-        )
+        }
 
         val result = config.runBeforeSend(
             PostHogEvent("checkout", "user-1", emptyMap(), mapOf("process_person_profile" to true))
@@ -118,8 +116,7 @@ class PostHogConfigTest {
         var errorCount = 0
         var sentinelCalled = false
         val failure = IllegalStateException("failed")
-        val config = PostHogConfig(
-            projectToken = "phc_test",
+        val config = PostHogConfig("phc_test") {
             beforeSend = listOf(
                 PostHogBeforeSend { it.copy(event = "transformed") },
                 PostHogBeforeSend { throw failure },
@@ -128,7 +125,7 @@ class PostHogConfigTest {
                     it
                 }
             )
-        )
+        }
 
         val result = config.runBeforeSend(PostHogEvent("checkout", "user-1", emptyMap())) {
             assertSame(failure, it)
@@ -143,8 +140,7 @@ class PostHogConfigTest {
     @Test
     fun beforeSendStopsAfterDroppedEvent() {
         var finalCallbackCalled = false
-        val config = PostHogConfig(
-            projectToken = "phc_test",
+        val config = PostHogConfig("phc_test") {
             beforeSend = listOf(
                 PostHogBeforeSend { null },
                 PostHogBeforeSend {
@@ -152,7 +148,7 @@ class PostHogConfigTest {
                     it
                 }
             )
-        )
+        }
 
         assertNull(config.runBeforeSend(PostHogEvent("checkout", "user-1", emptyMap())))
         assertEquals(false, finalCallbackCalled)

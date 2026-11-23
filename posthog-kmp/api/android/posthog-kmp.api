@@ -1,0 +1,308 @@
+public final class com/posthog/kmp/CaptureOptions {
+	public final fun getEventOptions ()Ljava/util/Map;
+	public final fun getGroups ()Ljava/util/Map;
+	public final fun getTimestamp ()Ljava/lang/Long;
+}
+
+public final class com/posthog/kmp/CaptureOptions$Builder {
+	public final fun getEventOptions ()Ljava/util/Map;
+	public final fun getGroups ()Ljava/util/Map;
+	public final fun getTimestamp ()Ljava/lang/Long;
+	public final fun setEventOptions (Ljava/util/Map;)V
+	public final fun setGroups (Ljava/util/Map;)V
+	public final fun setTimestamp (Ljava/lang/Long;)V
+}
+
+public final class com/posthog/kmp/ErrorTrackingConfig {
+	public final fun getAutoCapture ()Z
+	public final fun getIgnoredExceptionTypes ()Ljava/util/List;
+	public final fun getInAppByDefault ()Z
+	public final fun getInAppExcludes ()Ljava/util/List;
+	public final fun getInAppIncludes ()Ljava/util/List;
+}
+
+public final class com/posthog/kmp/ErrorTrackingConfig$Builder {
+	public final fun getAutoCapture ()Z
+	public final fun getIgnoredExceptionTypes ()Ljava/util/List;
+	public final fun getInAppByDefault ()Z
+	public final fun getInAppExcludes ()Ljava/util/List;
+	public final fun getInAppIncludes ()Ljava/util/List;
+	public final fun setAutoCapture (Z)V
+	public final fun setIgnoredExceptionTypes (Ljava/util/List;)V
+	public final fun setInAppByDefault (Z)V
+	public final fun setInAppExcludes (Ljava/util/List;)V
+	public final fun setInAppIncludes (Ljava/util/List;)V
+}
+
+public final class com/posthog/kmp/FeatureFlagResult {
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEnabled ()Z
+	public final fun getKey ()Ljava/lang/String;
+	public final fun getPayload ()Ljava/lang/Object;
+	public final fun getValue ()Ljava/lang/Object;
+	public final fun getVariant ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/posthog/kmp/IosCaptureMethod : java/lang/Enum {
+	public static final field GPU Lcom/posthog/kmp/IosCaptureMethod;
+	public static final field STANDARD Lcom/posthog/kmp/IosCaptureMethod;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/posthog/kmp/IosCaptureMethod;
+	public static fun values ()[Lcom/posthog/kmp/IosCaptureMethod;
+}
+
+public final class com/posthog/kmp/PersonProfiles : java/lang/Enum {
+	public static final field ALWAYS Lcom/posthog/kmp/PersonProfiles;
+	public static final field IDENTIFIED_ONLY Lcom/posthog/kmp/PersonProfiles;
+	public static final field NEVER Lcom/posthog/kmp/PersonProfiles;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/posthog/kmp/PersonProfiles;
+	public static fun values ()[Lcom/posthog/kmp/PersonProfiles;
+}
+
+public final class com/posthog/kmp/PostHog {
+	public static final field INSTANCE Lcom/posthog/kmp/PostHog;
+	public final fun alias (Ljava/lang/String;Ljava/util/Map;)V
+	public static synthetic fun alias$default (Lcom/posthog/kmp/PostHog;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)V
+	public final fun capture (Ljava/lang/String;Ljava/util/Map;Lcom/posthog/kmp/CaptureOptions;)V
+	public static synthetic fun capture$default (Lcom/posthog/kmp/PostHog;Ljava/lang/String;Ljava/util/Map;Lcom/posthog/kmp/CaptureOptions;ILjava/lang/Object;)V
+	public final fun captureAi (Ljava/lang/String;Ljava/util/Map;Lcom/posthog/kmp/CaptureOptions;)Ljava/lang/String;
+	public static synthetic fun captureAi$default (Lcom/posthog/kmp/PostHog;Ljava/lang/String;Ljava/util/Map;Lcom/posthog/kmp/CaptureOptions;ILjava/lang/Object;)Ljava/lang/String;
+	public final fun captureException (Ljava/lang/Throwable;Ljava/util/Map;Ljava/util/Map;)V
+	public static synthetic fun captureException$default (Lcom/posthog/kmp/PostHog;Ljava/lang/Throwable;Ljava/util/Map;Ljava/util/Map;ILjava/lang/Object;)V
+	public final fun close ()V
+	public final fun flush ()V
+	public final fun getAllFeatureFlags ()Ljava/util/Map;
+	public final fun getAnonymousId ()Ljava/lang/String;
+	public final fun getDistinctId ()Ljava/lang/String;
+	public final fun getFeatureFlag (Ljava/lang/String;Ljava/lang/Boolean;)Ljava/lang/Object;
+	public static synthetic fun getFeatureFlag$default (Lcom/posthog/kmp/PostHog;Ljava/lang/String;Ljava/lang/Boolean;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun getFeatureFlagResult (Ljava/lang/String;Ljava/lang/Boolean;)Lcom/posthog/kmp/FeatureFlagResult;
+	public static synthetic fun getFeatureFlagResult$default (Lcom/posthog/kmp/PostHog;Ljava/lang/String;Ljava/lang/Boolean;ILjava/lang/Object;)Lcom/posthog/kmp/FeatureFlagResult;
+	public final fun getSessionId ()Ljava/lang/String;
+	public final fun group (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/util/Map;)V
+	public static synthetic fun group$default (Lcom/posthog/kmp/PostHog;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/util/Map;ILjava/lang/Object;)V
+	public final fun identify (Ljava/lang/String;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;)V
+	public static synthetic fun identify$default (Lcom/posthog/kmp/PostHog;Ljava/lang/String;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;ILjava/lang/Object;)V
+	public final fun isFeatureEnabled (Ljava/lang/String;ZLjava/lang/Boolean;)Z
+	public static synthetic fun isFeatureEnabled$default (Lcom/posthog/kmp/PostHog;Ljava/lang/String;ZLjava/lang/Boolean;ILjava/lang/Object;)Z
+	public final fun isOptedOut ()Z
+	public final fun onFeatureFlags (Lkotlin/jvm/functions/Function1;)Lcom/posthog/kmp/PostHogFeatureFlagsSubscription;
+	public final fun optIn ()V
+	public final fun optOut ()V
+	public final fun register (Ljava/lang/String;Ljava/lang/Object;)V
+	public final fun registerOptions (Ljava/util/Map;)V
+	public final fun reloadFeatureFlags (Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun reloadFeatureFlags$default (Lcom/posthog/kmp/PostHog;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public final fun reset ()V
+	public final fun resetGroupPropertiesForFlags (Ljava/lang/String;Z)V
+	public static synthetic fun resetGroupPropertiesForFlags$default (Lcom/posthog/kmp/PostHog;Ljava/lang/String;ZILjava/lang/Object;)V
+	public final fun resetPersonPropertiesForFlags (Z)V
+	public static synthetic fun resetPersonPropertiesForFlags$default (Lcom/posthog/kmp/PostHog;ZILjava/lang/Object;)V
+	public final fun screen (Ljava/lang/String;Ljava/util/Map;Ljava/util/Map;)V
+	public static synthetic fun screen$default (Lcom/posthog/kmp/PostHog;Ljava/lang/String;Ljava/util/Map;Ljava/util/Map;ILjava/lang/Object;)V
+	public final fun setAppLanguage (Ljava/lang/String;)V
+	public final fun setDebug (Z)V
+	public final fun setGroupPropertiesForFlags (Ljava/lang/String;Ljava/util/Map;Z)V
+	public static synthetic fun setGroupPropertiesForFlags$default (Lcom/posthog/kmp/PostHog;Ljava/lang/String;Ljava/util/Map;ZILjava/lang/Object;)V
+	public final fun setPersonProperties (Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;)V
+	public static synthetic fun setPersonProperties$default (Lcom/posthog/kmp/PostHog;Ljava/util/Map;Ljava/util/Map;Ljava/util/Map;ILjava/lang/Object;)V
+	public final fun setPersonPropertiesForFlags (Ljava/util/Map;Z)V
+	public static synthetic fun setPersonPropertiesForFlags$default (Lcom/posthog/kmp/PostHog;Ljava/util/Map;ZILjava/lang/Object;)V
+	public final fun setup (Lcom/posthog/kmp/PostHogConfig;Lcom/posthog/kmp/PostHogContext;)V
+	public final fun unregister (Ljava/lang/String;)V
+	public final fun unregisterOptions (Ljava/lang/String;)V
+}
+
+public abstract interface class com/posthog/kmp/PostHogBeforeSend {
+	public abstract fun run (Lcom/posthog/kmp/PostHogEvent;)Lcom/posthog/kmp/PostHogEvent;
+}
+
+public final class com/posthog/kmp/PostHogCompression : java/lang/Enum {
+	public static final field GZIP Lcom/posthog/kmp/PostHogCompression;
+	public static final field NONE Lcom/posthog/kmp/PostHogCompression;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/posthog/kmp/PostHogCompression;
+	public static fun values ()[Lcom/posthog/kmp/PostHogCompression;
+}
+
+public final class com/posthog/kmp/PostHogConfig {
+	public static final field Companion Lcom/posthog/kmp/PostHogConfig$Companion;
+	public static final field HOST_EU Ljava/lang/String;
+	public static final field HOST_US Ljava/lang/String;
+	public final fun getAutocapture ()Z
+	public final fun getBeforeSend ()Ljava/util/List;
+	public final fun getCaptureAiCompression ()Lcom/posthog/kmp/PostHogCompression;
+	public final fun getCaptureAiMaxEventBytes ()Ljava/lang/Integer;
+	public final fun getCaptureAiMaxQueueSize ()Ljava/lang/Integer;
+	public final fun getCaptureAiTimeout ()Ljava/lang/Integer;
+	public final fun getCaptureApplicationLifecycleEvents ()Z
+	public final fun getCaptureDeepLinks ()Z
+	public final fun getCapturePushNotificationOpened ()Z
+	public final fun getCapturePushNotificationSubscriptions ()Z
+	public final fun getCaptureScreenViews ()Z
+	public final fun getDebug ()Z
+	public final fun getErrorTracking ()Lcom/posthog/kmp/ErrorTrackingConfig;
+	public final fun getEvaluationContexts ()Ljava/util/List;
+	public final fun getFlushAt ()I
+	public final fun getFlushIntervalSeconds ()I
+	public final fun getHost ()Ljava/lang/String;
+	public final fun getMaxBatchSize ()I
+	public final fun getMaxQueueSize ()I
+	public final fun getOptOut ()Z
+	public final fun getPersonProfiles ()Lcom/posthog/kmp/PersonProfiles;
+	public final fun getPreloadFeatureFlags ()Z
+	public final fun getProjectToken ()Ljava/lang/String;
+	public final fun getSendFeatureFlagEvent ()Z
+	public final fun getSessionReplay ()Lcom/posthog/kmp/SessionReplayConfig;
+	public final fun getSurveys ()Z
+}
+
+public final class com/posthog/kmp/PostHogConfig$Builder {
+	public final fun errorTracking (Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun errorTracking$default (Lcom/posthog/kmp/PostHogConfig$Builder;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public final fun getAutocapture ()Z
+	public final fun getBeforeSend ()Ljava/util/List;
+	public final fun getCaptureAiCompression ()Lcom/posthog/kmp/PostHogCompression;
+	public final fun getCaptureAiMaxEventBytes ()Ljava/lang/Integer;
+	public final fun getCaptureAiMaxQueueSize ()Ljava/lang/Integer;
+	public final fun getCaptureAiTimeout ()Ljava/lang/Integer;
+	public final fun getCaptureApplicationLifecycleEvents ()Z
+	public final fun getCaptureDeepLinks ()Z
+	public final fun getCapturePushNotificationOpened ()Z
+	public final fun getCapturePushNotificationSubscriptions ()Z
+	public final fun getCaptureScreenViews ()Z
+	public final fun getDebug ()Z
+	public final fun getEvaluationContexts ()Ljava/util/List;
+	public final fun getFlushAt ()I
+	public final fun getFlushIntervalSeconds ()I
+	public final fun getHost ()Ljava/lang/String;
+	public final fun getMaxBatchSize ()I
+	public final fun getMaxQueueSize ()I
+	public final fun getOptOut ()Z
+	public final fun getPersonProfiles ()Lcom/posthog/kmp/PersonProfiles;
+	public final fun getPreloadFeatureFlags ()Z
+	public final fun getSendFeatureFlagEvent ()Z
+	public final fun getSurveys ()Z
+	public final fun sessionReplay (Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun sessionReplay$default (Lcom/posthog/kmp/PostHogConfig$Builder;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public final fun setAutocapture (Z)V
+	public final fun setBeforeSend (Ljava/util/List;)V
+	public final fun setCaptureAiCompression (Lcom/posthog/kmp/PostHogCompression;)V
+	public final fun setCaptureAiMaxEventBytes (Ljava/lang/Integer;)V
+	public final fun setCaptureAiMaxQueueSize (Ljava/lang/Integer;)V
+	public final fun setCaptureAiTimeout (Ljava/lang/Integer;)V
+	public final fun setCaptureApplicationLifecycleEvents (Z)V
+	public final fun setCaptureDeepLinks (Z)V
+	public final fun setCapturePushNotificationOpened (Z)V
+	public final fun setCapturePushNotificationSubscriptions (Z)V
+	public final fun setCaptureScreenViews (Z)V
+	public final fun setDebug (Z)V
+	public final fun setEvaluationContexts (Ljava/util/List;)V
+	public final fun setFlushAt (I)V
+	public final fun setFlushIntervalSeconds (I)V
+	public final fun setHost (Ljava/lang/String;)V
+	public final fun setMaxBatchSize (I)V
+	public final fun setMaxQueueSize (I)V
+	public final fun setOptOut (Z)V
+	public final fun setPersonProfiles (Lcom/posthog/kmp/PersonProfiles;)V
+	public final fun setPreloadFeatureFlags (Z)V
+	public final fun setSendFeatureFlagEvent (Z)V
+	public final fun setSurveys (Z)V
+}
+
+public final class com/posthog/kmp/PostHogConfig$Companion {
+}
+
+public final class com/posthog/kmp/PostHogConfigKt {
+	public static final fun PostHogConfig (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lcom/posthog/kmp/PostHogConfig;
+	public static synthetic fun PostHogConfig$default (Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/posthog/kmp/PostHogConfig;
+}
+
+public final class com/posthog/kmp/PostHogContext {
+	public fun <init> (Landroid/app/Application;)V
+}
+
+public final class com/posthog/kmp/PostHogContext_androidKt {
+	public static final fun PostHogContext ()Lcom/posthog/kmp/PostHogContext;
+}
+
+public abstract interface annotation class com/posthog/kmp/PostHogDsl : java/lang/annotation/Annotation {
+}
+
+public final class com/posthog/kmp/PostHogEvent {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/util/Map;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/util/Map;
+	public final fun component4 ()Ljava/util/Map;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/util/Map;)Lcom/posthog/kmp/PostHogEvent;
+	public static synthetic fun copy$default (Lcom/posthog/kmp/PostHogEvent;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/util/Map;ILjava/lang/Object;)Lcom/posthog/kmp/PostHogEvent;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDistinctId ()Ljava/lang/String;
+	public final fun getEvent ()Ljava/lang/String;
+	public final fun getOptions ()Ljava/util/Map;
+	public final fun getProperties ()Ljava/util/Map;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/posthog/kmp/PostHogEventOptions {
+	public static final field COOKIELESS_MODE Ljava/lang/String;
+	public static final field DISABLE_SKEW_CORRECTION Ljava/lang/String;
+	public static final field INSTANCE Lcom/posthog/kmp/PostHogEventOptions;
+	public static final field PROCESS_PERSON_PROFILE Ljava/lang/String;
+	public static final field PRODUCT_TOUR_ID Ljava/lang/String;
+}
+
+public final class com/posthog/kmp/PostHogFeatureFlagsLoaded {
+	public final fun getErrorsLoading ()Z
+	public final fun getFlags ()Ljava/util/List;
+	public final fun getVariants ()Ljava/util/Map;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/posthog/kmp/PostHogFeatureFlagsSubscription {
+	public final fun unsubscribe ()V
+}
+
+public final class com/posthog/kmp/PostHogModelsKt {
+	public static final fun CaptureOptions (Lkotlin/jvm/functions/Function1;)Lcom/posthog/kmp/CaptureOptions;
+}
+
+public final class com/posthog/kmp/SessionReplayConfig {
+	public final fun getCaptureLogcat ()Z
+	public final fun getCaptureLogs ()Z
+	public final fun getCaptureNetworkTelemetry ()Z
+	public final fun getEnabled ()Z
+	public final fun getIosCaptureMethod ()Lcom/posthog/kmp/IosCaptureMethod;
+	public final fun getMaskAllImages ()Z
+	public final fun getMaskAllTextInputs ()Z
+	public final fun getThrottleDelayMs ()J
+	public final fun getVerifyScreenshotMaskAlignment ()Z
+}
+
+public final class com/posthog/kmp/SessionReplayConfig$Builder {
+	public final fun getCaptureLogcat ()Z
+	public final fun getCaptureLogs ()Z
+	public final fun getCaptureNetworkTelemetry ()Z
+	public final fun getEnabled ()Z
+	public final fun getIosCaptureMethod ()Lcom/posthog/kmp/IosCaptureMethod;
+	public final fun getMaskAllImages ()Z
+	public final fun getMaskAllTextInputs ()Z
+	public final fun getThrottleDelayMs ()J
+	public final fun getVerifyScreenshotMaskAlignment ()Z
+	public final fun setCaptureLogcat (Z)V
+	public final fun setCaptureLogs (Z)V
+	public final fun setCaptureNetworkTelemetry (Z)V
+	public final fun setEnabled (Z)V
+	public final fun setIosCaptureMethod (Lcom/posthog/kmp/IosCaptureMethod;)V
+	public final fun setMaskAllImages (Z)V
+	public final fun setMaskAllTextInputs (Z)V
+	public final fun setThrottleDelayMs (J)V
+	public final fun setVerifyScreenshotMaskAlignment (Z)V
+}
+

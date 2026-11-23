@@ -39,7 +39,7 @@ class PostHogAndroidTest {
         val defaultLogger = androidWarningLogger
         androidWarningLogger = { warnings += it }
         try {
-            PostHog.setup(PostHogConfig(projectToken = "phc_test"), PostHogContext())
+            PostHog.setup(PostHogConfig("phc_test"), PostHogContext())
 
             assertNull(postHogInstance)
             assertEquals(listOf("close"), fakeInterface.calledMethods.map { it.first })
@@ -60,7 +60,7 @@ class PostHogAndroidTest {
         PostHog.capture(
             "test_event",
             mapOf("prop" to "value"),
-            CaptureOptions(groups = mapOf("company" to "acme"))
+            CaptureOptions { groups = mapOf("company" to "acme") }
         )
         // capture(event, distinctId, properties, userProperties, userPropertiesSetOnce, groups, timestamp, options)
         assertMethodCalled(
@@ -85,7 +85,7 @@ class PostHogAndroidTest {
                 .toInstant()
                 .toEpochMilli()
 
-            PostHog.capture("test_event", options = CaptureOptions(timestamp = timestamp))
+            PostHog.capture("test_event", options = CaptureOptions { this.timestamp = timestamp })
 
             assertMethodCalled("capture", "test_event", null, null, null, null, null, Date(timestamp), null)
             assertEquals("2024-01-02T03:04:05.678Z", Date(timestamp).toInstant().toString())
@@ -162,7 +162,7 @@ class PostHogAndroidTest {
 
     @Test
     fun testSendFeatureFlagEventFallsBackToConfig() {
-        currentConfig = PostHogConfig(projectToken = "key", sendFeatureFlagEvent = false)
+        currentConfig = PostHogConfig("key") { sendFeatureFlagEvent = false }
 
         PostHog.isFeatureEnabled("test_flag")
         assertMethodCalled("isFeatureEnabled", "test_flag", false, false)

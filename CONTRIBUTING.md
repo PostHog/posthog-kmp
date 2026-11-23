@@ -61,7 +61,10 @@ This section is for external contributors. PostHog maintainers (members of the P
 
 The module uses Kotlin's explicit API mode, so any declaration you mark `public` is public API.
 
-Add a new option to `PostHogConfig`, `SessionReplayConfig`, `ErrorTrackingConfig`, or `CaptureOptions` at the end of its constructor, with a default value. Their constructors use `@JvmOverloads`, so appending keeps Java callers working. Kotlin callers that leave out arguments go through a compiler-generated constructor whose signature changes with every new option, so Kotlin code compiled against an earlier version, such as a library built on posthog-kmp, has to be recompiled. Don't make them `data` classes: the generated `copy()` and `componentN()` change with every new option too. `FeatureFlagResult` has an internal constructor, so Kotlin code can't build one. Java still can, because Kotlin compiles internal constructors as public.
+The public ABI of every target is checked into `posthog-kmp/api/`, and `./gradlew check` fails when it changes. After an intended API change, run `./gradlew :posthog-kmp:updateKotlinAbi` and commit the updated dump, so reviewers see the change. Within a major version, the dump should only gain lines.
+
+- **New config options:** add a `var` with a default value and KDoc to the matching builder (`PostHogConfig.Builder`, `SessionReplayConfig.Builder`, `ErrorTrackingConfig.Builder`, or `CaptureOptions.Builder`), and a `val` with the same name to the built class. Don't add constructor or function parameters for options, and don't make these classes `data` classes: either changes compiled signatures.
+- **New parameters on `PostHog` methods:** adding a parameter, even with a default, breaks code compiled against the old signature. Add an overload instead, and keep the old signature as a `@Deprecated(level = DeprecationLevel.HIDDEN)` function that calls the new one.
 
 ## Docs
 

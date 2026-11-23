@@ -1,22 +1,44 @@
 package com.posthog.kmp
 
-import kotlin.jvm.JvmOverloads
+/**
+ * Creates options for one [PostHog.capture] or [PostHog.captureAi] call.
+ *
+ * ```kotlin
+ * PostHog.capture("checkout", options = CaptureOptions { groups = mapOf("company" to "acme") })
+ * ```
+ */
+public fun CaptureOptions(configure: CaptureOptions.Builder.() -> Unit): CaptureOptions =
+    CaptureOptions.Builder().apply(configure).build()
 
 /**
- * Options for capturing events.
- *
- * @property groups Groups to associate with this event
- * @property timestamp Custom event time as Unix epoch milliseconds, representing a UTC instant
- *   (defaults to now). UTC is preferred when deriving this value from a date and time; resolve any
- *   non-UTC offset to the equivalent instant before converting it to epoch milliseconds. Platform
- *   bridges preserve this instant when constructing their native date type.
+ * Options for capturing one event. Create them with the [CaptureOptions] function. Each property holds the
+ * [CaptureOptions.Builder] option of the same name.
  */
-public class CaptureOptions @JvmOverloads constructor(
-    public val groups: Map<String, String>? = null,
-    public val timestamp: Long? = null,
-    /** Settings that tell PostHog how to process this event. See [PostHogEventOptions]. */
-    public val eventOptions: Map<String, Any?>? = null
-)
+public class CaptureOptions private constructor(builder: Builder) {
+    public val groups: Map<String, String>? = builder.groups
+    public val timestamp: Long? = builder.timestamp
+    public val eventOptions: Map<String, Any?>? = builder.eventOptions
+
+    /** Sets the options of a [CaptureOptions]. */
+    @PostHogDsl
+    public class Builder internal constructor() {
+        /** Groups to associate with this event. */
+        public var groups: Map<String, String>? = null
+
+        /**
+         * Custom event time as Unix epoch milliseconds, representing a UTC instant (defaults to now). UTC is
+         * preferred when deriving this value from a date and time; resolve any non-UTC offset to the equivalent
+         * instant before converting it to epoch milliseconds. Platform bridges preserve this instant when
+         * constructing their native date type.
+         */
+        public var timestamp: Long? = null
+
+        /** Settings that tell PostHog how to process this event. See [PostHogEventOptions]. */
+        public var eventOptions: Map<String, Any?>? = null
+
+        internal fun build(): CaptureOptions = CaptureOptions(this)
+    }
+}
 
 /**
  * Keys for event options: settings that tell PostHog how to process an event, sent apart from its

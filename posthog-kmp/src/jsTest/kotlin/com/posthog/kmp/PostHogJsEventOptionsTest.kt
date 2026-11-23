@@ -39,7 +39,7 @@ class PostHogJsEventOptionsTest {
         PostHog.capture(
             "test_event",
             mapOf("\$cookieless_mode" to false, "prop" to "value"),
-            CaptureOptions(eventOptions = options)
+            CaptureOptions { eventOptions = options }
         )
         PostHog.screen("Home", eventOptions = options)
 

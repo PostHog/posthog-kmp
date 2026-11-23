@@ -16,16 +16,15 @@ class PostHogAppleTest {
     fun testNativeAnalyticsThroughPublicApi() {
         val events = mutableListOf<PostHogEvent>()
         PostHog.setup(
-            PostHogConfig(
-                projectToken = "apple-unit-test",
-                host = "http://127.0.0.1:9",
-                preloadFeatureFlags = false,
-                captureApplicationLifecycleEvents = false,
+            PostHogConfig("apple-unit-test") {
+                host = "http://127.0.0.1:9"
+                preloadFeatureFlags = false
+                captureApplicationLifecycleEvents = false
                 beforeSend = listOf(PostHogBeforeSend { event ->
                     events.add(event)
                     null
-                }),
-            ),
+                })
+            },
             PostHogContext(),
         )
         try {
@@ -57,16 +56,15 @@ class PostHogAppleTest {
     fun testEventOptionsReachBeforeSend() {
         val events = mutableListOf<PostHogEvent>()
         PostHog.setup(
-            PostHogConfig(
-                projectToken = "apple-unit-test",
-                host = "http://127.0.0.1:9",
-                preloadFeatureFlags = false,
-                captureApplicationLifecycleEvents = false,
+            PostHogConfig("apple-unit-test") {
+                host = "http://127.0.0.1:9"
+                preloadFeatureFlags = false
+                captureApplicationLifecycleEvents = false
                 beforeSend = listOf(PostHogBeforeSend { event ->
                     events.add(event)
                     null
-                }),
-            ),
+                })
+            },
             PostHogContext(),
         )
         try {
@@ -75,19 +73,19 @@ class PostHogAppleTest {
             PostHog.registerOptions(mapOf(PostHogEventOptions.COOKIELESS_MODE to true))
             PostHog.capture(
                 "with-options",
-                options = CaptureOptions(
+                options = CaptureOptions {
                     eventOptions = mapOf(
                         PostHogEventOptions.PROCESS_PERSON_PROFILE to true,
                         PostHogEventOptions.PRODUCT_TOUR_ID to "tour",
                         "future" to "kept"
                     )
-                )
+                }
             )
             PostHog.unregisterOptions(PostHogEventOptions.COOKIELESS_MODE)
             PostHog.capture("unregistered")
             val aiUuid = PostHog.captureAi(
                 "\$ai_generation",
-                options = CaptureOptions(eventOptions = mapOf(PostHogEventOptions.DISABLE_SKEW_CORRECTION to true))
+                options = CaptureOptions { eventOptions = mapOf(PostHogEventOptions.DISABLE_SKEW_CORRECTION to true) }
             )
 
             // The SDK marks an anonymous user's event as personless with the default personProfiles
@@ -109,11 +107,10 @@ class PostHogAppleTest {
     fun testBeforeSendEmptyOptionsClearAndNullOptionsKeep() {
         val events = mutableListOf<PostHogEvent>()
         PostHog.setup(
-            PostHogConfig(
-                projectToken = "apple-unit-test",
-                host = "http://127.0.0.1:9",
-                preloadFeatureFlags = false,
-                captureApplicationLifecycleEvents = false,
+            PostHogConfig("apple-unit-test") {
+                host = "http://127.0.0.1:9"
+                preloadFeatureFlags = false
+                captureApplicationLifecycleEvents = false
                 beforeSend = listOf(
                     PostHogBeforeSend { event ->
                         when (event.event) {
@@ -126,8 +123,8 @@ class PostHogAppleTest {
                         events.add(event)
                         null
                     },
-                ),
-            ),
+                )
+            },
             PostHogContext(),
         )
         try {
@@ -147,16 +144,15 @@ class PostHogAppleTest {
     fun testAppLanguageOverridesDetectionAndYieldsToRegistered() {
         val events = mutableListOf<PostHogEvent>()
         PostHog.setup(
-            PostHogConfig(
-                projectToken = "apple-unit-test",
-                host = "http://127.0.0.1:9",
-                preloadFeatureFlags = false,
-                captureApplicationLifecycleEvents = false,
+            PostHogConfig("apple-unit-test") {
+                host = "http://127.0.0.1:9"
+                preloadFeatureFlags = false
+                captureApplicationLifecycleEvents = false
                 beforeSend = listOf(PostHogBeforeSend { event ->
                     events.add(event)
                     null
-                }),
-            ),
+                })
+            },
             PostHogContext(),
         )
         try {
@@ -179,16 +175,15 @@ class PostHogAppleTest {
     fun testScreenNameWinsOverProperty() {
         val events = mutableListOf<PostHogEvent>()
         PostHog.setup(
-            PostHogConfig(
-                projectToken = "apple-unit-test",
-                host = "http://127.0.0.1:9",
-                preloadFeatureFlags = false,
-                captureApplicationLifecycleEvents = false,
+            PostHogConfig("apple-unit-test") {
+                host = "http://127.0.0.1:9"
+                preloadFeatureFlags = false
+                captureApplicationLifecycleEvents = false
                 beforeSend = listOf(PostHogBeforeSend { event ->
                     events.add(event)
                     null
-                }),
-            ),
+                })
+            },
             PostHogContext(),
         )
         try {
@@ -205,12 +200,11 @@ class PostHogAppleTest {
     @Test
     fun testFeatureFlagsWithoutLoadedFlags() {
         PostHog.setup(
-            PostHogConfig(
-                projectToken = "apple-unit-test",
-                host = "http://127.0.0.1:9",
-                preloadFeatureFlags = false,
-                captureApplicationLifecycleEvents = false,
-            ),
+            PostHogConfig("apple-unit-test") {
+                host = "http://127.0.0.1:9"
+                preloadFeatureFlags = false
+                captureApplicationLifecycleEvents = false
+            },
             PostHogContext(),
         )
         try {
@@ -232,13 +226,12 @@ class PostHogAppleTest {
     @Test
     fun testFeatureFlagsCallbackFailureWithFormatSpecifiersIsLoggedSafely() {
         PostHog.setup(
-            PostHogConfig(
-                projectToken = "apple-unit-test",
-                host = "http://127.0.0.1:9",
-                debug = true,
-                preloadFeatureFlags = false,
-                captureApplicationLifecycleEvents = false,
-            ),
+            PostHogConfig("apple-unit-test") {
+                host = "http://127.0.0.1:9"
+                debug = true
+                preloadFeatureFlags = false
+                captureApplicationLifecycleEvents = false
+            },
             PostHogContext(),
         )
         PostHog.close()
