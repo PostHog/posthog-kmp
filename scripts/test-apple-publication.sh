@@ -114,16 +114,15 @@ class PostHogLinkTest {
     fun linksPostHogSwiftPackage() {
         var captured = false
         PostHog.setup(
-            config = PostHogConfig(
-                projectToken = "test",
-                host = "http://127.0.0.1:9",
-                preloadFeatureFlags = false,
-                captureApplicationLifecycleEvents = false,
+            config = PostHogConfig("test") {
+                host = "http://127.0.0.1:9"
+                preloadFeatureFlags = false
+                captureApplicationLifecycleEvents = false
                 beforeSend = listOf(PostHogBeforeSend { event ->
                     if (event.event == "native_consumer_event") captured = true
                     null
-                }),
-            ),
+                })
+            },
             context = PostHogContext(),
         )
         try {

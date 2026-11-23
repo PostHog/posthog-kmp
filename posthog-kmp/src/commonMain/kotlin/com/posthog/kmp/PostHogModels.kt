@@ -47,7 +47,7 @@ public class CaptureOptions private constructor(builder: Builder) {
 /**
  * Keys for event options: settings that tell PostHog how to process an event, sent apart from its
  * properties. Pass them in a map, such as
- * `CaptureOptions(eventOptions = mapOf(PostHogEventOptions.PROCESS_PERSON_PROFILE to false))`.
+ * `CaptureOptions { eventOptions = mapOf(PostHogEventOptions.PROCESS_PERSON_PROFILE to false) }`.
  *
  * Options are sent as given, so a key not listed here, such as one a newer PostHog version reads,
  * also works. A `null` value is left unset, so PostHog and the SDK use their defaults.
