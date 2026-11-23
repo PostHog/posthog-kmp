@@ -83,3 +83,7 @@ posthog-kmp@0.9.1:
   dir: ""
   intents:
     - android-okhttp-4-12-1
+posthog-kmp@1.0.0:
+  dir: ""
+  intents:
+    - remove-deprecated-config

@@ -4,6 +4,113 @@ sidebar: Docs
 showTitle: true
 ---
 
+## 0.12 to 1.0
+
+1.0 replaces the config constructors with builders, so later 1.x releases can add options without breaking your code or the libraries you depend on. It also renames session recording to session replay, removes the `apiKey` alias, turns `captureScreenViews` on by default, and stops `PostHogContext()` from throwing on Android.
+
+### Checklist
+
+- [ ] Build `PostHogConfig` and `CaptureOptions` with the new builder blocks, and set session replay and error tracking with `sessionReplay { }` and `errorTracking { }` (see [Builders](#builders)).
+- [ ] Set `captureScreenViews = false` if you don't want automatic screen and page views (see [Screen views](#screen-views)).
+- [ ] Replace `apiKey` with `projectToken` when you read the token from a `PostHogConfig`.
+- [ ] Rename the `additionalProperties` argument of `captureException()` to `properties`.
+- [ ] In `beforeSend` callbacks, change `event.copy(properties = …)` to `event.copy { properties = … }` (see [beforeSend events](#beforesend-events)).
+- [ ] Replace `copy()` calls and destructuring on `PostHogConfig`, `SessionReplayConfig`, `ErrorTrackingConfig`, `CaptureOptions` and `FeatureFlagResult`, and stop constructing `FeatureFlagResult`.
+- [ ] On Android, make sure you pass `PostHogContext(application)` to `PostHog.setup()`, and stop reading `PostHogContext.application` (see [PostHogContext on Android](#posthogcontext-on-android)).
+- [ ] Recompile any library built against posthog-kmp 0.12 or earlier.
+
+### Builders
+
+`PostHogConfig` takes the project token and a block that sets the other options. Session replay and error tracking have their own blocks, and `CaptureOptions` takes a block too:
+
+```kotlin
+// 0.12
+val config = PostHogConfig(
+    projectToken = "phc_...",
+    debug = true,
+    sessionRecording = SessionRecordingConfig(maskAllImages = false),
+    errorTracking = ErrorTrackingConfig(autoCapture = true),
+)
+PostHog.capture("checkout", options = CaptureOptions(groups = mapOf("company" to "acme")))
+
+// 1.0
+val config = PostHogConfig("phc_...") {
+    debug = true
+    sessionReplay { maskAllImages = false }
+    errorTracking { autoCapture = true }
+}
+PostHog.capture("checkout", options = CaptureOptions { groups = mapOf("company" to "acme") })
+```
+
+- **Option names** are the same, except that `sessionRecording` is now `sessionReplay`, as in posthog-android and posthog-ios. Session replay stays off unless you call `sessionReplay { }`. `SessionRecordingConfig` is now `SessionReplayConfig`, and you no longer create it or `ErrorTrackingConfig` yourself.
+- **Reading options:** a built `PostHogConfig` has the same read-only properties as before, such as `config.debug` and `config.sessionReplay`.
+- **No `copy()` or value equality:** the config classes, `CaptureOptions` and `FeatureFlagResult` no longer have `copy()`, `component1()` and the rest. The config classes and `CaptureOptions` also no longer compare by value; `FeatureFlagResult` still does. Where you called `copy()`, build a new config, for example from a function that takes the options that differ.
+- **`FeatureFlagResult`** has an internal constructor, because the SDK creates it. Code that built one, such as a test fake, no longer compiles.
+- **Java** calls the same functions, `PostHogConfigs.PostHogConfig(token, builder -> { builder.setDebug(true); return Unit.INSTANCE; })` and `PostHogModels.CaptureOptions(...)`, and sets options with the builder's setters. `builder.sessionReplay()` and `builder.errorTracking()` with no arguments use the defaults.
+
+New options in later 1.x releases are added as builder properties, and new `PostHogEvent` fields as properties too. That doesn't change any existing function or constructor, so code and libraries compiled against 1.0 keep working. CI checks the public ABI of every target to keep it that way.
+
+### beforeSend events
+
+`PostHogEvent` is a regular class, so that later releases can add fields to it without breaking `beforeSend` callbacks. Its constructor is unchanged, but `copy()` takes a block, and destructuring is gone:
+
+```kotlin
+// 0.12
+PostHogBeforeSend { event -> event.copy(properties = event.properties - "email") }
+
+// 1.0
+PostHogBeforeSend { event -> event.copy { properties = event.properties - "email" } }
+```
+
+If your lambda parameter is named `event`, set the event name with `this.event = "renamed"`, because `event = …` would refer to the parameter. Events still compare by value.
+
+### captureException
+
+The `additionalProperties` parameter of `captureException()` is now `properties`, as in `capture()` and the native SDKs. Calls that pass it by position compile unchanged:
+
+```kotlin
+// 0.12
+PostHog.captureException(error, additionalProperties = mapOf("screen" to "checkout"))
+
+// 1.0
+PostHog.captureException(error, properties = mapOf("screen" to "checkout"))
+```
+
+### apiKey
+
+The `apiKey` alias, deprecated since 0.8, is removed. Pass the token as the first argument of `PostHogConfig`, and read it from `projectToken`:
+
+```kotlin
+// 0.12
+PostHogConfig(apiKey = "phc_...")
+config.apiKey
+
+// 1.0
+PostHogConfig("phc_...")
+config.projectToken
+```
+
+### Screen views
+
+`captureScreenViews` defaults to `true`, as in posthog-android and posthog-ios. Unless you set it to `false`:
+
+- **Android** sends a `$screen` event with the Activity's label each time an Activity starts.
+- **iOS** sends a `$screen` event each time a view controller appears.
+- **Web** sends `$pageview` and `$pageleave` events.
+
+macOS and JVM ignore it. A Compose Multiplatform app usually has a single Activity or view controller, so its automatic screen view names the whole app rather than a screen. Keep calling `PostHog.screen()` for each Compose screen, or set `captureScreenViews = false` to send only those.
+
+### PostHogContext on Android
+
+`PostHogContext()` no longer throws on Android. `PostHog.setup()` with it leaves the SDK disabled and logs a warning, even when `debug` is off, so common code that builds the context no longer crashes the app. Pass `PostHogContext(application)` on Android, as before:
+
+```kotlin
+// Android
+PostHog.setup(config, PostHogContext(application))
+```
+
+`PostHogContext.application` is internal. Keep your own reference to the `Application` if you need it.
+
 ## 0.11 to 0.12
 
 0.12 moves Android, JVM, iOS and macOS to the 4.0 native SDKs: posthog-android 4.0, the JVM core `com.posthog:posthog` 7.0 and posthog-ios 4.0. JavaScript and Wasm targets stay on posthog-js; of the breaking changes below, only the `SessionRecordingConfig` changes in [Session replay](#session-replay), which are compile errors in common code, and [Feature flags](#feature-flags) reach them.

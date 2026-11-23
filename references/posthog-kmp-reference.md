@@ -170,7 +170,7 @@ This should be called once at application startup before any other PostHog metho
 
 #### Parameters
 
-- `config`: PostHog configuration with your API key and options
+- `config`: PostHog configuration with your project token and options
 - `context`: Platform-specific context (Application on Android, empty on other platforms)
 
 ## Capture
@@ -263,7 +263,7 @@ The event's UUID once the SDK has queued it, or `null` when it won't be sent: th
 ### `PostHog.captureException`
 
 ```kotlin
-fun captureException(throwable: Throwable, additionalProperties: Map<String, Any?>? = null, eventOptions: Map<String, Any?>? = null)
+fun captureException(throwable: Throwable, properties: Map<String, Any?>? = null, eventOptions: Map<String, Any?>? = null)
 ```
 
 Capture an exception for error tracking.
@@ -271,7 +271,7 @@ Capture an exception for error tracking.
 #### Parameters
 
 - `throwable`: The exception to capture
-- `additionalProperties`: Optional additional context
+- `properties`: Optional properties to include with the `$exception` event
 - `eventOptions`: Settings that tell PostHog how to process the `$exception` event
 
 ## Debug
@@ -770,50 +770,84 @@ PostHog.setAppLanguage(null) // back to the detected language
 
 - `language`: a BCP 47 language tag, such as `de` or `pt-BR`. Pass `null` or a blank string to go back to the detected language
 
+### `CaptureOptions`
+
+```kotlin
+fun CaptureOptions(configure: CaptureOptions.Builder.() -> Unit): CaptureOptions
+```
+
+Creates options for one PostHog.capture or PostHog.captureAi call.
+
+```kotlin
+PostHog.capture("checkout", options = CaptureOptions { groups = mapOf("company" to "acme") })
+```
+
+### `PostHogConfig`
+
+```kotlin
+fun PostHogConfig(projectToken: String, configure: PostHogConfig.Builder.() -> Unit = {}): PostHogConfig
+```
+
+Creates the configuration for PostHog.setup.
+
+```kotlin
+val config = PostHogConfig("phc_your_project_token") {
+    host = PostHogConfig.HOST_EU
+    sessionReplay { maskAllImages = false }
+}
+```
+
+#### Parameters
+
+- `projectToken`: Your PostHog project token, which starts with `phc_`. Find it in your project settings: https://us.posthog.com/settings/project-details#variables.
+- `configure`: Sets the options. See PostHogConfig.Builder for each one and its default.
+
 ### `PostHogContext`
 
 ```kotlin
 fun PostHogContext(): PostHogContext
 ```
 
-Creates a default PostHogContext for non-Android platforms. On Android, you must use PostHogContext(application) instead.
+Creates a default PostHogContext for non-Android platforms. On Android, use `PostHogContext(application)` instead: with this one, PostHog.setup leaves the SDK disabled and logs a warning.
 
 ## Types
 
 ### `CaptureOptions`
 
 ```kotlin
-data class CaptureOptions(val groups: Map<String, String>? = null, val timestamp: Long? = null, val eventOptions: Map<String, Any?>? = null)
+class CaptureOptions
 ```
 
-Options for capturing events.
+Options for capturing one event. Create them with the CaptureOptions function. Each property holds the CaptureOptions.Builder option of the same name.
 
 #### Properties
 
-- `val eventOptions: Map<String, Any?>?`: Settings that tell PostHog how to process this event. See PostHogEventOptions.
-- `val groups: Map<String, String>?`: Groups to associate with this event
-- `val timestamp: Long?`: Custom event time as Unix epoch milliseconds, representing a UTC instant (defaults to now). UTC is preferred when deriving this value from a date and time; resolve any non-UTC offset to the equivalent instant before converting it to epoch milliseconds. Platform bridges preserve this instant when constructing their native date type.
+- `val eventOptions: Map<String, Any?>?`
+- `val groups: Map<String, String>?`
+- `val timestamp: Long?`
 
 ### `ErrorTrackingConfig`
 
 ```kotlin
-data class ErrorTrackingConfig(val autoCapture: Boolean = false, val inAppIncludes: List<String> = emptyList(), val ignoredExceptionTypes: List<KClass<out Throwable>> = emptyList(), val inAppExcludes: List<String> = emptyList(), val inAppByDefault: Boolean = true)
+class ErrorTrackingConfig
 ```
 
-Error tracking configuration options.
+Error tracking options, set with PostHogConfig.Builder.errorTracking. Each property holds the ErrorTrackingConfig.Builder option of the same name.
+
+TODO: Add exceptionSteps when PostHog.addExceptionStep is available in the common API. TODO: Add support for configuring individual Web exception autocapture sources.
 
 #### Properties
 
-- `val autoCapture: Boolean`: Automatically capture unhandled exceptions.
-- `val ignoredExceptionTypes: List<KClass<out Throwable>>`: Supported on Android, JVM, and iOS.
-- `val inAppByDefault: Boolean`: iOS and macOS only.
-- `val inAppExcludes: List<String>`: iOS and macOS only.
-- `val inAppIncludes: List<String>`: Supported on Android, JVM, and iOS.
+- `val autoCapture: Boolean`
+- `val ignoredExceptionTypes: List<KClass<out Throwable>>`
+- `val inAppByDefault: Boolean`
+- `val inAppExcludes: List<String>`
+- `val inAppIncludes: List<String>`
 
 ### `FeatureFlagResult`
 
 ```kotlin
-data class FeatureFlagResult(val key: String, val enabled: Boolean, val variant: String? = null, val payload: Any? = null)
+class FeatureFlagResult
 ```
 
 Result of a feature flag evaluation with detailed information.
@@ -887,46 +921,44 @@ How the SDK compresses request bodies.
 ### `PostHogConfig`
 
 ```kotlin
-data class PostHogConfig(val projectToken: String, val host: String = "https://us.i.posthog.com", val debug: Boolean = false, val captureApplicationLifecycleEvents: Boolean = true, val captureScreenViews: Boolean = false, val captureDeepLinks: Boolean = true, val sendFeatureFlagEvent: Boolean = true, val preloadFeatureFlags: Boolean = true, val flushAt: Int = 20, val flushIntervalSeconds: Int = 30, val maxQueueSize: Int = 1000, val maxBatchSize: Int = 50, val optOut: Boolean = false, val personProfiles: PersonProfiles = PersonProfiles.IDENTIFIED_ONLY, val sessionRecording: SessionRecordingConfig? = null, val autocapture: Boolean = false, val beforeSend: List<PostHogBeforeSend> = emptyList(), val errorTracking: ErrorTrackingConfig? = null, val capturePushNotificationSubscriptions: Boolean = true, val capturePushNotificationOpened: Boolean = true, val surveys: Boolean = true, val evaluationContexts: List<String>? = null, val captureAiCompression: PostHogCompression? = null, val captureAiMaxQueueSize: Int? = null, val captureAiTimeout: Int? = null, val captureAiMaxEventBytes: Int? = null)
+class PostHogConfig
 ```
 
-Configuration options for PostHog SDK initialization.
+Configuration for PostHog.setup. Create it with the PostHogConfig function. Each property holds the PostHogConfig.Builder option of the same name.
 
 #### Properties
 
-- `val apiKey: String`: Deprecated alias for projectToken.
-- `val autocapture: Boolean`: Enable automatic event capture (platform dependent)
-- `val beforeSend: List<PostHogBeforeSend>`: Synchronous callbacks that can modify or drop events before they are queued
-- `val captureAiCompression: PostHogCompression?`: How PostHog.captureAi request bodies are compressed (defaults to null, which uses the native SDK's default, PostHogCompression.GZIP). Other requests aren't affected. Android, JVM, iOS and macOS only.
-- `val captureAiMaxEventBytes: Int?`: Maximum size, in bytes, of a serialized PostHog.captureAi event (defaults to null, which uses the native SDK's default, 8 MiB plus 64 KiB). The SDK drops a larger event, and `captureAi` returns `null`. It can only be lowered: a larger value uses the default and logs a warning. A value of 0 or less uses the default. Android, JVM, iOS and macOS only.
-- `val captureAiMaxQueueSize: Int?`: Maximum number of PostHog.captureAi events kept in their on-disk queue before the oldest are dropped (defaults to null, which uses the native SDK's default, 100). The queue also keeps at most 50 MiB of AI events. A value of 0 or less uses the default. Android, JVM, iOS and macOS only.
-- `val captureAiTimeout: Int?`: How long, in seconds, a PostHog.captureAi request can go without network activity before it times out (defaults to null, which uses the native SDK's default, 60). A value of 0 or less uses the default. Android, JVM, iOS and macOS only.
-- `val captureApplicationLifecycleEvents: Boolean`: Automatically capture app lifecycle events
-- `val captureDeepLinks: Boolean`: Capture deep link opens (Android only)
-- `val capturePushNotificationOpened: Boolean`: Capture push notification opens automatically (Android only, defaults to true).
-- `val capturePushNotificationSubscriptions: Boolean`: Auto-register the FCM token at startup when Firebase Messaging is available (Android only, defaults to true).
-- `val captureScreenViews: Boolean`: Automatically capture screen/page views
-- `val debug: Boolean`: Enable debug logging
-- `val errorTracking: ErrorTrackingConfig?`: Error tracking configuration (platform dependent)
-- `val evaluationContexts: List<String>?`: Evaluation context tags that limit which feature flags are evaluated (defaults to null, which evaluates every flag). When set, PostHog evaluates only the flags that have at least one of these evaluation tags, plus flags with no evaluation tags. Example: `PostHogConfig(projectToken = "phc_...", evaluationContexts = listOf("production", "checkout"))`.
-- `val flushAt: Int`: Number of events to batch before sending
-- `val flushIntervalSeconds: Int`: Interval in seconds between automatic flushes
-- `val host: String`: PostHog instance URL (defaults to US cloud)
-- `val maxBatchSize: Int`: Maximum events per batch
-- `val maxQueueSize: Int`: Maximum number of events to queue
-- `val optOut: Boolean`: Start with analytics opted out
-- `val personProfiles: PersonProfiles`: Person profile mode for feature flag targeting
-- `val preloadFeatureFlags: Boolean`: Preload feature flags on initialization
-- `val projectToken: String`: Your PostHog project token (required), which starts with `phc_`. Find it in your project settings: https://us.posthog.com/settings/project-details#variables. Formerly named `apiKey`. Example: `PostHogConfig(projectToken = "phc_your_project_token")`.
-- `val sendFeatureFlagEvent: Boolean`: Send events when feature flags are evaluated
-- `val sessionRecording: SessionRecordingConfig?`: Enable session recording (platform dependent)
-- `val surveys: Boolean`: Load surveys and show the ones that match (defaults to true). Set to false to keep the SDK from loading or showing surveys. Applies on iOS 15+ and web. On Android, surveys display only when the app also depends on `com.posthog:posthog-android-surveys-compose`. Ignored on macOS and JVM.
+- `val autocapture: Boolean`
+- `val beforeSend: List<PostHogBeforeSend>`
+- `val captureAiCompression: PostHogCompression?`
+- `val captureAiMaxEventBytes: Int?`
+- `val captureAiMaxQueueSize: Int?`
+- `val captureAiTimeout: Int?`
+- `val captureApplicationLifecycleEvents: Boolean`
+- `val captureDeepLinks: Boolean`
+- `val capturePushNotificationOpened: Boolean`
+- `val capturePushNotificationSubscriptions: Boolean`
+- `val captureScreenViews: Boolean`
+- `val debug: Boolean`
+- `val errorTracking: ErrorTrackingConfig?`
+- `val evaluationContexts: List<String>?`
+- `val flushAt: Int`
+- `val flushIntervalSeconds: Int`
+- `val host: String`
+- `val maxBatchSize: Int`
+- `val maxQueueSize: Int`
+- `val optOut: Boolean`
+- `val personProfiles: PersonProfiles`
+- `val preloadFeatureFlags: Boolean`
+- `val projectToken: String`
+- `val sendFeatureFlagEvent: Boolean`
+- `val sessionReplay: SessionReplayConfig?`
+- `val surveys: Boolean`
 
 #### Companion
 
 - `const val HOST_EU: String`: PostHog EU Cloud instance
 - `const val HOST_US: String`: PostHog US Cloud instance
-- `operator fun invoke(apiKey: String, host: String = "https://us.i.posthog.com", debug: Boolean = false, captureApplicationLifecycleEvents: Boolean = true, captureScreenViews: Boolean = false, captureDeepLinks: Boolean = true, sendFeatureFlagEvent: Boolean = true, preloadFeatureFlags: Boolean = true, flushAt: Int = 20, flushIntervalSeconds: Int = 30, maxQueueSize: Int = 1000, maxBatchSize: Int = 50, optOut: Boolean = false, personProfiles: PersonProfiles = PersonProfiles.IDENTIFIED_ONLY, sessionRecording: SessionRecordingConfig? = null, autocapture: Boolean = false, beforeSend: List<PostHogBeforeSend> = emptyList(), errorTracking: ErrorTrackingConfig? = null): PostHogConfig`: Deprecated named-argument form of the PostHogConfig constructor that takes `apiKey`.
 
 ### `PostHogContext`
 
@@ -951,22 +983,18 @@ val context = PostHogContext()
 PostHog.setup(config, context)
 ```
 
-On android:
+### `PostHogDsl`
 
 ```kotlin
-class PostHogContext(val application: Application)
+@DslMarkerannotation class PostHogDsl
 ```
 
-Android-specific PostHog context that wraps the Application.
-
-#### Properties
-
-- `val application: Application`: The Android Application instance
+Marks the PostHog configuration builders, so a nested block can't set an outer block's options by accident.
 
 ### `PostHogEvent`
 
 ```kotlin
-data class PostHogEvent(val event: String, val distinctId: String, val properties: Map<String, Any?>, val options: Map<String, Any?>? = null)
+class PostHogEvent(val event: String, val distinctId: String, val properties: Map<String, Any?>, val options: Map<String, Any?>? = null)
 ```
 
 Event passed to PostHogBeforeSend callbacks before it is queued.
@@ -979,7 +1007,7 @@ On iOS and macOS, a number the native SDK stored, such as a value set with PostH
 
 - `val distinctId: String`
 - `val event: String`
-- `val options: Map<String, Any?>?`: Settings that tell PostHog how to process the event, keyed by option key (see PostHogEventOptions), including the ones the SDK set, such as PostHogEventOptions.PROCESS\_PERSON\_PROFILE `false` for an anonymous user's event with the default PostHogConfig.personProfiles. Removing a key, or setting it to `null`, removes the option. A callback that returns an event with `options = null`, such as one it constructs instead of copying, keeps the options of the event it was given. On JavaScript and Wasm, posthog-js has no options, so this is always `null` there and changing it has no effect.
+- `val options: Map<String, Any?>?`: Settings that tell PostHog how to process the event, keyed by option key (see PostHogEventOptions), including the ones the SDK set, such as PostHogEventOptions.PROCESS\_PERSON\_PROFILE `false` for an anonymous user's event with the default PostHogConfig.personProfiles. Removing a key, or setting it to `null`, removes the option. A callback that returns an event with `options = null` keeps the options of the event it was given. On JavaScript and Wasm, posthog-js has no options, so this is always `null` there and changing it has no effect.
 - `val properties: Map<String, Any?>`
 
 ### `PostHogEventOptions`
@@ -988,7 +1016,7 @@ On iOS and macOS, a number the native SDK stored, such as a value set with PostH
 object PostHogEventOptions
 ```
 
-Keys for event options: settings that tell PostHog how to process an event, sent apart from its properties. Pass them in a map, such as `CaptureOptions(eventOptions = mapOf(PostHogEventOptions.PROCESS_PERSON_PROFILE to false))`.
+Keys for event options: settings that tell PostHog how to process an event, sent apart from its properties. Pass them in a map, such as `CaptureOptions { eventOptions = mapOf(PostHogEventOptions.PROCESS_PERSON_PROFILE to false) }`.
 
 Options are sent as given, so a key not listed here, such as one a newer PostHog version reads, also works. A `null` value is left unset, so PostHog and the SDK use their defaults.
 
@@ -1054,24 +1082,22 @@ subscription.unsubscribe()
 
 - `fun unsubscribe()`: Stops the callback from being invoked. Calling it more than once has no effect.
 
-### `SessionRecordingConfig`
+### `SessionReplayConfig`
 
 ```kotlin
-data class SessionRecordingConfig(val enabled: Boolean = true, val maskAllTextInputs: Boolean = true, val maskAllImages: Boolean = true, val captureNetworkTelemetry: Boolean = true, val captureLogs: Boolean = false, val captureLogcat: Boolean = true, val throttleDelayMs: Long = 1000, val verifyScreenshotMaskAlignment: Boolean = false, val iosCaptureMethod: IosCaptureMethod = IosCaptureMethod.STANDARD)
+class SessionReplayConfig
 ```
 
-Session recording configuration options.
-
-Defaults match the native Android and iOS SDK defaults so wrapping adds no drift.
+Session replay options, set with PostHogConfig.Builder.sessionReplay. Each property holds the SessionReplayConfig.Builder option of the same name. Defaults match the native Android and iOS SDKs.
 
 #### Properties
 
-- `val captureLogcat: Boolean`: Capture Android logcat output (Android only)
-- `val captureLogs: Boolean`: Capture console logs (iOS/Web)
-- `val captureNetworkTelemetry: Boolean`: Include network requests in recording
-- `val enabled: Boolean`: Enable session recording
-- `val iosCaptureMethod: IosCaptureMethod`: How iOS captures each replay screenshot (iOS only). Defaults to IosCaptureMethod.STANDARD; set the experimental IosCaptureMethod.GPU for less main-thread time on screens without Compose Multiplatform, web views or Metal content. Ignored on other platforms.
-- `val maskAllImages: Boolean`: Mask all images
-- `val maskAllTextInputs: Boolean`: Mask all text input values
-- `val throttleDelayMs: Long`: Minimum delay in milliseconds between replay snapshots (Android and iOS)
-- `val verifyScreenshotMaskAlignment: Boolean`: Experimental screenshot mask-alignment verification (Android only). Can preserve captures during pixel-only redraws, but adds view-hierarchy walks during capture. Defaults to false and is ignored on other platforms. Windows with a Compose root always use verification regardless of this flag.
+- `val captureLogcat: Boolean`
+- `val captureLogs: Boolean`
+- `val captureNetworkTelemetry: Boolean`
+- `val enabled: Boolean`
+- `val iosCaptureMethod: IosCaptureMethod`
+- `val maskAllImages: Boolean`
+- `val maskAllTextInputs: Boolean`
+- `val throttleDelayMs: Long`
+- `val verifyScreenshotMaskAlignment: Boolean`
