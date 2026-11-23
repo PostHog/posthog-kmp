@@ -11,6 +11,15 @@ import java.io.File
  * [PostHogConfig.captureDeepLinks], [PostHogConfig.sessionRecording] and
  * [PostHogConfig.autocapture].
  */
+/**
+ * The disk queues namespace by API key themselves; the preferences file doesn't.
+ * Without [com.posthog.PostHogConfig.aiStoragePrefix] the core drops every AI event.
+ */
+internal fun com.posthog.PostHogConfig.configureQueueStorage(storageDir: File) {
+    storagePrefix = File(storageDir, "queue").absolutePath
+    aiStoragePrefix = File(storageDir, "ai-queue").absolutePath
+}
+
 @Suppress("UNUSED_PARAMETER")
 internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext) {
     val coreConfig = com.posthog.PostHogConfig(config.projectToken, config.host).apply {
@@ -27,18 +36,19 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         maxBatchSize = config.maxBatchSize
 
         optOut = config.optOut
+        evaluationContexts = config.evaluationContexts
 
         personProfiles = config.personProfiles.toCorePersonProfiles()
         configureErrorTracking(config.errorTracking)
+        configureCaptureAi(config)
         configureBeforeSend(config)
     }
 
     val home = System.getProperty("user.home")?.takeIf { it.isNotBlank() }
     val storageDir = File(home ?: System.getProperty("java.io.tmpdir") ?: ".", ".posthog-kmp")
-    // the disk queue namespaces by API key itself; the preferences file doesn't
-    coreConfig.storagePrefix = File(storageDir, "queue").absolutePath
+    coreConfig.configureQueueStorage(storageDir)
     coreConfig.cachePreferences = PostHogFilePreferences(
-        File(storageDir, "posthog-prefs-${coreConfig.apiKey}.json"),
+        File(storageDir, "posthog-prefs-${coreConfig.projectToken}.json"),
         coreConfig
     )
     coreConfig.context = PostHogJvmContext(coreConfig)

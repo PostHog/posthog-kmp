@@ -30,9 +30,11 @@ internal fun PostHogConfig.toAndroidConfig(): PostHogAndroidConfig {
         maxBatchSize = config.maxBatchSize
 
         optOut = config.optOut
+        evaluationContexts = config.evaluationContexts
 
         personProfiles = config.personProfiles.toCorePersonProfiles()
         configureErrorTracking(config.errorTracking)
+        configureCaptureAi(config)
         configureBeforeSend(config)
 
         config.sessionRecording?.let { sessionConfig ->
@@ -41,8 +43,7 @@ internal fun PostHogConfig.toAndroidConfig(): PostHogAndroidConfig {
                 maskAllTextInputs = sessionConfig.maskAllTextInputs,
                 maskAllImages = sessionConfig.maskAllImages,
                 captureLogcat = sessionConfig.captureLogcat,
-                screenshot = sessionConfig.screenshot,
-                debouncerDelayMs = sessionConfig.debouncerDelayMs
+                throttleDelayMs = sessionConfig.throttleDelayMs
             ).apply {
                 verifyScreenshotMaskAlignment = sessionConfig.verifyScreenshotMaskAlignment
             }
