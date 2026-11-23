@@ -6,6 +6,15 @@ posthog-kmp@0.11.0:
   dir: ""
   intents:
     - quiet-surveys-switch
+posthog-kmp@0.12.0:
+  dir: ""
+  intents:
+    - adopt-native-4-0
+    - drop-replay-screenshot-option
+    - feature-flags-native-parity
+    - ios-replay-capture-method
+    - replay-throttle-delay
+    - v1-event-options
 posthog-kmp@0.2.0:
   dir: ""
   intents:
