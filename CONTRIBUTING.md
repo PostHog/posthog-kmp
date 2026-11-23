@@ -64,6 +64,7 @@ The module uses Kotlin's explicit API mode, so any declaration you mark `public`
 The public ABI of every target is checked into `posthog-kmp/api/`, and `./gradlew check` fails when it changes. After an intended API change, run `./gradlew :posthog-kmp:updateKotlinAbi` and commit the updated dump, so reviewers see the change. Within a major version, the dump should only gain lines.
 
 - **New config options:** add a `var` with a default value and KDoc to the matching builder (`PostHogConfig.Builder`, `SessionReplayConfig.Builder`, `ErrorTrackingConfig.Builder`, or `CaptureOptions.Builder`), and a `val` with the same name to the built class. Don't add constructor or function parameters for options, and don't make these classes `data` classes: either changes compiled signatures.
+- **New `PostHogEvent` or `FeatureFlagResult` fields:** add a `val`, set it through a new internal constructor, and for `PostHogEvent` add a `var` to `PostHogEvent.Builder`. Keep `PostHogEvent`'s public constructor unchanged: users call it in tests.
 - **New parameters on `PostHog` methods:** adding a parameter, even with a default, breaks code compiled against the old signature. Add an overload instead, and keep the old signature as a `@Deprecated(level = DeprecationLevel.HIDDEN)` function that calls the new one.
 
 ## Docs

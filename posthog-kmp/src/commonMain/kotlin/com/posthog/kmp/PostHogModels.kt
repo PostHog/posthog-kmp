@@ -1,4 +1,8 @@
+@file:JvmName("PostHogModels")
+
 package com.posthog.kmp
+
+import kotlin.jvm.JvmName
 
 /**
  * Creates options for one [PostHog.capture] or [PostHog.captureAi] call.
@@ -15,9 +19,9 @@ public fun CaptureOptions(configure: CaptureOptions.Builder.() -> Unit): Capture
  * [CaptureOptions.Builder] option of the same name.
  */
 public class CaptureOptions private constructor(builder: Builder) {
-    public val groups: Map<String, String>? = builder.groups
+    public val groups: Map<String, String>? = builder.groups?.toMap()
     public val timestamp: Long? = builder.timestamp
-    public val eventOptions: Map<String, Any?>? = builder.eventOptions
+    public val eventOptions: Map<String, Any?>? = builder.eventOptions?.toMap()
 
     /** Sets the options of a [CaptureOptions]. */
     @PostHogDsl

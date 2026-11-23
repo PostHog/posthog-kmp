@@ -11,9 +11,10 @@ public class PostHogConfigJavaTest {
 
     @Test
     public void javaBuildsConfigsThroughTheBuilders() {
-        PostHogConfig config = PostHogConfigKt.PostHogConfig("phc_test", builder -> {
+        PostHogConfig config = PostHogConfigs.PostHogConfig("phc_test", builder -> {
             builder.setHost(PostHogConfig.HOST_EU);
             builder.setDebug(true);
+            builder.errorTracking();
             builder.sessionReplay(replay -> {
                 replay.setMaskAllImages(false);
                 return Unit.INSTANCE;
@@ -24,8 +25,9 @@ public class PostHogConfigJavaTest {
         assertEquals(PostHogConfig.HOST_EU, config.getHost());
         assertTrue(config.getDebug());
         assertFalse(config.getSessionReplay().getMaskAllImages());
+        assertFalse(config.getErrorTracking().getAutoCapture());
 
-        CaptureOptions options = PostHogModelsKt.CaptureOptions(builder -> {
+        CaptureOptions options = PostHogModels.CaptureOptions(builder -> {
             builder.setTimestamp(42L);
             return Unit.INSTANCE;
         });

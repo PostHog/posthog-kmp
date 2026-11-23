@@ -68,11 +68,11 @@ class PostHogWasmJsTest {
             PostHogConfig("phc_test") {
                 beforeSend = listOf(
                     PostHogBeforeSend {
-                        it.copy(
-                            event = "sanitized",
-                            distinctId = "anonymous",
+                        it.copy {
+                            this.event = "sanitized"
+                            distinctId = "anonymous"
                             properties = it.properties - "email"
-                        )
+                        }
                     }
                 )
             },
@@ -99,7 +99,7 @@ class PostHogWasmJsTest {
         PostHog.setup(
             PostHogConfig("phc_test") {
                 beforeSend = listOf(
-                    PostHogBeforeSend { it.copy(event = "transformed") },
+                    PostHogBeforeSend { it.copy { this.event = "transformed" } },
                     PostHogBeforeSend { throw IllegalStateException("failed") },
                     PostHogBeforeSend {
                         sentinelCalled = true

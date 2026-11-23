@@ -10,7 +10,8 @@
 - [ ] Set `captureScreenViews = false` if you don't want automatic screen and page views (see [Screen views](#screen-views)).
 - [ ] Replace `apiKey` with `projectToken` when you read the token from a `PostHogConfig`.
 - [ ] Rename the `additionalProperties` argument of `captureException()` to `properties`.
-- [ ] Replace `copy()` calls and destructuring on `PostHogConfig`, `SessionReplayConfig`, `ErrorTrackingConfig`, `CaptureOptions` and `FeatureFlagResult`.
+- [ ] In `beforeSend` callbacks, change `event.copy(properties = …)` to `event.copy { properties = … }` (see [beforeSend events](#beforesend-events)).
+- [ ] Replace `copy()` calls and destructuring on `PostHogConfig`, `SessionReplayConfig`, `ErrorTrackingConfig`, `CaptureOptions` and `FeatureFlagResult`, and stop constructing `FeatureFlagResult`.
 - [ ] On Android, make sure you pass `PostHogContext(application)` to `PostHog.setup()`, and stop reading `PostHogContext.application` (see [PostHogContext on Android](#posthogcontext-on-android)).
 - [ ] Recompile any library built against posthog-kmp 0.12 or earlier.
 
@@ -40,9 +41,24 @@ PostHog.capture("checkout", options = CaptureOptions { groups = mapOf("company" 
 - **Option names** are the same, except that `sessionRecording` is now `sessionReplay`, as in posthog-android and posthog-ios. Session replay stays off unless you call `sessionReplay { }`. `SessionRecordingConfig` is now `SessionReplayConfig`, and you no longer create it or `ErrorTrackingConfig` yourself.
 - **Reading options:** a built `PostHogConfig` has the same read-only properties as before, such as `config.debug` and `config.sessionReplay`.
 - **No `copy()` or value equality:** the config classes, `CaptureOptions` and `FeatureFlagResult` no longer have `copy()`, `component1()` and the rest. The config classes and `CaptureOptions` also no longer compare by value; `FeatureFlagResult` still does. Where you called `copy()`, build a new config, for example from a function that takes the options that differ.
-- **Java** calls the same functions, `PostHogConfigKt.PostHogConfig(token, builder -> { builder.setDebug(true); return Unit.INSTANCE; })` and `PostHogModelsKt.CaptureOptions(...)`, and sets options with the builder's setters.
+- **`FeatureFlagResult`** has an internal constructor, because the SDK creates it. Code that built one, such as a test fake, no longer compiles.
+- **Java** calls the same functions, `PostHogConfigs.PostHogConfig(token, builder -> { builder.setDebug(true); return Unit.INSTANCE; })` and `PostHogModels.CaptureOptions(...)`, and sets options with the builder's setters. `builder.sessionReplay()` and `builder.errorTracking()` with no arguments use the defaults.
 
-New options in later 1.x releases are added as builder properties. That doesn't change any existing function or constructor, so code and libraries compiled against 1.0 keep working. CI checks the public ABI of every target to keep it that way.
+New options in later 1.x releases are added as builder properties, and new `PostHogEvent` fields as properties too. That doesn't change any existing function or constructor, so code and libraries compiled against 1.0 keep working. CI checks the public ABI of every target to keep it that way.
+
+### beforeSend events
+
+`PostHogEvent` is a regular class, so that later releases can add fields to it without breaking `beforeSend` callbacks. Its constructor is unchanged, but `copy()` takes a block, and destructuring is gone:
+
+```kotlin
+// 0.12
+PostHogBeforeSend { event -> event.copy(properties = event.properties - "email") }
+
+// 1.0
+PostHogBeforeSend { event -> event.copy { properties = event.properties - "email" } }
+```
+
+If your lambda parameter is named `event`, set the event name with `this.event = "renamed"`, because `event = …` would refer to the parameter. Events still compare by value.
 
 ### captureException
 

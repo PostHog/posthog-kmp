@@ -114,7 +114,7 @@ class PostHogAppleTest {
                 beforeSend = listOf(
                     PostHogBeforeSend { event ->
                         when (event.event) {
-                            "cleared" -> event.copy(options = emptyMap())
+                            "cleared" -> event.copy { options = emptyMap() }
                             "built" -> PostHogEvent(event.event, event.distinctId, event.properties)
                             else -> event
                         }

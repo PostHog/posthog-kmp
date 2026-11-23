@@ -73,9 +73,9 @@ class PostHogConfigTest {
     fun beforeSendCallbacksRunInOrder() {
         val config = PostHogConfig("phc_test") {
             beforeSend = listOf(
-                PostHogBeforeSend { it.copy(properties = it.properties + ("first" to true)) },
+                PostHogBeforeSend { it.copy { properties = it.properties + ("first" to true) } },
                 PostHogBeforeSend {
-                    it.copy(properties = it.properties + ("saw_first" to it.properties.containsKey("first")))
+                    it.copy { properties = it.properties + ("saw_first" to it.properties.containsKey("first")) }
                 }
             )
         }
@@ -89,7 +89,7 @@ class PostHogConfigTest {
     fun beforeSendKeepsOptionsSetByEarlierCallback() {
         val config = PostHogConfig("phc_test") {
             beforeSend = listOf(
-                PostHogBeforeSend { it.copy(options = mapOf("process_person_profile" to false)) },
+                PostHogBeforeSend { it.copy { options = mapOf("process_person_profile" to false) } },
                 PostHogBeforeSend { PostHogEvent(it.event, it.distinctId, it.properties) }
             )
         }
@@ -118,7 +118,7 @@ class PostHogConfigTest {
         val failure = IllegalStateException("failed")
         val config = PostHogConfig("phc_test") {
             beforeSend = listOf(
-                PostHogBeforeSend { it.copy(event = "transformed") },
+                PostHogBeforeSend { it.copy { this.event = "transformed" } },
                 PostHogBeforeSend { throw failure },
                 PostHogBeforeSend {
                     sentinelCalled = true

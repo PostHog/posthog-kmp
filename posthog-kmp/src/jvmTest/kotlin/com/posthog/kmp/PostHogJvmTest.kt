@@ -444,11 +444,11 @@ class PostHogJvmTest {
         val wrapperConfig = PostHogConfig("key") {
             beforeSend = listOf(
                 PostHogBeforeSend {
-                    it.copy(
-                        event = "sanitized",
-                        distinctId = "anonymous",
+                    it.copy {
+                        this.event = "sanitized"
+                        distinctId = "anonymous"
                         properties = it.properties - "email"
-                    )
+                    }
                 }
             )
         }
@@ -604,7 +604,7 @@ class PostHogJvmTest {
                 beforeSend = listOf(
                     PostHogBeforeSend {
                         seen = it.options
-                        it.copy(options = it.options.orEmpty() + mapOf("process_person_profile" to true, "product_tour_id" to null))
+                        it.copy { options = it.options.orEmpty() + mapOf("process_person_profile" to true, "product_tour_id" to null) }
                     }
                 )
             }
@@ -641,7 +641,7 @@ class PostHogJvmTest {
     fun testBeforeSendThatReturnsEmptyOptionsClearsNativeOptions() {
         val nativeConfig = com.posthog.PostHogConfig("key")
         nativeConfig.configureBeforeSend(
-            PostHogConfig("key") { beforeSend = listOf(PostHogBeforeSend { it.copy(options = emptyMap()) }) }
+            PostHogConfig("key") { beforeSend = listOf(PostHogBeforeSend { it.copy { options = emptyMap() } }) }
         )
         val event = com.posthog.PostHogEvent("event", "user", mutableMapOf()).apply {
             options = mutableMapOf("process_person_profile" to false, "future" to 1)
@@ -656,7 +656,7 @@ class PostHogJvmTest {
     fun testBeforeSendThatKeepsOptionsLeavesNativeOptionsAsTheyWere() {
         val nativeConfig = com.posthog.PostHogConfig("key")
         nativeConfig.configureBeforeSend(
-            PostHogConfig("key") { beforeSend = listOf(PostHogBeforeSend { it.copy(event = "renamed") }) }
+            PostHogConfig("key") { beforeSend = listOf(PostHogBeforeSend { it.copy { this.event = "renamed" } }) }
         )
         val event = com.posthog.PostHogEvent("event", "user", mutableMapOf()).apply {
             options = mutableMapOf("process_person_profile" to "unreadable", "future" to 1)

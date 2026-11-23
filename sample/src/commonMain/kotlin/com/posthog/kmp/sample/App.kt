@@ -103,10 +103,10 @@ fun App(postHogContext: PostHogContext) {
                                             if (event.event == "before_send_drop_test") {
                                                 null
                                             } else {
-                                                event.copy(
+                                                event.copy {
                                                     properties = event.properties - "sensitive" +
-                                                        ("before_send_applied" to true)
-                                                )
+                                                    ("before_send_applied" to true)
+                                                }
                                             }
                                         }
                                     )

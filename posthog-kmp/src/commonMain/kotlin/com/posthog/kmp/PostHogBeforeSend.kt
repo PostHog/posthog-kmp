@@ -14,16 +14,48 @@ package com.posthog.kmp
  *   [PostHogEventOptions]), including the ones the SDK set, such as
  *   [PostHogEventOptions.PROCESS_PERSON_PROFILE] `false` for an anonymous user's event with the
  *   default [PostHogConfig.personProfiles]. Removing a key, or setting it to `null`, removes the
- *   option. A callback that returns an event with `options = null`, such as one it constructs
- *   instead of copying, keeps the options of the event it was given. On JavaScript and Wasm,
- *   posthog-js has no options, so this is always `null` there and changing it has no effect.
+ *   option. A callback that returns an event with `options = null` keeps the options of the event
+ *   it was given. On JavaScript and Wasm, posthog-js has no options, so this is always `null` there
+ *   and changing it has no effect.
  */
-public data class PostHogEvent(
-    val event: String,
-    val distinctId: String,
-    val properties: Map<String, Any?>,
-    val options: Map<String, Any?>? = null
-)
+public class PostHogEvent(
+    public val event: String,
+    public val distinctId: String,
+    public val properties: Map<String, Any?>,
+    public val options: Map<String, Any?>? = null
+) {
+    /**
+     * Returns a copy of this event with the changes [configure] makes, for example
+     * `event.copy { properties = properties - "email" }`.
+     */
+    public fun copy(configure: Builder.() -> Unit): PostHogEvent = Builder(this).apply(configure).build()
+
+    /** Changes a copy of a [PostHogEvent]. Each property starts with the original event's value. */
+    @PostHogDsl
+    public class Builder internal constructor(source: PostHogEvent) {
+        public var event: String = source.event
+        public var distinctId: String = source.distinctId
+        public var properties: Map<String, Any?> = source.properties
+        public var options: Map<String, Any?>? = source.options
+
+        internal fun build(): PostHogEvent = PostHogEvent(event, distinctId, properties, options)
+    }
+
+    override fun equals(other: Any?): Boolean =
+        other is PostHogEvent && event == other.event && distinctId == other.distinctId &&
+            properties == other.properties && options == other.options
+
+    override fun hashCode(): Int {
+        var result = event.hashCode()
+        result = 31 * result + distinctId.hashCode()
+        result = 31 * result + properties.hashCode()
+        result = 31 * result + (options?.hashCode() ?: 0)
+        return result
+    }
+
+    override fun toString(): String =
+        "PostHogEvent(event=$event, distinctId=$distinctId, properties=$properties, options=$options)"
+}
 
 /**
  * Synchronous hook invoked before an event is queued.
@@ -49,7 +81,7 @@ internal fun PostHogConfig.runBeforeSend(
             return null
         }
         // An event the callback built without options keeps the ones it was given
-        current = if (processed.options == null) processed.copy(options = current.options) else processed
+        current = if (processed.options == null) processed.copy { options = current.options } else processed
     }
     return current
 }

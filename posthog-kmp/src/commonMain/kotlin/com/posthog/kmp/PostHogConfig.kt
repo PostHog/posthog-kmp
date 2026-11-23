@@ -1,5 +1,9 @@
+@file:JvmName("PostHogConfigs")
+
 package com.posthog.kmp
 
+import kotlin.jvm.JvmName
+import kotlin.jvm.JvmOverloads
 import kotlin.reflect.KClass
 
 /** Marks the PostHog configuration builders, so a nested block can't set an outer block's options by accident. */
@@ -44,12 +48,12 @@ public class PostHogConfig private constructor(builder: Builder) {
     public val personProfiles: PersonProfiles = builder.personProfiles
     public val sessionReplay: SessionReplayConfig? = builder.sessionReplayConfig
     public val autocapture: Boolean = builder.autocapture
-    public val beforeSend: List<PostHogBeforeSend> = builder.beforeSend
+    public val beforeSend: List<PostHogBeforeSend> = builder.beforeSend.toList()
     public val errorTracking: ErrorTrackingConfig? = builder.errorTrackingConfig
     public val capturePushNotificationSubscriptions: Boolean = builder.capturePushNotificationSubscriptions
     public val capturePushNotificationOpened: Boolean = builder.capturePushNotificationOpened
     public val surveys: Boolean = builder.surveys
-    public val evaluationContexts: List<String>? = builder.evaluationContexts
+    public val evaluationContexts: List<String>? = builder.evaluationContexts?.toList()
     public val captureAiCompression: PostHogCompression? = builder.captureAiCompression
     public val captureAiMaxQueueSize: Int? = builder.captureAiMaxQueueSize
     public val captureAiTimeout: Int? = builder.captureAiTimeout
@@ -163,11 +167,13 @@ public class PostHogConfig private constructor(builder: Builder) {
         internal var errorTrackingConfig: ErrorTrackingConfig? = null
 
         /** Turns on session replay (Android and iOS) with the given options. Off unless you call this. */
+        @JvmOverloads
         public fun sessionReplay(configure: SessionReplayConfig.Builder.() -> Unit = {}) {
             sessionReplayConfig = SessionReplayConfig(configure)
         }
 
         /** Configures error tracking with the given options. */
+        @JvmOverloads
         public fun errorTracking(configure: ErrorTrackingConfig.Builder.() -> Unit = {}) {
             errorTrackingConfig = ErrorTrackingConfig(configure)
         }
@@ -237,9 +243,9 @@ internal fun ErrorTrackingConfig(configure: ErrorTrackingConfig.Builder.() -> Un
  */
 public class ErrorTrackingConfig private constructor(builder: Builder) {
     public val autoCapture: Boolean = builder.autoCapture
-    public val inAppIncludes: List<String> = builder.inAppIncludes
-    public val ignoredExceptionTypes: List<KClass<out Throwable>> = builder.ignoredExceptionTypes
-    public val inAppExcludes: List<String> = builder.inAppExcludes
+    public val inAppIncludes: List<String> = builder.inAppIncludes.toList()
+    public val ignoredExceptionTypes: List<KClass<out Throwable>> = builder.ignoredExceptionTypes.toList()
+    public val inAppExcludes: List<String> = builder.inAppExcludes.toList()
     public val inAppByDefault: Boolean = builder.inAppByDefault
 
     /** Sets the options of an [ErrorTrackingConfig]. */

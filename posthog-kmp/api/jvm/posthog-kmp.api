@@ -161,6 +161,7 @@ public final class com/posthog/kmp/PostHogConfig {
 }
 
 public final class com/posthog/kmp/PostHogConfig$Builder {
+	public final fun errorTracking ()V
 	public final fun errorTracking (Lkotlin/jvm/functions/Function1;)V
 	public static synthetic fun errorTracking$default (Lcom/posthog/kmp/PostHogConfig$Builder;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 	public final fun getAutocapture ()Z
@@ -186,6 +187,7 @@ public final class com/posthog/kmp/PostHogConfig$Builder {
 	public final fun getPreloadFeatureFlags ()Z
 	public final fun getSendFeatureFlagEvent ()Z
 	public final fun getSurveys ()Z
+	public final fun sessionReplay ()V
 	public final fun sessionReplay (Lkotlin/jvm/functions/Function1;)V
 	public static synthetic fun sessionReplay$default (Lcom/posthog/kmp/PostHogConfig$Builder;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 	public final fun setAutocapture (Z)V
@@ -216,7 +218,7 @@ public final class com/posthog/kmp/PostHogConfig$Builder {
 public final class com/posthog/kmp/PostHogConfig$Companion {
 }
 
-public final class com/posthog/kmp/PostHogConfigKt {
+public final class com/posthog/kmp/PostHogConfigs {
 	public static final fun PostHogConfig (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lcom/posthog/kmp/PostHogConfig;
 	public static synthetic fun PostHogConfig$default (Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lcom/posthog/kmp/PostHogConfig;
 }
@@ -234,12 +236,7 @@ public abstract interface annotation class com/posthog/kmp/PostHogDsl : java/lan
 public final class com/posthog/kmp/PostHogEvent {
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/util/Map;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Ljava/lang/String;
-	public final fun component3 ()Ljava/util/Map;
-	public final fun component4 ()Ljava/util/Map;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/util/Map;)Lcom/posthog/kmp/PostHogEvent;
-	public static synthetic fun copy$default (Lcom/posthog/kmp/PostHogEvent;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Ljava/util/Map;ILjava/lang/Object;)Lcom/posthog/kmp/PostHogEvent;
+	public final fun copy (Lkotlin/jvm/functions/Function1;)Lcom/posthog/kmp/PostHogEvent;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getDistinctId ()Ljava/lang/String;
 	public final fun getEvent ()Ljava/lang/String;
@@ -247,6 +244,17 @@ public final class com/posthog/kmp/PostHogEvent {
 	public final fun getProperties ()Ljava/util/Map;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/posthog/kmp/PostHogEvent$Builder {
+	public final fun getDistinctId ()Ljava/lang/String;
+	public final fun getEvent ()Ljava/lang/String;
+	public final fun getOptions ()Ljava/util/Map;
+	public final fun getProperties ()Ljava/util/Map;
+	public final fun setDistinctId (Ljava/lang/String;)V
+	public final fun setEvent (Ljava/lang/String;)V
+	public final fun setOptions (Ljava/util/Map;)V
+	public final fun setProperties (Ljava/util/Map;)V
 }
 
 public final class com/posthog/kmp/PostHogEventOptions {
@@ -268,7 +276,7 @@ public final class com/posthog/kmp/PostHogFeatureFlagsSubscription {
 	public final fun unsubscribe ()V
 }
 
-public final class com/posthog/kmp/PostHogModelsKt {
+public final class com/posthog/kmp/PostHogModels {
 	public static final fun CaptureOptions (Lkotlin/jvm/functions/Function1;)Lcom/posthog/kmp/CaptureOptions;
 }
 
