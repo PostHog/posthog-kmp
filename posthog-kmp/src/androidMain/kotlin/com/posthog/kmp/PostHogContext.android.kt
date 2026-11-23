@@ -4,19 +4,22 @@ import android.app.Application
 
 /**
  * Android-specific PostHog context that wraps the Application.
- *
- * @property application The Android Application instance
  */
-public actual class PostHogContext(
-    public val application: Application
-)
+public actual class PostHogContext {
+    internal val application: Application?
+
+    /** Creates a context for [application], which PostHog needs on Android. */
+    public constructor(application: Application) {
+        this.application = application
+    }
+
+    internal constructor(@Suppress("UNUSED_PARAMETER") noApplication: Unit) {
+        application = null
+    }
+}
 
 /**
- * Creates a PostHogContext. On Android, this throws an error since
- * Application context is required. Use PostHogContext(application) instead.
+ * Creates a context without an Application. On Android, [PostHog.setup] leaves the SDK disabled
+ * and logs a warning with it, so use `PostHogContext(application)` instead.
  */
-public actual fun PostHogContext(): PostHogContext {
-    throw IllegalStateException(
-        "Android requires Application context. Use PostHogContext(application) instead."
-    )
-}
+public actual fun PostHogContext(): PostHogContext = PostHogContext(Unit)

@@ -153,7 +153,7 @@ class PostHogJsTest {
         PostHog.capture(
             "test_event",
             mapOf("prop" to "value"),
-            CaptureOptions(groups = mapOf("company" to "acme"))
+            CaptureOptions { groups = mapOf("company" to "acme") }
         )
         val call = getCall("capture")
         assertEquals("value", call[1]["prop"] as String)
@@ -164,7 +164,7 @@ class PostHogJsTest {
     fun testCapturePreservesTimestampAsUtcInstant() {
         PostHog.capture(
             "test_event",
-            options = CaptureOptions(timestamp = 1_704_164_645_678)
+            options = CaptureOptions { timestamp = 1_704_164_645_678 }
         )
 
         val timestamp = getCall("capture")[2]["timestamp"]
@@ -321,7 +321,7 @@ class PostHogJsTest {
         val subscription = PostHog.onFeatureFlags { results.add(it) }
         assertNull(handler)
 
-        PostHog.setup(PostHogConfig(projectToken = "key"), PostHogContext())
+        PostHog.setup(PostHogConfig("key"), PostHogContext())
         assertNotNull(handler)(js("['beta']"), js("({ beta: true })"), undefined)
         assertEquals(listOf("beta"), results.single().flags)
         assertFalse(results.single().errorsLoading)
@@ -407,7 +407,7 @@ class PostHogJsTest {
 
     @Test
     fun testSendFeatureFlagEventFallsBackToConfig() {
-        currentConfig = PostHogConfig(projectToken = "key", sendFeatureFlagEvent = false)
+        currentConfig = PostHogConfig("key") { sendFeatureFlagEvent = false }
 
         PostHog.getFeatureFlag("test_flag")
         val call = getCall("getFeatureFlag")
@@ -423,7 +423,7 @@ class PostHogJsTest {
         fakeJs.init = { apiKey: String, options: dynamic ->
             calledMethods.add("init" to arrayOf<dynamic>(apiKey, options))
         }
-        PostHog.setup(PostHogConfig(projectToken = "key", preloadFeatureFlags = false), PostHogContext())
+        PostHog.setup(PostHogConfig("key") { preloadFeatureFlags = false }, PostHogContext())
 
         val call = getCall("init")
         assertEquals("key", call[0] as String)
@@ -439,7 +439,7 @@ class PostHogJsTest {
         fakeJs.init = { apiKey: String, options: dynamic ->
             calledMethods.add("init" to arrayOf<dynamic>(apiKey, options))
         }
-        PostHog.setup(PostHogConfig(projectToken = "key", evaluationContexts = listOf("web", "checkout")), PostHogContext())
+        PostHog.setup(PostHogConfig("key") { evaluationContexts = listOf("web", "checkout") }, PostHogContext())
 
         val contexts = getCall("init")[1]["evaluation_contexts"]
         assertEquals(listOf("web", "checkout"), (contexts as Array<String>).toList())
@@ -450,7 +450,7 @@ class PostHogJsTest {
         fakeJs.init = { apiKey: String, options: dynamic ->
             calledMethods.add("init" to arrayOf<dynamic>(apiKey, options))
         }
-        PostHog.setup(PostHogConfig(projectToken = "key", surveys = false), PostHogContext())
+        PostHog.setup(PostHogConfig("key") { surveys = false }, PostHogContext())
 
         assertEquals(true, getCall("init")[1]["disable_surveys"] as Boolean)
     }
@@ -461,7 +461,7 @@ class PostHogJsTest {
             calledMethods.add("init" to arrayOf<dynamic>(apiKey, options))
         }
         PostHog.setup(
-            PostHogConfig(projectToken = "key", errorTracking = ErrorTrackingConfig(autoCapture = true)),
+            PostHogConfig("key") { errorTracking { autoCapture = true } },
             PostHogContext()
         )
 
@@ -474,18 +474,17 @@ class PostHogJsTest {
             calledMethods.add("init" to arrayOf<dynamic>(apiKey, options))
         }
         PostHog.setup(
-            PostHogConfig(
-                projectToken = "key",
+            PostHogConfig("key") {
                 beforeSend = listOf(
                     PostHogBeforeSend {
-                        it.copy(
-                            event = "sanitized",
-                            distinctId = "anonymous",
+                        it.copy {
+                            this.event = "sanitized"
+                            distinctId = "anonymous"
                             properties = it.properties - "email"
-                        )
+                        }
                     }
                 )
-            ),
+            },
             PostHogContext()
         )
         val callback = getCall("init")[1]["before_send"]
@@ -515,17 +514,16 @@ class PostHogJsTest {
             calledMethods.add("init" to arrayOf<dynamic>(options))
         }
         PostHog.setup(
-            PostHogConfig(
-                projectToken = "key",
+            PostHogConfig("key") {
                 beforeSend = listOf(
-                    PostHogBeforeSend { it.copy(event = "transformed") },
+                    PostHogBeforeSend { it.copy { this.event = "transformed" } },
                     PostHogBeforeSend { throw IllegalStateException("failed") },
                     PostHogBeforeSend {
                         sentinelCalled = true
                         it
                     }
                 )
-            ),
+            },
             PostHogContext()
         )
         val callback = getCall("init")[0]["before_send"]
@@ -543,10 +541,12 @@ class PostHogJsTest {
             calledMethods.add("init" to arrayOf<dynamic>(options))
         }
         PostHog.setup(
-            PostHogConfig(projectToken = "key", beforeSend = listOf(PostHogBeforeSend {
-                callbackCalled = true
-                it
-            })),
+            PostHogConfig("key") {
+                beforeSend = listOf(PostHogBeforeSend {
+                    callbackCalled = true
+                    it
+                })
+            },
             PostHogContext()
         )
         val callback = getCall("init")[0]["before_send"]

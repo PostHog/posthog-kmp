@@ -42,11 +42,11 @@ class PostHogJvmTest {
         val nativeConfig = com.posthog.PostHogConfig("key")
 
         nativeConfig.configureErrorTracking(
-            ErrorTrackingConfig(
-                autoCapture = true,
-                inAppIncludes = listOf("com.example"),
+            ErrorTrackingConfig {
+                autoCapture = true
+                inAppIncludes = listOf("com.example")
                 ignoredExceptionTypes = listOf(IllegalStateException::class)
-            )
+            }
         )
 
         assertEquals(true, nativeConfig.errorTrackingConfig.autoCapture)
@@ -68,7 +68,7 @@ class PostHogJvmTest {
         PostHog.capture(
             "test_event",
             mapOf("prop" to "value"),
-            CaptureOptions(groups = mapOf("company" to "acme"))
+            CaptureOptions { groups = mapOf("company" to "acme") }
         )
         // capture(event, distinctId, properties, userProperties, userPropertiesSetOnce, groups, timestamp, options)
         assertMethodCalled(
@@ -93,7 +93,7 @@ class PostHogJvmTest {
                 .toInstant()
                 .toEpochMilli()
 
-            PostHog.capture("test_event", options = CaptureOptions(timestamp = timestamp))
+            PostHog.capture("test_event", options = CaptureOptions { this.timestamp = timestamp })
 
             assertMethodCalled("capture", "test_event", null, null, null, null, null, Date(timestamp), null)
             assertEquals("2024-01-02T03:04:05.678Z", Date(timestamp).toInstant().toString())
@@ -220,7 +220,7 @@ class PostHogJvmTest {
 
     @Test
     fun testSendFeatureFlagEventFallsBackToConfig() {
-        currentConfig = PostHogConfig(projectToken = "key", sendFeatureFlagEvent = false)
+        currentConfig = PostHogConfig("key") { sendFeatureFlagEvent = false }
 
         PostHog.isFeatureEnabled("test_flag")
         assertMethodCalled("isFeatureEnabled", "test_flag", false, false)
@@ -424,7 +424,7 @@ class PostHogJvmTest {
     @Test
     fun testBeforeSendWithoutCallbacksLeavesNativeHookUnset() {
         val nativeConfig = com.posthog.PostHogConfig("key")
-        nativeConfig.configureBeforeSend(PostHogConfig(projectToken = "key"))
+        nativeConfig.configureBeforeSend(PostHogConfig("key"))
         assertTrue(nativeConfig.beforeSendList.isEmpty())
     }
 
@@ -432,7 +432,7 @@ class PostHogJvmTest {
     fun testNativeBeforeSendDropsEventsAndContainsCallbackFailures() {
         for (callback in listOf(PostHogBeforeSend { null }, PostHogBeforeSend { error("failed") })) {
             val nativeConfig = com.posthog.PostHogConfig("key")
-            nativeConfig.configureBeforeSend(PostHogConfig(projectToken = "key", beforeSend = listOf(callback)))
+            nativeConfig.configureBeforeSend(PostHogConfig("key") { beforeSend = listOf(callback) })
             assertNull(nativeConfig.beforeSendList.single().run(
                 com.posthog.PostHogEvent("secret", "user", mutableMapOf("email" to "private"))
             ))
@@ -441,18 +441,17 @@ class PostHogJvmTest {
 
     @Test
     fun testBeforeSendDelegatesToNativeConfigAndPreservesMetadata() {
-        val wrapperConfig = PostHogConfig(
-            projectToken = "key",
+        val wrapperConfig = PostHogConfig("key") {
             beforeSend = listOf(
                 PostHogBeforeSend {
-                    it.copy(
-                        event = "sanitized",
-                        distinctId = "anonymous",
+                    it.copy {
+                        this.event = "sanitized"
+                        distinctId = "anonymous"
                         properties = it.properties - "email"
-                    )
+                    }
                 }
             )
-        )
+        }
         val nativeConfig = com.posthog.PostHogConfig("key")
         nativeConfig.configureBeforeSend(wrapperConfig)
         val timestamp = Date(1234)
@@ -480,7 +479,7 @@ class PostHogJvmTest {
         val options = mapOf(PostHogEventOptions.PROCESS_PERSON_PROFILE to true, "future" to 1, "unset" to null)
         val native = mapOf("process_person_profile" to true, "future" to 1)
 
-        PostHog.capture("event", options = CaptureOptions(eventOptions = options))
+        PostHog.capture("event", options = CaptureOptions { eventOptions = options })
         PostHog.screen("Home", eventOptions = options)
         PostHog.identify("user", eventOptions = options)
         PostHog.alias("alias", eventOptions = options)
@@ -500,7 +499,7 @@ class PostHogJvmTest {
 
     @Test
     fun testEventOptionsWithNoValueSetSendNoNativeOptions() {
-        PostHog.capture("event", options = CaptureOptions(eventOptions = mapOf("unset" to null)))
+        PostHog.capture("event", options = CaptureOptions { eventOptions = mapOf("unset" to null) })
         assertMethodCalled("capture", "event", null, null, null, null, null, null, null)
     }
 
@@ -512,11 +511,11 @@ class PostHogJvmTest {
         val result = PostHog.captureAi(
             "\$ai_generation",
             mapOf("\$ai_model" to "gpt-5", "drop" to null),
-            CaptureOptions(
-                groups = mapOf("company" to "acme"),
-                timestamp = 1234,
+            CaptureOptions {
+                groups = mapOf("company" to "acme")
+                timestamp = 1234
                 eventOptions = mapOf(PostHogEventOptions.COOKIELESS_MODE to true)
-            )
+            }
         )
 
         assertEquals(uuid.toString(), result)
@@ -537,13 +536,12 @@ class PostHogJvmTest {
     fun testCaptureAiConfigReachesNativeConfig() {
         val nativeConfig = com.posthog.PostHogConfig("key")
         nativeConfig.configureCaptureAi(
-            PostHogConfig(
-                projectToken = "key",
-                captureAiCompression = PostHogCompression.NONE,
-                captureAiMaxQueueSize = 7,
-                captureAiTimeout = 90,
+            PostHogConfig("key") {
+                captureAiCompression = PostHogCompression.NONE
+                captureAiMaxQueueSize = 7
+                captureAiTimeout = 90
                 captureAiMaxEventBytes = 1024
-            )
+            }
         )
 
         assertEquals(com.posthog.PostHogCompression.NONE, nativeConfig.captureAiCompression)
@@ -561,7 +559,7 @@ class PostHogJvmTest {
             captureAiMaxEventBytes = 1024
         }
 
-        nativeConfig.configureCaptureAi(PostHogConfig(projectToken = "key"))
+        nativeConfig.configureCaptureAi(PostHogConfig("key"))
 
         assertEquals(com.posthog.PostHogCompression.NONE, nativeConfig.captureAiCompression)
         assertEquals(7, nativeConfig.captureAiMaxQueueSize)
@@ -602,15 +600,14 @@ class PostHogJvmTest {
         var seen: Map<String, Any?>? = null
         val nativeConfig = com.posthog.PostHogConfig("key")
         nativeConfig.configureBeforeSend(
-            PostHogConfig(
-                projectToken = "key",
+            PostHogConfig("key") {
                 beforeSend = listOf(
                     PostHogBeforeSend {
                         seen = it.options
-                        it.copy(options = it.options.orEmpty() + mapOf("process_person_profile" to true, "product_tour_id" to null))
+                        it.copy { options = it.options.orEmpty() + mapOf("process_person_profile" to true, "product_tour_id" to null) }
                     }
                 )
-            )
+            }
         )
         val event = com.posthog.PostHogEvent("event", "user", mutableMapOf()).apply {
             options = mutableMapOf("process_person_profile" to false, "product_tour_id" to "tour", "future" to 1)
@@ -629,10 +626,7 @@ class PostHogJvmTest {
     fun testBeforeSendThatBuildsANewEventKeepsNativeOptions() {
         val nativeConfig = com.posthog.PostHogConfig("key")
         nativeConfig.configureBeforeSend(
-            PostHogConfig(
-                projectToken = "key",
-                beforeSend = listOf(PostHogBeforeSend { PostHogEvent(it.event, it.distinctId, emptyMap()) })
-            )
+            PostHogConfig("key") { beforeSend = listOf(PostHogBeforeSend { PostHogEvent(it.event, it.distinctId, emptyMap()) }) }
         )
         val event = com.posthog.PostHogEvent("event", "user", mutableMapOf()).apply {
             options = mutableMapOf("process_person_profile" to false)
@@ -647,7 +641,7 @@ class PostHogJvmTest {
     fun testBeforeSendThatReturnsEmptyOptionsClearsNativeOptions() {
         val nativeConfig = com.posthog.PostHogConfig("key")
         nativeConfig.configureBeforeSend(
-            PostHogConfig(projectToken = "key", beforeSend = listOf(PostHogBeforeSend { it.copy(options = emptyMap()) }))
+            PostHogConfig("key") { beforeSend = listOf(PostHogBeforeSend { it.copy { options = emptyMap() } }) }
         )
         val event = com.posthog.PostHogEvent("event", "user", mutableMapOf()).apply {
             options = mutableMapOf("process_person_profile" to false, "future" to 1)
@@ -662,7 +656,7 @@ class PostHogJvmTest {
     fun testBeforeSendThatKeepsOptionsLeavesNativeOptionsAsTheyWere() {
         val nativeConfig = com.posthog.PostHogConfig("key")
         nativeConfig.configureBeforeSend(
-            PostHogConfig(projectToken = "key", beforeSend = listOf(PostHogBeforeSend { it.copy(event = "renamed") }))
+            PostHogConfig("key") { beforeSend = listOf(PostHogBeforeSend { it.copy { this.event = "renamed" } }) }
         )
         val event = com.posthog.PostHogEvent("event", "user", mutableMapOf()).apply {
             options = mutableMapOf("process_person_profile" to "unreadable", "future" to 1)

@@ -9,7 +9,7 @@ import swiftPMImport.com.posthog.posthog.kmp.PostHogSessionReplayCaptureMethodSt
 internal actual fun NativePostHogConfig.configurePlatformCapture(config: PostHogConfig) {
     captureElementInteractions = config.autocapture
     surveys = config.surveys
-    val sessionConfig = config.sessionRecording
+    val sessionConfig = config.sessionReplay
     if (sessionConfig?.enabled == true) {
         sessionReplay = true
         sessionReplayConfig.maskAllTextInputs = sessionConfig.maskAllTextInputs

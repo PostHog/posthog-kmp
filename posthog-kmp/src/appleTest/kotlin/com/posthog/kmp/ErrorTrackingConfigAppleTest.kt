@@ -25,7 +25,11 @@ class ErrorTrackingConfigAppleTest {
         val native = nativeConfig()
         val defaultIncludes = native.errorTrackingConfig.inAppIncludes
         native.applyErrorTracking(
-            ErrorTrackingConfig(autoCapture = true, inAppIncludes = listOf("Shared"), inAppByDefault = false)
+            ErrorTrackingConfig {
+                autoCapture = true
+                inAppIncludes = listOf("Shared")
+                inAppByDefault = false
+            }
         )
         assertFalse(native.errorTrackingConfig.inAppByDefault)
         assertTrue(native.errorTrackingConfig.autoCapture)

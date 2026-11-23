@@ -49,6 +49,11 @@ val generatePostHogVersion = tasks.register("generatePostHogVersion") {
 kotlin {
     explicitApi()
 
+    // Fails the build when the public API changes without an updated dump in posthog-kmp/api/.
+    // After an intended change, run ./gradlew :posthog-kmp:updateKotlinAbi and commit the dump.
+    @OptIn(org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation::class)
+    abiValidation()
+
     android {
         namespace = "com.posthog.kmp"
         compileSdk = libs.versions.android.compileSdk.get().toInt()

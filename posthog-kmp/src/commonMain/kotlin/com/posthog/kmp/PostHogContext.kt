@@ -23,6 +23,7 @@ public expect class PostHogContext
 
 /**
  * Creates a default PostHogContext for non-Android platforms.
- * On Android, you must use PostHogContext(application) instead.
+ * On Android, use `PostHogContext(application)` instead: with this one, [PostHog.setup] leaves the
+ * SDK disabled and logs a warning.
  */
 public expect fun PostHogContext(): PostHogContext

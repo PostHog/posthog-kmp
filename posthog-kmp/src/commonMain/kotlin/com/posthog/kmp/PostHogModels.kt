@@ -1,25 +1,53 @@
+@file:JvmName("PostHogModels")
+
 package com.posthog.kmp
 
+import kotlin.jvm.JvmName
+
 /**
- * Options for capturing events.
+ * Creates options for one [PostHog.capture] or [PostHog.captureAi] call.
  *
- * @property groups Groups to associate with this event
- * @property timestamp Custom event time as Unix epoch milliseconds, representing a UTC instant
- *   (defaults to now). UTC is preferred when deriving this value from a date and time; resolve any
- *   non-UTC offset to the equivalent instant before converting it to epoch milliseconds. Platform
- *   bridges preserve this instant when constructing their native date type.
+ * ```kotlin
+ * PostHog.capture("checkout", options = CaptureOptions { groups = mapOf("company" to "acme") })
+ * ```
  */
-public data class CaptureOptions(
-    val groups: Map<String, String>? = null,
-    val timestamp: Long? = null,
-    /** Settings that tell PostHog how to process this event. See [PostHogEventOptions]. */
-    val eventOptions: Map<String, Any?>? = null
-)
+public fun CaptureOptions(configure: CaptureOptions.Builder.() -> Unit): CaptureOptions =
+    CaptureOptions.Builder().apply(configure).build()
+
+/**
+ * Options for capturing one event. Create them with the [CaptureOptions] function. Each property holds the
+ * [CaptureOptions.Builder] option of the same name.
+ */
+public class CaptureOptions private constructor(builder: Builder) {
+    public val groups: Map<String, String>? = builder.groups?.toMap()
+    public val timestamp: Long? = builder.timestamp
+    public val eventOptions: Map<String, Any?>? = builder.eventOptions?.toMap()
+
+    /** Sets the options of a [CaptureOptions]. */
+    @PostHogDsl
+    public class Builder internal constructor() {
+        /** Groups to associate with this event. */
+        public var groups: Map<String, String>? = null
+
+        /**
+         * Custom event time as Unix epoch milliseconds, representing a UTC instant (defaults to now). UTC is
+         * preferred when deriving this value from a date and time; resolve any non-UTC offset to the equivalent
+         * instant before converting it to epoch milliseconds. Platform bridges preserve this instant when
+         * constructing their native date type.
+         */
+        public var timestamp: Long? = null
+
+        /** Settings that tell PostHog how to process this event. See [PostHogEventOptions]. */
+        public var eventOptions: Map<String, Any?>? = null
+
+        internal fun build(): CaptureOptions = CaptureOptions(this)
+    }
+}
 
 /**
  * Keys for event options: settings that tell PostHog how to process an event, sent apart from its
  * properties. Pass them in a map, such as
- * `CaptureOptions(eventOptions = mapOf(PostHogEventOptions.PROCESS_PERSON_PROFILE to false))`.
+ * `CaptureOptions { eventOptions = mapOf(PostHogEventOptions.PROCESS_PERSON_PROFILE to false) }`.
  *
  * Options are sent as given, so a key not listed here, such as one a newer PostHog version reads,
  * also works. A `null` value is left unset, so PostHog and the SDK use their defaults.
@@ -79,7 +107,7 @@ internal fun withLegacyOptionProperties(properties: Map<String, Any>?, options: 
  * @property variant the variant of the feature flag (null for boolean flags)
  * @property payload Optional JSON payload associated with the flag
  */
-public data class FeatureFlagResult(
+public class FeatureFlagResult internal constructor(
     public val key: String,
     public val enabled: Boolean,
     public val variant: String? = null,
@@ -106,6 +134,21 @@ public data class FeatureFlagResult(
     public inline fun <reified T> getPayloadAs(): T? {
         return payload as? T
     }
+
+    override fun equals(other: Any?): Boolean =
+        other is FeatureFlagResult && key == other.key && enabled == other.enabled &&
+            variant == other.variant && payload == other.payload
+
+    override fun hashCode(): Int {
+        var result = key.hashCode()
+        result = 31 * result + enabled.hashCode()
+        result = 31 * result + (variant?.hashCode() ?: 0)
+        result = 31 * result + (payload?.hashCode() ?: 0)
+        return result
+    }
+
+    override fun toString(): String =
+        "FeatureFlagResult(key=$key, enabled=$enabled, variant=$variant, payload=$payload)"
 }
 
 /**
