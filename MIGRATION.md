@@ -7,7 +7,7 @@
 ### Checklist
 
 - [ ] Replace `apiKey` with `projectToken` when you build a `PostHogConfig` or read the token from it.
-- [ ] Update Java code that builds or copies a `PostHogConfig` with an older, shorter argument list to pass every argument.
+- [ ] Update Java code that calls `new PostHogConfig(...)` or `copy(...)` with the 0.11 or earlier argument list, without `evaluationContexts` and the `captureAi*` options, so it passes every argument.
 
 ### PostHogConfig
 
