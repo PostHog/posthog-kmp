@@ -1,5 +1,6 @@
 package com.posthog.kmp
 
+import kotlin.jvm.JvmOverloads
 import kotlin.reflect.KClass
 
 /**
@@ -56,33 +57,33 @@ import kotlin.reflect.KClass
  *   default and logs a warning. A value of 0 or less uses the default. Android, JVM, iOS and macOS
  *   only.
  */
-public data class PostHogConfig(
-    val projectToken: String,
-    val host: String = "https://us.i.posthog.com",
-    val debug: Boolean = false,
-    val captureApplicationLifecycleEvents: Boolean = true,
-    val captureScreenViews: Boolean = true,
-    val captureDeepLinks: Boolean = true,
-    val sendFeatureFlagEvent: Boolean = true,
-    val preloadFeatureFlags: Boolean = true,
-    val flushAt: Int = 20,
-    val flushIntervalSeconds: Int = 30,
-    val maxQueueSize: Int = 1000,
-    val maxBatchSize: Int = 50,
-    val optOut: Boolean = false,
-    val personProfiles: PersonProfiles = PersonProfiles.IDENTIFIED_ONLY,
-    val sessionRecording: SessionRecordingConfig? = null,
-    val autocapture: Boolean = false,
-    val beforeSend: List<PostHogBeforeSend> = emptyList(),
-    val errorTracking: ErrorTrackingConfig? = null,
-    val capturePushNotificationSubscriptions: Boolean = true,
-    val capturePushNotificationOpened: Boolean = true,
-    val surveys: Boolean = true,
-    val evaluationContexts: List<String>? = null,
-    val captureAiCompression: PostHogCompression? = null,
-    val captureAiMaxQueueSize: Int? = null,
-    val captureAiTimeout: Int? = null,
-    val captureAiMaxEventBytes: Int? = null
+public class PostHogConfig @JvmOverloads constructor(
+    public val projectToken: String,
+    public val host: String = "https://us.i.posthog.com",
+    public val debug: Boolean = false,
+    public val captureApplicationLifecycleEvents: Boolean = true,
+    public val captureScreenViews: Boolean = true,
+    public val captureDeepLinks: Boolean = true,
+    public val sendFeatureFlagEvent: Boolean = true,
+    public val preloadFeatureFlags: Boolean = true,
+    public val flushAt: Int = 20,
+    public val flushIntervalSeconds: Int = 30,
+    public val maxQueueSize: Int = 1000,
+    public val maxBatchSize: Int = 50,
+    public val optOut: Boolean = false,
+    public val personProfiles: PersonProfiles = PersonProfiles.IDENTIFIED_ONLY,
+    public val sessionRecording: SessionRecordingConfig? = null,
+    public val autocapture: Boolean = false,
+    public val beforeSend: List<PostHogBeforeSend> = emptyList(),
+    public val errorTracking: ErrorTrackingConfig? = null,
+    public val capturePushNotificationSubscriptions: Boolean = true,
+    public val capturePushNotificationOpened: Boolean = true,
+    public val surveys: Boolean = true,
+    public val evaluationContexts: List<String>? = null,
+    public val captureAiCompression: PostHogCompression? = null,
+    public val captureAiMaxQueueSize: Int? = null,
+    public val captureAiTimeout: Int? = null,
+    public val captureAiMaxEventBytes: Int? = null
 ) {
     public companion object {
         /** PostHog US Cloud instance */
@@ -146,7 +147,7 @@ public enum class PersonProfiles {
  * TODO: Add exceptionSteps when PostHog.addExceptionStep is available in the common API.
  * TODO: Add support for configuring individual Web exception autocapture sources.
  */
-public data class ErrorTrackingConfig(
+public class ErrorTrackingConfig @JvmOverloads constructor(
     /**
      * Automatically capture unhandled exceptions.
      *
@@ -157,9 +158,9 @@ public data class ErrorTrackingConfig(
      * to upload the ProGuard or R8 mappings. On iOS, server-side symbolication requires uploading
      * the app's debug symbols (dSYMs).
      */
-    val autoCapture: Boolean = false,
+    public val autoCapture: Boolean = false,
     /** Supported on Android, JVM, and iOS. */
-    val inAppIncludes: List<String> = emptyList(),
+    public val inAppIncludes: List<String> = emptyList(),
     /**
      * Supported on Android, JVM, and iOS.
      *
@@ -167,11 +168,11 @@ public data class ErrorTrackingConfig(
      * so classes with the same name in different packages are treated as the same type. Native signal and
      * Mach exception types cannot be represented by [KClass] and are not filtered by this setting.
      */
-    val ignoredExceptionTypes: List<KClass<out Throwable>> = emptyList(),
+    public val ignoredExceptionTypes: List<KClass<out Throwable>> = emptyList(),
     /** iOS and macOS only. */
-    val inAppExcludes: List<String> = emptyList(),
+    public val inAppExcludes: List<String> = emptyList(),
     /** iOS and macOS only. */
-    val inAppByDefault: Boolean = true
+    public val inAppByDefault: Boolean = true
 )
 
 /**
@@ -194,14 +195,14 @@ public data class ErrorTrackingConfig(
  *   [IosCaptureMethod.STANDARD]; set the experimental [IosCaptureMethod.GPU] for less main-thread
  *   time on screens without Compose Multiplatform, web views or Metal content. Ignored on other platforms.
  */
-public data class SessionRecordingConfig(
-    val enabled: Boolean = true,
-    val maskAllTextInputs: Boolean = true,
-    val maskAllImages: Boolean = true,
-    val captureNetworkTelemetry: Boolean = true,
-    val captureLogs: Boolean = false,
-    val captureLogcat: Boolean = true,
-    val throttleDelayMs: Long = 1000L,
-    val verifyScreenshotMaskAlignment: Boolean = false,
-    val iosCaptureMethod: IosCaptureMethod = IosCaptureMethod.STANDARD
+public class SessionRecordingConfig @JvmOverloads constructor(
+    public val enabled: Boolean = true,
+    public val maskAllTextInputs: Boolean = true,
+    public val maskAllImages: Boolean = true,
+    public val captureNetworkTelemetry: Boolean = true,
+    public val captureLogs: Boolean = false,
+    public val captureLogcat: Boolean = true,
+    public val throttleDelayMs: Long = 1000L,
+    public val verifyScreenshotMaskAlignment: Boolean = false,
+    public val iosCaptureMethod: IosCaptureMethod = IosCaptureMethod.STANDARD
 )

@@ -7,8 +7,6 @@ import kotlin.test.assertSame
 
 class PostHogConfigTest {
 
-    private class IgnoredException : RuntimeException()
-
     @Test
     fun defaultsToUsCloudHost() {
         assertEquals(PostHogConfig.HOST_US, PostHogConfig(projectToken = "phc_test").host)
@@ -33,34 +31,8 @@ class PostHogConfigTest {
     }
 
     @Test
-    fun copyPreservesPushNotificationCaptureOptions() {
-        for (subscriptions in listOf(false, true)) {
-            for (opened in listOf(false, true)) {
-                val config = PostHogConfig(
-                    projectToken = "phc_test",
-                    capturePushNotificationSubscriptions = subscriptions,
-                    capturePushNotificationOpened = opened
-                )
-
-                val copy = config.copy(debug = true)
-
-                assertEquals(subscriptions, copy.capturePushNotificationSubscriptions)
-                assertEquals(opened, copy.capturePushNotificationOpened)
-            }
-        }
-    }
-
-    @Test
     fun surveysDefaultsToEnabled() {
         assertEquals(true, PostHogConfig(projectToken = "phc_test").surveys)
-    }
-
-    @Test
-    fun copyPreservesSurveys() {
-        val config = PostHogConfig(projectToken = "phc_test", surveys = false)
-
-        assertEquals(false, config.copy(debug = true).surveys)
-        assertEquals(false, config.copy(capturePushNotificationOpened = false).surveys)
     }
 
     @Test
@@ -79,20 +51,6 @@ class PostHogConfigTest {
     }
 
     @Test
-    fun copyPreservesErrorTracking() {
-        val errorTracking = ErrorTrackingConfig(
-            autoCapture = true,
-            inAppIncludes = listOf("com.example"),
-            ignoredExceptionTypes = listOf(IgnoredException::class),
-            inAppExcludes = listOf("ThirdParty"),
-            inAppByDefault = false
-        )
-        val config = PostHogConfig(projectToken = "phc_test", errorTracking = errorTracking)
-
-        assertEquals(errorTracking, config.copy(debug = true).errorTracking)
-    }
-
-    @Test
     fun sessionRecordingDefaultsMatchNativeSdks() {
         val config = SessionRecordingConfig()
         assertEquals(true, config.maskAllTextInputs)
@@ -102,17 +60,6 @@ class PostHogConfigTest {
         assertEquals(1000L, config.throttleDelayMs)
         assertEquals(false, config.verifyScreenshotMaskAlignment)
         assertEquals(IosCaptureMethod.STANDARD, config.iosCaptureMethod)
-    }
-
-    @Test
-    fun copyPreservesScreenshotMaskAlignmentVerification() {
-        val config = SessionRecordingConfig(verifyScreenshotMaskAlignment = true)
-
-        val copy = config.copy(captureLogs = true)
-
-        assertEquals(true, copy.captureLogs)
-        assertEquals(true, copy.verifyScreenshotMaskAlignment)
-        assertEquals(false, copy.copy(verifyScreenshotMaskAlignment = false).verifyScreenshotMaskAlignment)
     }
 
     @Test
@@ -164,23 +111,6 @@ class PostHogConfigTest {
         )
 
         assertEquals("Before-send callback threw IllegalStateException; event \"checkout\" was dropped.", message)
-    }
-
-    @Test
-    fun copyKeepsCaptureAiConfig() {
-        val config = PostHogConfig(projectToken = "phc_test", captureAiMaxQueueSize = 7)
-
-        assertEquals(7, config.copy(debug = true).captureAiMaxQueueSize)
-    }
-
-    @Test
-    fun copyPreservesBeforeSendCallbacks() {
-        val callback = PostHogBeforeSend { it }
-        val config = PostHogConfig(projectToken = "phc_test", beforeSend = listOf(callback))
-
-        val copy = config.copy(debug = true)
-
-        assertEquals(listOf(callback), copy.beforeSend)
     }
 
     @Test

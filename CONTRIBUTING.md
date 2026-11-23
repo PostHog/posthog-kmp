@@ -61,6 +61,8 @@ This section is for external contributors. PostHog maintainers (members of the P
 
 The module uses Kotlin's explicit API mode, so any declaration you mark `public` is public API.
 
+Add a new option to `PostHogConfig`, `SessionRecordingConfig`, or `ErrorTrackingConfig` at the end of its constructor, with a default value. Their constructors use `@JvmOverloads`, so appending keeps earlier argument lists working for Java callers and for libraries compiled against an earlier version. Don't make them `data` classes: the generated `copy()` and `componentN()` change with every new option.
+
 ## Docs
 
 SDK usage examples and code snippets live in the [official documentation](https://posthog.com/docs/libraries/kmp), not the README, so they stay up to date. If your change affects the public API or behavior, update the docs in [PostHog/posthog.com](https://github.com/PostHog/posthog.com/blob/master/contents/docs/libraries/kmp/index.mdx).

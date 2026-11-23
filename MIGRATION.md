@@ -2,15 +2,35 @@
 
 ## 0.12 to 1.0
 
-1.0 removes the `PostHogConfig` API that was kept only for compatibility, and turns `captureScreenViews` on by default.
+1.0 changes the `PostHogConfig`, `SessionRecordingConfig` and `ErrorTrackingConfig` classes so that adding an option no longer breaks Java callers or compiled libraries, removes the `apiKey` alias, and turns `captureScreenViews` on by default.
 
 ### Checklist
 
 - [ ] Set `captureScreenViews = false` if you don't want automatic screen and page views (see [Screen views](#screen-views)).
 - [ ] Replace `apiKey` with `projectToken` when you build a `PostHogConfig` or read the token from it.
-- [ ] Update Java code that calls `new PostHogConfig(...)` or `copy(...)` with the 0.11 or earlier argument list, without `evaluationContexts` and the `captureAi*` options, so it passes every argument.
+- [ ] Replace `copy()` calls and destructuring on `PostHogConfig`, `SessionRecordingConfig` and `ErrorTrackingConfig` by building a new config (see [Config classes](#config-classes)).
+- [ ] Recompile any library built against posthog-kmp 0.12 or earlier that uses `apiKey` or `copy()` on these classes.
 
-### PostHogConfig
+### Config classes
+
+`PostHogConfig`, `SessionRecordingConfig` and `ErrorTrackingConfig` are regular classes instead of data classes. They no longer have `copy()`, `component1()` and the rest, or value-based `equals()`, `hashCode()` and `toString()`. Constructing them doesn't change: Kotlin code that passes named arguments compiles unchanged.
+
+Build a new config where you called `copy()`:
+
+```kotlin
+// 0.12
+val debugConfig = config.copy(debug = true)
+
+// 1.0
+fun makeConfig(debug: Boolean) = PostHogConfig(projectToken = "phc_...", debug = debug)
+val debugConfig = makeConfig(debug = true)
+```
+
+Two configs with the same options are no longer equal, so compare the options you care about instead of the configs.
+
+Their constructors use `@JvmOverloads`, so Java code can pass any leading part of the arguments, such as `new PostHogConfig("phc_...")`, and the rest take their defaults. That includes the 0.10 and 0.11 argument lists. New options are added at the end, so later releases keep these constructors working.
+
+### apiKey
 
 The `apiKey` alias, deprecated since 0.8, is removed. Use `projectToken`:
 
@@ -23,8 +43,6 @@ config.apiKey
 PostHogConfig(projectToken = "phc_...")
 config.projectToken
 ```
-
-`PostHogConfig` has one constructor and one `copy()`, which take every option. The constructor and `copy()` overloads that kept the 0.10, 0.11 and older argument lists are removed, so libraries compiled against them fail with `NoSuchMethodError` and have to be recompiled. Kotlin code that passes named arguments compiles unchanged. Java code that calls `new PostHogConfig(...)` or `copy(...)` passes every argument, in declaration order.
 
 ### Screen views
 
