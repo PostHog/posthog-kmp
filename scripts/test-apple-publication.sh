@@ -115,7 +115,7 @@ class PostHogLinkTest {
         var captured = false
         PostHog.setup(
             config = PostHogConfig(
-                apiKey = "test",
+                projectToken = "test",
                 host = "http://127.0.0.1:9",
                 preloadFeatureFlags = false,
                 captureApplicationLifecycleEvents = false,
