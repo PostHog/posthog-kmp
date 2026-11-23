@@ -2,13 +2,14 @@
 
 ## 0.12 to 1.0
 
-1.0 changes the `PostHogConfig`, `SessionRecordingConfig` and `ErrorTrackingConfig` classes so that adding an option no longer breaks Java callers or compiled libraries, removes the `apiKey` alias, and turns `captureScreenViews` on by default.
+1.0 changes the `PostHogConfig`, `SessionRecordingConfig` and `ErrorTrackingConfig` classes so that adding an option no longer breaks Java callers or compiled libraries, removes the `apiKey` alias, turns `captureScreenViews` on by default, and stops `PostHogContext()` from throwing on Android.
 
 ### Checklist
 
 - [ ] Set `captureScreenViews = false` if you don't want automatic screen and page views (see [Screen views](#screen-views)).
 - [ ] Replace `apiKey` with `projectToken` when you build a `PostHogConfig` or read the token from it.
 - [ ] Replace `copy()` calls and destructuring on `PostHogConfig`, `SessionRecordingConfig` and `ErrorTrackingConfig` by building a new config (see [Config classes](#config-classes)).
+- [ ] On Android, make sure you pass `PostHogContext(application)` to `PostHog.setup()`, and stop reading `PostHogContext.application` (see [PostHogContext on Android](#posthogcontext-on-android)).
 - [ ] Recompile any library built against posthog-kmp 0.12 or earlier that uses `apiKey` or `copy()` on these classes.
 
 ### Config classes
@@ -53,6 +54,17 @@ config.projectToken
 - **Web** sends `$pageview` and `$pageleave` events.
 
 macOS and JVM ignore it. A Compose Multiplatform app usually has a single Activity or view controller, so its automatic screen view names the whole app rather than a screen. Keep calling `PostHog.screen()` for each Compose screen, or set `captureScreenViews = false` to send only those.
+
+### PostHogContext on Android
+
+`PostHogContext()` no longer throws on Android. `PostHog.setup()` with it leaves the SDK disabled and logs a warning, even when `debug` is off, so common code that builds the context no longer crashes the app. Pass `PostHogContext(application)` on Android, as before:
+
+```kotlin
+// Android
+PostHog.setup(config, PostHogContext(application))
+```
+
+`PostHogContext.application` is internal. Keep your own reference to the `Application` if you need it.
 
 ## 0.11 to 0.12
 

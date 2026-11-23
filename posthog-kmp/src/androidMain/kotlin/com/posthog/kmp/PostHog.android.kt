@@ -1,11 +1,24 @@
 package com.posthog.kmp
 
+import android.util.Log
 import com.posthog.android.PostHogAndroid
 import com.posthog.android.PostHogAndroidConfig
 import com.posthog.android.replay.PostHogSessionReplayConfig
 
+internal const val MISSING_APPLICATION_WARNING: String =
+    "PostHog is disabled: PostHogContext() has no Application on Android. " +
+        "Call PostHog.setup() with PostHogContext(application)."
+
+/** Logs warnings that are shown even when `debug` is off. Replaced in tests. */
+internal var androidWarningLogger: (String) -> Unit = { Log.w("PostHog", it) }
+
 internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext) {
-    postHogInstance = PostHogAndroid.with(context.application, config.toAndroidConfig())
+    val application = context.application
+    if (application == null) {
+        androidWarningLogger(MISSING_APPLICATION_WARNING)
+        return
+    }
+    postHogInstance = PostHogAndroid.with(application, config.toAndroidConfig())
 }
 
 internal fun PostHogConfig.toAndroidConfig(): PostHogAndroidConfig {

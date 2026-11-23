@@ -34,6 +34,22 @@ class PostHogAndroidTest {
     }
 
     @Test
+    fun setupWithoutApplicationLeavesSdkDisabledAndWarns() {
+        postHogInstance = null
+        val warnings = mutableListOf<String>()
+        val defaultLogger = androidWarningLogger
+        androidWarningLogger = { warnings += it }
+        try {
+            PostHog.setup(PostHogConfig(projectToken = "phc_test"), PostHogContext())
+
+            assertNull(postHogInstance)
+            assertEquals(listOf(MISSING_APPLICATION_WARNING), warnings)
+        } finally {
+            androidWarningLogger = defaultLogger
+        }
+    }
+
+    @Test
     fun testCaptureRoutesCorrectly() {
         PostHog.capture("test_event", mapOf("prop" to "value"))
         assertMethodCalled("capture", "test_event", null, mapOf("prop" to "value"), null, null, null, null, null)
