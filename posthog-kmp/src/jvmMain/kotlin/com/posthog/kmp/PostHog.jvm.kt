@@ -8,7 +8,7 @@ import java.io.File
  *
  * Android/iOS-only config options are ignored here:
  * [PostHogConfig.captureApplicationLifecycleEvents], [PostHogConfig.captureScreenViews],
- * [PostHogConfig.captureDeepLinks], [PostHogConfig.sessionRecording] and
+ * [PostHogConfig.captureDeepLinks], [PostHogConfig.sessionReplay] and
  * [PostHogConfig.autocapture].
  */
 /**

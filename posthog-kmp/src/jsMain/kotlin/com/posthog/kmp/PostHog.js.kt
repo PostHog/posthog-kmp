@@ -55,7 +55,7 @@ internal actual fun platformSetup(config: PostHogConfig, context: PostHogContext
         PersonProfiles.NEVER -> "never"
     }
     
-    config.sessionRecording?.let { sessionConfig ->
+    config.sessionReplay?.let { sessionConfig ->
         if (sessionConfig.enabled) {
             options["session_recording"] = js("{}")
             options["session_recording"]["maskAllInputs"] = sessionConfig.maskAllTextInputs

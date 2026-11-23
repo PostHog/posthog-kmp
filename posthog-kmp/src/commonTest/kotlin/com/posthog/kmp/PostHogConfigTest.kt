@@ -51,8 +51,8 @@ class PostHogConfigTest {
     }
 
     @Test
-    fun sessionRecordingDefaultsMatchNativeSdks() {
-        val config = SessionRecordingConfig()
+    fun sessionReplayDefaultsMatchNativeSdks() {
+        val config = SessionReplayConfig()
         assertEquals(true, config.maskAllTextInputs)
         assertEquals(true, config.maskAllImages)
         assertEquals(false, config.captureLogs)

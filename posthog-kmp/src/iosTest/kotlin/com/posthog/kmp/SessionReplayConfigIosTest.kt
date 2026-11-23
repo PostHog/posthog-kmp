@@ -10,28 +10,28 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class SessionReplayConfigIosTest {
-    private fun nativeConfigFor(sessionRecording: SessionRecordingConfig): NativePostHogConfig {
+    private fun nativeConfigFor(sessionReplay: SessionReplayConfig): NativePostHogConfig {
         val native = NativePostHogConfig(projectToken = "phc_test", host = "https://us.i.posthog.com")
-        native.configurePlatformCapture(PostHogConfig(projectToken = "phc_test", sessionRecording = sessionRecording))
+        native.configurePlatformCapture(PostHogConfig(projectToken = "phc_test", sessionReplay = sessionReplay))
         return native
     }
 
     @Test
     fun testDefaultCaptureMethodIsStandard() {
-        val native = nativeConfigFor(SessionRecordingConfig())
+        val native = nativeConfigFor(SessionReplayConfig())
         assertEquals(PostHogSessionReplayCaptureMethodStandard, native.sessionReplayConfig.captureMethod)
     }
 
     // posthog-ios defaults to .standard, so only an opt-in to GPU shows the mapping is passed through.
     @Test
     fun testGpuCaptureMethodIsApplied() {
-        val native = nativeConfigFor(SessionRecordingConfig(iosCaptureMethod = IosCaptureMethod.GPU))
+        val native = nativeConfigFor(SessionReplayConfig(iosCaptureMethod = IosCaptureMethod.GPU))
         assertEquals(PostHogSessionReplayCaptureMethodGpu, native.sessionReplayConfig.captureMethod)
     }
 
     @Test
     fun testThrottleDelayIsConvertedToSeconds() {
-        val native = nativeConfigFor(SessionRecordingConfig(throttleDelayMs = 2500L))
+        val native = nativeConfigFor(SessionReplayConfig(throttleDelayMs = 2500L))
         assertEquals(2.5, native.sessionReplayConfig.throttleDelay)
     }
 }

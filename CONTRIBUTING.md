@@ -61,7 +61,7 @@ This section is for external contributors. PostHog maintainers (members of the P
 
 The module uses Kotlin's explicit API mode, so any declaration you mark `public` is public API.
 
-Add a new option to `PostHogConfig`, `SessionRecordingConfig`, or `ErrorTrackingConfig` at the end of its constructor, with a default value. Their constructors use `@JvmOverloads`, so appending keeps earlier argument lists working for Java callers and for libraries compiled against an earlier version. Don't make them `data` classes: the generated `copy()` and `componentN()` change with every new option.
+Add a new option to `PostHogConfig`, `SessionReplayConfig`, `ErrorTrackingConfig`, or `CaptureOptions` at the end of its constructor, with a default value. Their constructors use `@JvmOverloads`, so appending keeps earlier argument lists working for Java callers and for libraries compiled against an earlier version. Don't make them `data` classes: the generated `copy()` and `componentN()` change with every new option. `FeatureFlagResult` has an internal constructor, so you can add fields to it freely.
 
 ## Docs
 

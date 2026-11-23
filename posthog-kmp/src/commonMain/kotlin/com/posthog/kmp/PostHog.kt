@@ -531,15 +531,15 @@ public object PostHog {
      * Capture an exception for error tracking.
      *
      * @param throwable The exception to capture
-     * @param additionalProperties Optional additional context
+     * @param properties Optional properties to include with the `$exception` event
      * @param eventOptions Settings that tell PostHog how to process the `$exception` event
      */
     public fun captureException(
         throwable: Throwable,
-        additionalProperties: Map<String, Any?>? = null,
+        properties: Map<String, Any?>? = null,
         eventOptions: Map<String, Any?>? = null
     ) {
-        platformCaptureException(throwable, additionalProperties?.dropNullValues(), eventOptions?.dropNullValues())
+        platformCaptureException(throwable, properties?.dropNullValues(), eventOptions?.dropNullValues())
     }
 
     // ==================== Opt In/Out ====================

@@ -2,19 +2,45 @@
 
 ## 0.12 to 1.0
 
-1.0 changes the `PostHogConfig`, `SessionRecordingConfig` and `ErrorTrackingConfig` classes so that adding an option no longer breaks Java callers or compiled libraries, removes the `apiKey` alias, turns `captureScreenViews` on by default, and stops `PostHogContext()` from throwing on Android.
+1.0 changes the config classes so that adding an option no longer breaks Java callers or compiled libraries, renames session recording to session replay, removes the `apiKey` alias, turns `captureScreenViews` on by default, and stops `PostHogContext()` from throwing on Android.
 
 ### Checklist
 
 - [ ] Set `captureScreenViews = false` if you don't want automatic screen and page views (see [Screen views](#screen-views)).
 - [ ] Replace `apiKey` with `projectToken` when you build a `PostHogConfig` or read the token from it.
-- [ ] Replace `copy()` calls and destructuring on `PostHogConfig`, `SessionRecordingConfig` and `ErrorTrackingConfig` by building a new config (see [Config classes](#config-classes)).
+- [ ] Rename `sessionRecording` to `sessionReplay` and `SessionRecordingConfig` to `SessionReplayConfig` (see [Session replay naming](#session-replay-naming)).
+- [ ] Rename the `additionalProperties` argument of `captureException()` to `properties`.
+- [ ] Replace `copy()` calls and destructuring on `PostHogConfig`, `SessionReplayConfig`, `ErrorTrackingConfig`, `CaptureOptions` and `FeatureFlagResult` (see [Config classes](#config-classes)).
 - [ ] On Android, make sure you pass `PostHogContext(application)` to `PostHog.setup()`, and stop reading `PostHogContext.application` (see [PostHogContext on Android](#posthogcontext-on-android)).
-- [ ] Recompile any library built against posthog-kmp 0.12 or earlier that uses `apiKey` or `copy()` on these classes.
+- [ ] Recompile any library built against posthog-kmp 0.12 or earlier that uses `apiKey`, `sessionRecording`, `captureException()` or `copy()` on these classes.
+
+### Session replay naming
+
+The session replay option and its config class use the product's name, as in posthog-android and posthog-ios:
+
+```kotlin
+// 0.12
+PostHogConfig(projectToken = "phc_...", sessionRecording = SessionRecordingConfig(maskAllImages = false))
+
+// 1.0
+PostHogConfig(projectToken = "phc_...", sessionReplay = SessionReplayConfig(maskAllImages = false))
+```
+
+### captureException
+
+The `additionalProperties` parameter of `captureException()` is now `properties`, as in `capture()` and the native SDKs. Calls that pass it by position compile unchanged:
+
+```kotlin
+// 0.12
+PostHog.captureException(error, additionalProperties = mapOf("screen" to "checkout"))
+
+// 1.0
+PostHog.captureException(error, properties = mapOf("screen" to "checkout"))
+```
 
 ### Config classes
 
-`PostHogConfig`, `SessionRecordingConfig` and `ErrorTrackingConfig` are regular classes instead of data classes. They no longer have `copy()`, `component1()` and the rest, or value-based `equals()`, `hashCode()` and `toString()`. Constructing them doesn't change: Kotlin code that passes named arguments compiles unchanged.
+`PostHogConfig`, `SessionReplayConfig`, `ErrorTrackingConfig` and `CaptureOptions` are regular classes instead of data classes. They no longer have `copy()`, `component1()` and the rest, or value-based `equals()`, `hashCode()` and `toString()`. Constructing them doesn't change: Kotlin code that passes named arguments compiles unchanged.
 
 Build a new config where you called `copy()`:
 
@@ -28,6 +54,8 @@ val debugConfig = makeConfig(debug = true)
 ```
 
 Two configs with the same options are no longer equal, so compare the options you care about instead of the configs.
+
+`FeatureFlagResult` has an internal constructor and no `copy()` or `componentN()`, because the SDK creates it. Two results with the same values are still equal.
 
 Their constructors use `@JvmOverloads`, so Java code can pass any leading part of the arguments, such as `new PostHogConfig("phc_...")`, and the rest take their defaults. That includes the 0.10 and 0.11 argument lists. New options are added at the end, so later releases keep these constructors working.
 

@@ -50,7 +50,7 @@ internal fun PostHogConfig.toAndroidConfig(): PostHogAndroidConfig {
         configureCaptureAi(config)
         configureBeforeSend(config)
 
-        config.sessionRecording?.let { sessionConfig ->
+        config.sessionReplay?.let { sessionConfig ->
             sessionReplay = sessionConfig.enabled
             sessionReplayConfig = PostHogSessionReplayConfig(
                 maskAllTextInputs = sessionConfig.maskAllTextInputs,

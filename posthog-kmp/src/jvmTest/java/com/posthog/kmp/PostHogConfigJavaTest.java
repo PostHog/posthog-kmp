@@ -17,7 +17,8 @@ public class PostHogConfigJavaTest {
         assertTrue(config.getDebug());
         assertTrue(config.getCaptureScreenViews());
 
-        assertFalse(new SessionRecordingConfig(false).getEnabled());
+        assertFalse(new SessionReplayConfig(false).getEnabled());
         assertTrue(new ErrorTrackingConfig(true).getAutoCapture());
+        assertEquals(Long.valueOf(42L), new CaptureOptions(null, 42L).getTimestamp());
     }
 }

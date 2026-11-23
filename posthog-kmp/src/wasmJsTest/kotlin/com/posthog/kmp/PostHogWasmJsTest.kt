@@ -39,7 +39,7 @@ class PostHogWasmJsTest {
                 preloadFeatureFlags = false,
                 optOut = true,
                 personProfiles = PersonProfiles.ALWAYS,
-                sessionRecording = SessionRecordingConfig(captureLogs = true),
+                sessionReplay = SessionReplayConfig(captureLogs = true),
                 autocapture = true,
                 errorTracking = ErrorTrackingConfig(autoCapture = true),
                 evaluationContexts = listOf("web", "checkout"),

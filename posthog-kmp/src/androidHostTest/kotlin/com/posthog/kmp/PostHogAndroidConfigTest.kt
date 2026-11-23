@@ -7,10 +7,10 @@ class PostHogAndroidConfigTest {
 
     @Test
     fun screenshotMaskAlignmentVerificationDefaultsToDisabled() {
-        for (sessionRecording in listOf(null, SessionRecordingConfig())) {
+        for (sessionReplay in listOf(null, SessionReplayConfig())) {
             val nativeConfig = PostHogConfig(
                 projectToken = "phc_test",
-                sessionRecording = sessionRecording
+                sessionReplay = sessionReplay
             ).toAndroidConfig()
 
             assertEquals(false, nativeConfig.sessionReplayConfig.verifyScreenshotMaskAlignment)
@@ -22,7 +22,7 @@ class PostHogAndroidConfigTest {
         for (verify in listOf(false, true)) {
             val nativeConfig = PostHogConfig(
                 projectToken = "phc_test",
-                sessionRecording = SessionRecordingConfig(verifyScreenshotMaskAlignment = verify)
+                sessionReplay = SessionReplayConfig(verifyScreenshotMaskAlignment = verify)
             ).toAndroidConfig()
 
             assertEquals(true, nativeConfig.sessionReplay)

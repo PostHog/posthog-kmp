@@ -1,5 +1,7 @@
 package com.posthog.kmp
 
+import kotlin.jvm.JvmOverloads
+
 /**
  * Options for capturing events.
  *
@@ -9,11 +11,11 @@ package com.posthog.kmp
  *   non-UTC offset to the equivalent instant before converting it to epoch milliseconds. Platform
  *   bridges preserve this instant when constructing their native date type.
  */
-public data class CaptureOptions(
-    val groups: Map<String, String>? = null,
-    val timestamp: Long? = null,
+public class CaptureOptions @JvmOverloads constructor(
+    public val groups: Map<String, String>? = null,
+    public val timestamp: Long? = null,
     /** Settings that tell PostHog how to process this event. See [PostHogEventOptions]. */
-    val eventOptions: Map<String, Any?>? = null
+    public val eventOptions: Map<String, Any?>? = null
 )
 
 /**
@@ -79,7 +81,7 @@ internal fun withLegacyOptionProperties(properties: Map<String, Any>?, options: 
  * @property variant the variant of the feature flag (null for boolean flags)
  * @property payload Optional JSON payload associated with the flag
  */
-public data class FeatureFlagResult(
+public class FeatureFlagResult internal constructor(
     public val key: String,
     public val enabled: Boolean,
     public val variant: String? = null,
@@ -106,6 +108,21 @@ public data class FeatureFlagResult(
     public inline fun <reified T> getPayloadAs(): T? {
         return payload as? T
     }
+
+    override fun equals(other: Any?): Boolean =
+        other is FeatureFlagResult && key == other.key && enabled == other.enabled &&
+            variant == other.variant && payload == other.payload
+
+    override fun hashCode(): Int {
+        var result = key.hashCode()
+        result = 31 * result + enabled.hashCode()
+        result = 31 * result + (variant?.hashCode() ?: 0)
+        result = 31 * result + (payload?.hashCode() ?: 0)
+        return result
+    }
+
+    override fun toString(): String =
+        "FeatureFlagResult(key=$key, enabled=$enabled, variant=$variant, payload=$payload)"
 }
 
 /**

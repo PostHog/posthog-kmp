@@ -26,7 +26,7 @@ import kotlin.reflect.KClass
  * @property maxBatchSize Maximum events per batch
  * @property optOut Start with analytics opted out
  * @property personProfiles Person profile mode for feature flag targeting
- * @property sessionRecording Enable session recording (platform dependent)
+ * @property sessionReplay Session replay configuration, or null to leave it off (platform dependent)
  * @property autocapture Enable automatic event capture (platform dependent)
  * @property beforeSend Synchronous callbacks that can modify or drop events before they are queued
  * @property errorTracking Error tracking configuration (platform dependent)
@@ -72,7 +72,7 @@ public class PostHogConfig @JvmOverloads constructor(
     public val maxBatchSize: Int = 50,
     public val optOut: Boolean = false,
     public val personProfiles: PersonProfiles = PersonProfiles.IDENTIFIED_ONLY,
-    public val sessionRecording: SessionRecordingConfig? = null,
+    public val sessionReplay: SessionReplayConfig? = null,
     public val autocapture: Boolean = false,
     public val beforeSend: List<PostHogBeforeSend> = emptyList(),
     public val errorTracking: ErrorTrackingConfig? = null,
@@ -176,14 +176,14 @@ public class ErrorTrackingConfig @JvmOverloads constructor(
 )
 
 /**
- * Session recording configuration options.
+ * Session replay configuration options.
  *
  * Defaults match the native Android and iOS SDK defaults so wrapping adds no drift.
  *
- * @property enabled Enable session recording
+ * @property enabled Enable session replay
  * @property maskAllTextInputs Mask all text input values
  * @property maskAllImages Mask all images
- * @property captureNetworkTelemetry Include network requests in recording
+ * @property captureNetworkTelemetry Include network requests in session replay
  * @property captureLogs Capture console logs (iOS/Web)
  * @property captureLogcat Capture Android logcat output (Android only)
  * @property throttleDelayMs Minimum delay in milliseconds between replay snapshots (Android and iOS)
@@ -195,7 +195,7 @@ public class ErrorTrackingConfig @JvmOverloads constructor(
  *   [IosCaptureMethod.STANDARD]; set the experimental [IosCaptureMethod.GPU] for less main-thread
  *   time on screens without Compose Multiplatform, web views or Metal content. Ignored on other platforms.
  */
-public class SessionRecordingConfig @JvmOverloads constructor(
+public class SessionReplayConfig @JvmOverloads constructor(
     public val enabled: Boolean = true,
     public val maskAllTextInputs: Boolean = true,
     public val maskAllImages: Boolean = true,
