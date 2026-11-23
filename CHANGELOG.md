@@ -1,5 +1,52 @@
 # posthog-kmp
 
+## 0.12.0
+
+### Minor Changes
+
+- - See the [0.11 to 0.12 migration guide](https://github.com/PostHog/posthog-kmp/blob/main/MIGRATION.md) for upgrade steps
+  - **Breaking:** upgrade to posthog-android 4.0, the JVM core 7.0 and posthog-ios 4.0
+  - **Breaking:** require Xcode 26 or later to build iOS and macOS apps, and macOS 12 or later
+  - **Breaking:** require recompiling libraries built against posthog-kmp 0.11 or earlier, which fail on Android and JVM with `NoSuchMethodError`
+  - **Breaking:** require `posthog-server` 2.26.0 or later, and `posthog-android` 4.0.0 declared alongside `posthog-android-surveys-compose`, in the same Android or JVM build
+  - **Breaking:** send events to capture v1 (`/i/v1/analytics/events`) on Android, JVM, iOS and macOS — make sure your reverse proxy or self-hosted instance serves that path; only 307 and 308 redirects to the same origin are followed
+  - **Breaking:** retry a capture 404 until the host serves capture v1, keeping events only until a full queue evicts them, stop retrying 3xx responses, and cap a request at about 5 MiB, on Android, JVM, iOS and macOS
+  - **Breaking:** disable the SDK at setup when `projectToken` is a personal API key (`phx_...`) on Android, JVM, iOS and macOS
+  - **Breaking:** drop events with an empty name or with a distinct ID that `beforeSend` blanks, and let PostHog drop events whose name or distinct ID is over 200 bytes, on Android, JVM, iOS and macOS
+  - **Breaking:** mark personless events with a capture option instead of a `$process_person_profile` property, on Android, JVM, iOS and macOS — `beforeSend` reads and changes it through `PostHogEvent.options`
+  - **Breaking:** leave out `null` values in nested maps on iOS and macOS, and keep `null` list elements in place instead of removing them on Android and JVM
+  - **Breaking:** always send `$sdk_debug_replay_capture_mode` as `screenshot` on Android and iOS
+  - **Breaking:** leave out query parameters whose name starts with `$` from `Deep Link Opened` on Android
+  - **Breaking:** leave out `$feature_flag_response` on `$feature_flag_called` for a missing flag on Android, JVM, iOS and macOS — filter on *is not set* instead of `""` or `false`
+  - **Breaking:** return a `null` `FeatureFlagResult.payload` for a payload that isn't valid JSON on Android, JVM, iOS and macOS
+  - **Breaking:** let `register()` super properties override properties the SDK sets, such as `$os_name`, on Android, JVM, iOS and macOS
+  - **Breaking:** apply a registered `$process_person_profile = false` to every event except those `identify()`, `alias()`, `group()` and `setPersonProperties()` send, on Android, JVM, iOS and macOS — use `personProfiles` instead
+  - **Breaking:** change `$locale` to the device's preferred language and region on Android, iOS and macOS, and to a BCP 47 tag that keeps the script, such as `zh-Hant-TW`, on JVM
+  - **Breaking:** remove the `version` and `build` properties from `Application Installed`, `Application Updated` and `Application Opened` on iOS and macOS — use `$app_version` and `$app_build`
+  - Add the `$app_language` property with the language the app displays on Android 13+, iOS and macOS, and `PostHog.setAppLanguage()` to set it on every platform except JavaScript and Wasm
+
+- - **Breaking:** remove `SessionRecordingConfig.screenshot`, because posthog-android 4.0 and posthog-ios 4.0 removed wireframe replay — apps that kept the default `false` now record masked screenshots, including Compose screens on Android, so mask custom-drawn content such as maps or video, or turn replay off
+  - **Breaking:** record Compose Multiplatform screens on iOS, which 0.11 didn't, fully masked while `maskAllTextInputs` or `maskAllImages` is on
+  - **Breaking:** remove the JVM `SessionRecordingConfig` constructor and `copy` overloads that took `screenshot`
+
+- - **Breaking:** pass `PostHogFeatureFlagsLoaded` with the loaded flags and `errorsLoading` to the `reloadFeatureFlags()` callback, and call it with `errorsLoading = true` before `setup()` on every platform
+  - **Breaking:** treat a flag whose variant is an empty string as disabled in `isFeatureEnabled()`, `FeatureFlagResult.enabled`, `getAllFeatureFlags()` and `$active_feature_flags` on every platform
+  - Add `PostHog.onFeatureFlags()` to listen for feature flag loads, returning a `PostHogFeatureFlagsSubscription`
+  - Add `setPersonPropertiesForFlags()`, `resetPersonPropertiesForFlags()`, `setGroupPropertiesForFlags()` and `resetGroupPropertiesForFlags()`
+  - Add `PostHogConfig.evaluationContexts` to evaluate only the feature flags tagged with those contexts
+
+- - Add `SessionRecordingConfig.iosCaptureMethod` to choose how iOS captures session replay screenshots. It defaults to `STANDARD`, like posthog-ios; the experimental `GPU` takes less main-thread time but doesn't capture web view pages and records Metal content, including Compose Multiplatform screens, as a placeholder
+
+- - **Breaking:** replace `SessionRecordingConfig.debouncerDelayMs` with `throttleDelayMs`, the minimum delay between session replay snapshots, which now applies on iOS as well as Android
+
+- - Add event options, set per event as a map through `CaptureOptions.eventOptions` and a new `eventOptions` parameter on `screen()`, `identify()`, `alias()`, `group()`, `setPersonProperties()` and `captureException()` — on JavaScript and Wasm they're sent as their legacy `$` properties on `capture()`, `screen()` and `captureException()` and dropped by the other calls
+  - Add `PostHogEventOptions` with the option keys `PROCESS_PERSON_PROFILE`, `COOKIELESS_MODE`, `DISABLE_SKEW_CORRECTION` and `PRODUCT_TOUR_ID`; other keys are sent as given on Android, JVM, iOS and macOS
+  - Add `PostHog.registerOptions()` and `PostHog.unregisterOptions()` to send event options with every later event
+  - Add `PostHogEvent.options` so `beforeSend` callbacks can read and change an event's options on Android, JVM, iOS and macOS
+  - Add `PostHog.captureAi()` to send AI observability events, such as `$ai_generation`, to PostHog's AI endpoint on Android, JVM, iOS and macOS, returning the event's UUID; it sends nothing on JavaScript and Wasm
+  - Add `PostHogConfig.captureAiCompression`, `captureAiMaxQueueSize`, `captureAiTimeout` and `captureAiMaxEventBytes` to configure `captureAi()` requests on Android, JVM, iOS and macOS
+  - Name the event and the exception type in the debug log when a `beforeSend` callback throws
+
 ## 0.11.0
 
 ### Minor Changes

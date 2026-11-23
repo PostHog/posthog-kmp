@@ -1,8 +1,33 @@
 # Migrating posthog-kmp
 
-## 0.11 to 1.0
+## 0.12 to 1.0
 
-1.0 moves Android, JVM, iOS and macOS to the 4.0 native SDKs: posthog-android 4.0, the JVM core `com.posthog:posthog` 7.0 and posthog-ios 4.0. JavaScript and Wasm targets stay on posthog-js; of the breaking changes below, only the `SessionRecordingConfig` changes in [Session replay](#session-replay), which are compile errors in common code, and [Feature flags](#feature-flags) reach them.
+1.0 removes the `PostHogConfig` API that was kept only for compatibility. Nothing else changes, and code compiled against 0.12 that doesn't use the removed API keeps working.
+
+### Checklist
+
+- [ ] Replace `apiKey` with `projectToken` when you build a `PostHogConfig` or read the token from it.
+- [ ] Update Java code that builds or copies a `PostHogConfig` with an older, shorter argument list to pass every argument.
+
+### PostHogConfig
+
+The `apiKey` alias, deprecated since 0.8, is removed. Use `projectToken`:
+
+```kotlin
+// 0.12
+PostHogConfig(apiKey = "phc_...")
+config.apiKey
+
+// 1.0
+PostHogConfig(projectToken = "phc_...")
+config.projectToken
+```
+
+`PostHogConfig` has one constructor and one `copy()`, which take every option. The constructor and `copy()` overloads that kept the 0.10, 0.11 and older argument lists are removed, so libraries compiled against them fail with `NoSuchMethodError` and have to be recompiled. Kotlin code that passes named arguments compiles unchanged. Java code that calls `new PostHogConfig(...)` or `copy(...)` passes every argument, in declaration order.
+
+## 0.11 to 0.12
+
+0.12 moves Android, JVM, iOS and macOS to the 4.0 native SDKs: posthog-android 4.0, the JVM core `com.posthog:posthog` 7.0 and posthog-ios 4.0. JavaScript and Wasm targets stay on posthog-js; of the breaking changes below, only the `SessionRecordingConfig` changes in [Session replay](#session-replay), which are compile errors in common code, and [Feature flags](#feature-flags) reach them.
 
 The native SDKs list every change in their own guides: [posthog-android](https://github.com/PostHog/posthog-android/blob/android-v4.0.0/MIGRATION.md) and [posthog-ios](https://github.com/PostHog/posthog-ios/blob/4.0.0/MIGRATION.md). This guide covers what reaches a KMP app. If your app also calls posthog-android, posthog-ios or the JVM core `com.posthog:posthog` directly, that code moves to 4.0 (core 7.0) too, so follow those guides for it.
 
@@ -16,7 +41,6 @@ The native SDKs list every change in their own guides: [posthog-android](https:/
 - [ ] If you record session replay on iOS with Compose Multiplatform, expect Compose screens to be recorded fully masked (see [Session replay](#session-replay)).
 - [ ] If you send events through a reverse proxy or a self-hosted instance, serve `/i/v1/analytics/events`, forward its `Authorization`, `PostHog-*`, `Content-Type`, `Content-Encoding` and `User-Agent` headers, and pass the response body through unchanged.
 - [ ] Update `reloadFeatureFlags` callbacks that are function references or `() -> Unit` values to take the new `PostHogFeatureFlagsLoaded` parameter.
-- [ ] Replace `apiKey` with `projectToken` when you build a `PostHogConfig` or read the token from it (see [PostHogConfig](#posthogconfig)).
 - [ ] Check that `projectToken` is your project token (`phc_...`), not a personal API key (`phx_...`).
 - [ ] If you call `register("\$process_person_profile", false)`, remove it and use `personProfiles` instead (see [Event changes](#event-changes)).
 - [ ] Update `beforeSend` callbacks that read or set the `$process_person_profile` property to use `PostHogEvent.options["process_person_profile"]` (see [Event changes](#event-changes)).
@@ -31,14 +55,14 @@ posthog-ios 4.0 is published to Swift Package Manager only. KMP already imports 
 
 ### Binary compatibility
 
-Code compiled against 0.11 has to be recompiled against 1.0, including libraries you publish that depend on posthog-kmp. Some JVM signatures changed, so 0.11 bytecode fails at runtime with `NoSuchMethodError`:
+Code compiled against 0.11 has to be recompiled against 0.12, including libraries you publish that depend on posthog-kmp. Some JVM signatures changed, so 0.11 bytecode fails at runtime with `NoSuchMethodError`:
 
 - `SessionRecordingConfig` lost `screenshot` and stores the throttle delay in `throttleDelayMs` instead of `debouncerDelayMs`, which changes its constructor, `copy()` and `component7()` onward. `component6()` keeps its signature but now returns `captureLogcat` instead of `screenshot`, so 0.11 bytecode that calls it gets a different value without an error.
 - `reloadFeatureFlags()` takes a `(PostHogFeatureFlagsLoaded) -> Unit` callback instead of `() -> Unit`.
 - `CaptureOptions` gained `eventOptions` and `PostHogEvent` gained `options`, which changes their constructors and `copy()`. A `beforeSend` callback compiled against 0.11 that calls `event.copy(...)` fails.
 - `screen()`, `identify()`, `alias()`, `group()`, `setPersonProperties()` and `captureException()` take a trailing `eventOptions` parameter. Java callers have no overload without it, so Java source that calls them, or `new CaptureOptions(groups, timestamp)`, has to pass the new argument.
 
-`PostHogConfig` no longer keeps the constructor and `copy()` overloads from earlier versions; see [PostHogConfig](#posthogconfig).
+`PostHogConfig` keeps its 0.10 and 0.11 constructors as public overloads and their `copy()` signatures as hidden overloads, so code that only builds a `PostHogConfig` still links.
 
 #### Other PostHog artifacts
 
@@ -46,22 +70,6 @@ The JVM core `com.posthog:posthog` 7.0 isn't binary compatible with artifacts bu
 
 - `com.posthog:posthog-android-surveys-compose`, keep its version and declare `com.posthog:posthog-android` 4.0.0 or later, so Gradle doesn't resolve the 3.x version it depends on.
 - `com.posthog:posthog-server`, use 2.26.0 or later. Older versions are built against core 6.x and fail at runtime against core 7.0 with errors such as `NoSuchMethodError`.
-
-### PostHogConfig
-
-The `apiKey` alias, deprecated since 0.8, is removed. Use `projectToken`:
-
-```kotlin
-// 0.11
-PostHogConfig(apiKey = "phc_...")
-config.apiKey
-
-// 1.0
-PostHogConfig(projectToken = "phc_...")
-config.projectToken
-```
-
-`PostHogConfig` has one constructor and one `copy()`, which take every option. The overloads that kept the 0.10, 0.11 and older argument lists are removed. Kotlin code that passes named arguments compiles unchanged. Java code that calls `new PostHogConfig(...)` or `copy(...)` passes every argument, in declaration order.
 
 ### Session replay
 
@@ -71,7 +79,7 @@ Session replay always records masked screenshots. Wireframe recording and `Sessi
 // 0.11
 SessionRecordingConfig(screenshot = true, maskAllImages = true)
 
-// 1.0
+// 0.12
 SessionRecordingConfig(maskAllImages = true)
 ```
 
@@ -148,7 +156,7 @@ The `reloadFeatureFlags()` callback receives a `PostHogFeatureFlagsLoaded` with 
 // 0.11
 PostHog.reloadFeatureFlags { showCheckout() }
 
-// 1.0
+// 0.12
 PostHog.reloadFeatureFlags { loaded ->
     if (!loaded.errorsLoading) showCheckout()
 }
@@ -194,7 +202,7 @@ PostHog.setAppLanguage(null) // back to the detected language
 
 You can call `setAppLanguage()` before or after `PostHog.setup()`. The value is kept in memory only, survives `reset()`, and is cleared by `close()`. A `$app_language` super property set with `register()` takes precedence. JVM sends `$app_language` only after you call `setAppLanguage()`. JavaScript and Wasm don't send it yet, because posthog-js doesn't support it, so `setAppLanguage()` does nothing there; to send it now, call `PostHog.register("\$app_language", "pt-BR")`.
 
-### New in 1.0
+### New in 0.12
 
 These additions work on every platform, including JavaScript and Wasm, except `setAppLanguage()`, which does nothing on JavaScript and Wasm, and `iosCaptureMethod`, which applies on iOS only.
 
