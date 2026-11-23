@@ -14,15 +14,6 @@ class PostHogConfigTest {
         assertEquals(PostHogConfig.HOST_US, PostHogConfig(projectToken = "phc_test").host)
     }
 
-    @Suppress("DEPRECATION")
-    @Test
-    fun deprecatedApiKeyAliasesProjectToken() {
-        val config = PostHogConfig(apiKey = "phc_test")
-
-        assertEquals(PostHogConfig(projectToken = "phc_test"), config)
-        assertEquals("phc_test", config.apiKey)
-    }
-
     @Test
     fun defaultsToIdentifiedOnlyPersonProfiles() {
         assertEquals(PersonProfiles.IDENTIFIED_ONLY, PostHogConfig(projectToken = "phc_test").personProfiles)
@@ -65,19 +56,6 @@ class PostHogConfigTest {
 
         assertEquals(false, config.copy(debug = true).surveys)
         assertEquals(false, config.copy(capturePushNotificationOpened = false).surveys)
-    }
-
-    @Suppress("DEPRECATION")
-    @Test
-    fun deprecatedApiKeySupportsPushNotificationCaptureOptions() {
-        val config = PostHogConfig(
-            apiKey = "phc_test",
-            capturePushNotificationSubscriptions = false,
-            capturePushNotificationOpened = false
-        )
-
-        assertEquals(false, config.capturePushNotificationSubscriptions)
-        assertEquals(false, config.capturePushNotificationOpened)
     }
 
     @Test

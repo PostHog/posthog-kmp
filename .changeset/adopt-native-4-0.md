@@ -1,8 +1,8 @@
 ---
-"posthog-kmp": minor
+"posthog-kmp": major
 ---
 
-- See the [0.11 to 0.12 migration guide](https://github.com/PostHog/posthog-kmp/blob/main/MIGRATION.md) for upgrade steps
+- See the [0.11 to 1.0 migration guide](https://github.com/PostHog/posthog-kmp/blob/main/MIGRATION.md) for upgrade steps
 - **Breaking:** upgrade to posthog-android 4.0, the JVM core 7.0 and posthog-ios 4.0
 - **Breaking:** require Xcode 26 or later to build iOS and macOS apps, and macOS 12 or later
 - **Breaking:** require recompiling libraries built against posthog-kmp 0.11 or earlier, which fail on Android and JVM with `NoSuchMethodError`
