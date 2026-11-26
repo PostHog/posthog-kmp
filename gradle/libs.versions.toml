@@ -11,7 +11,7 @@ posthog-android-gradle-plugin = "1.8.0"
 # Pure-JVM core that posthog-android is built on (versioned independently of posthog-android)
 posthog-core = "7.1.0"
 okio = "3.18.2"
-posthog-ios = "4.0.3"
+posthog-ios = "4.1.0"
 posthog-js = "1.435.8"
 mavenPublish = "0.37.0"
 dokka = "2.3.0"
