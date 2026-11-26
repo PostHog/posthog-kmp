@@ -262,17 +262,16 @@ class PostHogAppleTest {
     fun testIgnoredExceptionTypesAreNotCaptured() {
         val events = mutableListOf<PostHogEvent>()
         PostHog.setup(
-            PostHogConfig(
-                projectToken = "apple-unit-test",
-                host = "http://127.0.0.1:9",
-                preloadFeatureFlags = false,
-                captureApplicationLifecycleEvents = false,
-                errorTracking = ErrorTrackingConfig(ignoredExceptionTypes = listOf(IllegalStateException::class)),
+            PostHogConfig("apple-unit-test") {
+                host = "http://127.0.0.1:9"
+                preloadFeatureFlags = false
+                captureApplicationLifecycleEvents = false
+                errorTracking { ignoredExceptionTypes = listOf(IllegalStateException::class) }
                 beforeSend = listOf(PostHogBeforeSend { event ->
                     events.add(event)
                     null
-                }),
-            ),
+                })
+            },
             PostHogContext(),
         )
         try {
