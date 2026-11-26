@@ -257,4 +257,34 @@ class PostHogAppleTest {
         }
         assertEquals("2024-01-02T03:04:05.678Z", formatter.stringFromDate(date))
     }
+
+    @Test
+    fun testIgnoredExceptionTypesAreNotCaptured() {
+        val events = mutableListOf<PostHogEvent>()
+        PostHog.setup(
+            PostHogConfig("apple-unit-test") {
+                host = "http://127.0.0.1:9"
+                preloadFeatureFlags = false
+                captureApplicationLifecycleEvents = false
+                errorTracking { ignoredExceptionTypes = listOf(IllegalStateException::class) }
+                beforeSend = listOf(PostHogBeforeSend { event ->
+                    events.add(event)
+                    null
+                })
+            },
+            PostHogContext(),
+        )
+        try {
+            PostHog.captureException(IllegalStateException("ignored"))
+            PostHog.captureException(IllegalArgumentException("captured"))
+
+            val exception = events.single { it.event == "\$exception" }
+            val exceptionList = exception.properties["\$exception_list"] as List<*>
+            val entry = exceptionList.single() as Map<*, *>
+            assertEquals("kotlin.IllegalArgumentException", entry["type"])
+        } finally {
+            PostHog.reset()
+            PostHog.close()
+        }
+    }
 }
