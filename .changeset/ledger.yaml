@@ -87,3 +87,7 @@ posthog-kmp@1.0.0:
   dir: ""
   intents:
     - remove-deprecated-config
+posthog-kmp@1.1.0:
+  dir: ""
+  intents:
+    - orange-clocks-notice
